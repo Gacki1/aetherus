@@ -1,0 +1,14 @@
+# Caddyfile
+aetherus.net {
+    # Stellt sicher, dass das SSL-Zertifikat automatisch angefordert wird
+    # Caddy regelt dies automatisch, da es die Standardeinstellung ist.
+
+    # Proxy-Anfragen an Ihren Website-Container weiterleiten
+    reverse_proxy aetherus-container:80
+}
+
+# Optional: Falls Sie auch die Subdomain www.aetherus.com verwenden wollen
+www.aetherus.net {
+    # Leitet www.aetherus.com auf die Hauptdomain um
+    redir https://aetherus.net{uri}
+}

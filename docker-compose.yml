@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # -------------------- Caddy Reverse Proxy --------------------
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      # Exponiert HTTP und HTTPS nach außen
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Verknüpft das lokale Caddyfile mit dem Container
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      # Persistenter Speicher für Zertifikate und Logs
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - web-network
+
+  # -------------------- Ihre Website/Anwendung --------------------
+  aetherus-container:
+    # Ersetzen Sie 'nginx:latest' durch das Image Ihrer Anwendung
+    # Beispiel: Wenn Sie eine statische Seite haben, können Sie Nginx verwenden
+    # Wenn Sie ein eigenes Projekt haben, verwenden Sie Ihr eigenes Image
+    image: nginx:latest
+    container_name: aetherus-container
+    restart: unless-stopped
+    volumes:
+    - ./main:/usr/share/nginx/html
+    - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    # Wichtig: Dieser Container muss NICHT seine Ports direkt nach außen exponieren,
+    # da Caddy (im selben Netzwerk) ihn anspricht.
+    networks:
+      - web-network
+    # Optional: Volume-Mount für die Website-Dateien
+    # volumes:
+    #   - ./my-website-files:/usr/share/nginx/html
+
+networks:
+  web-network:
+    # Definiert ein gemeinsames Netzwerk, damit Caddy den Website-Container ansprechen kann
+
+volumes:
+  caddy_data:
+  caddy_config:
