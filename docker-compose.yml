@@ -12,7 +12,7 @@ services:
       - "443:443"
     volumes:
       # Verknüpft das lokale Caddyfile mit dem Container
-      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./caddy-setup/Caddyfile:/etc/caddy/Caddyfile
       # Persistenter Speicher für Zertifikate und Logs
       - caddy_data:/data
       - caddy_config:/config
