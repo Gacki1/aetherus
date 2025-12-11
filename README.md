@@ -1,2 +1,2 @@
-# zephyr
+# aetherus
 A small multi purpose website.
