@@ -8,7 +8,7 @@ app.post("/api/login", (req, res) => {
 
     if (username === "test" && password === "123") {
         console.log("Login Erfolgreich");
-        res.status(200),json({ success: true, redirect: "/main.html"});
+        res.status(200).json({ success: true, redirect: "/main.html"});
     } else {
         console.log("Login Fehlgeschlagen");
         res.status(401).json({ success: false, message: "Falscher Benutzername oder Passwort"});
