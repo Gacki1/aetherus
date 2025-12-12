@@ -4,65 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sicherer Login</title>
-    <style>
-        /* Einfache Styles für Übersichtlichkeit */
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background-color: #f4f4f4;
-        }
+    <title>Login</title>
 
-        .login-container {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-
-        .message {
-            margin-bottom: 15px;
-            padding: 10px;
-            border-radius: 4px;
-            text-align: center;
-        }
-
-        .error {
-            background-color: #fdd;
-            border: 1px solid #f00;
-            color: #f00;
-        }
-
-        .success {
-            background-color: #dfd;
-            border: 1px solid #0f0;
-            color: #080;
-        }
-
-        input[type="text"],
-        input[type="password"] {
-            width: 100%;
-            padding: 10px;
-            margin: 8px 0;
-            box-sizing: border-box;
-        }
-
-        button {
-            width: 100%;
-            padding: 10px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-    </style>
+    <link rel="stylesheet" href="css/login.css">
 </head>
 
 <body>
+    <script src="login-backend/login.js" defer></script>
+
     <div class="login-container">
         <h2>Login</h2>
         <div id="message-box" class="message" style="display:none;"></div>
@@ -77,70 +26,6 @@
             <button type="submit">Einloggen</button>
         </form>
     </div>
-
-    <script>
-        // -----------------------------------------------------
-        // JAVASCRIPT LOGIK
-        // -----------------------------------------------------
-
-        document.getElementById('login-form').addEventListener('submit', function (event) {
-            // Verhindert das Standard-Senden des Formulars (Seiten-Neuladen)
-            event.preventDefault();
-
-            // Elemente holen
-            const form = event.target;
-            const username = form.username.value;
-            const password = form.password.value;
-            const messageBox = document.getElementById('message-box');
-
-            // 1. Anzeige leeren
-            messageBox.style.display = 'none';
-            messageBox.className = 'message';
-            messageBox.textContent = '';
-
-            // 2. POST-Anfrage an das Backend senden
-            fetch('/api/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                // Daten als JSON-String senden
-                body: JSON.stringify({ username, password })
-            })
-                .then(response => {
-                    // Den Statuscode überprüfen
-                    if (response.status === 200) {
-                        // Erfolg, JSON-Daten lesen
-                        return response.json();
-                    } else if (response.status === 401) {
-                        // Fehler, auch JSON-Daten lesen
-                        return response.json().then(data => {
-                            // Wirf einen Fehler, um in den .catch Block zu springen
-                            throw new Error(data.message || 'Anmeldung fehlgeschlagen.');
-                        });
-                    } else {
-                        throw new Error('Serverfehler (' + response.status + ')');
-                    }
-                })
-                .then(data => {
-                    // 3. Erfolg verarbeiten (200 OK)
-                    if (data.success && data.redirect) {
-                        messageBox.textContent = 'Login erfolgreich! Weiterleitung...';
-                        messageBox.className = 'message success';
-                        messageBox.style.display = 'block';
-
-                        // Weiterleitung zur Zielseite
-                        window.location.href = data.redirect; // -> leitet zu /main.html weiter
-                    }
-                })
-                .catch(error => {
-                    // 4. Fehler verarbeiten (401 oder Netzwerkfehler)
-                    messageBox.textContent = error.message || 'Ein unbekannter Fehler ist aufgetreten.';
-                    messageBox.className = 'message error';
-                    messageBox.style.display = 'block';
-                });
-        });
-    </script>
 </body>
 
 </html>
