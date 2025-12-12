@@ -14,7 +14,7 @@ document.getElementById('login-form').addEventListener('submit', function (event
     messageBox.textContent = '';
 
     // 2. POST-Anfrage an das Backend senden
-    fetch('/api/login', {
+    fetch('/api/login/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
