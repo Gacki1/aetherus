@@ -1,3 +1,8 @@
+// login.js
+
+// Konstante für die Weiterleitung nach erfolgreichem Login
+const REDIRECT_URL = "/main.html";
+
 document.getElementById('login-form').addEventListener('submit', function (event) {
     // Verhindert das Standard-Senden des Formulars (Seiten-Neuladen)
     event.preventDefault();
@@ -13,7 +18,7 @@ document.getElementById('login-form').addEventListener('submit', function (event
     messageBox.className = 'message';
     messageBox.textContent = '';
 
-    // 2. POST-Anfrage an das Backend senden
+    // 2. POST-Anfrage an das Backend senden (DRF Token Obtain View)
     fetch('/api/token/', {
         method: 'POST',
         headers: {
@@ -25,22 +30,28 @@ document.getElementById('login-form').addEventListener('submit', function (event
         .then(response => {
             // Den Statuscode überprüfen
             if (response.status === 200) {
-                // Erfolg, JSON-Daten lesen
+                // Erfolg, JSON-Daten lesen (enthält 'access' und 'refresh' im Body,
+                // wobei 'refresh' im Backend auch als Cookie gesetzt wird)
                 return response.json();
             } else if (response.status === 401) {
-                // Fehler, auch JSON-Daten lesen
+                // Fehler (Unauthorized), JSON-Daten lesen
                 return response.json().then(data => {
-                    // Wirf einen Fehler, um in den .catch Block zu springen
-                    throw new Error(data.message || 'Anmeldung fehlgeschlagen.');
+                    // DRF verwendet den Schlüssel "detail" für Fehlermeldungen
+                    throw new Error(data.detail || 'Anmeldung fehlgeschlagen.');
                 });
             } else {
+                // Unbekannter Serverfehler
                 throw new Error('Serverfehler (' + response.status + ')');
             }
         })
         .then(data => {
+            // 3. Erfolg verarbeiten (200 OK)
+
+            // Speichere das kurzlebige Access Token für API-Aufrufe
             localStorage.setItem("access_token", data.access);
-            localStorage.setItem("refresh_token", data.refresh);
-            const REDIRECT_URL = "/main.html";
+
+            // Das Refresh Token wird automatisch vom Backend als HttpOnly Cookie gesetzt
+            // und muss hier NICHT gespeichert werden.
 
             messageBox.textContent = 'Login erfolgreich! Weiterleitung...';
             messageBox.className = 'message success';
@@ -53,7 +64,7 @@ document.getElementById('login-form').addEventListener('submit', function (event
             window.location.href = REDIRECT_URL;
         })
         .catch(error => {
-            // 4. Fehler verarbeiten (401 oder Netzwerkfehler)
+            // 4. Fehler verarbeiten (401, Netzwerkfehler, ungültiges JSON)
             messageBox.textContent = error.message || 'Ein unbekannter Fehler ist aufgetreten.';
             messageBox.className = 'message error';
             messageBox.style.display = 'block';
