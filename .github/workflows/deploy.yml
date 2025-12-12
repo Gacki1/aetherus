@@ -27,16 +27,27 @@ jobs:
             
             cd $PROJECT_DIR
 
-            echo "1. Starte Git Pull (Abrufen der neuesten Änderungen)"
+            echo "1. Starte Git Pull (Abrufen der neuesten Änderungen über HTTPS)"
 
+            # **KORREKTUR:** Temporäre HTTPS-URL mit Token verwenden
             REPO_URL="https://Gacki1:${{ secrets.AETHERUS_DEPLOY_KEY }}@github.com/Gacki1/aetherus.git"
-            git pull $REPO_URL main
             
+            # 1. Setzt eine temporäre Remote-URL
+            git remote set-url origin $REPO_URL
+            
+            # 2. Führt den Pull aus (jetzt funktioniert 'origin main')
+            git pull origin main
+            
+            # 3. Setzt die Remote-URL zurück auf SSH (reinigt die Konfiguration)
+            git remote set-url origin git@github.com:Gacki1/aetherus.git
+
+            # WICHTIG: Erneutes Build-Befehl für die Django-Korrekturen
             git reset --hard origin/main
             git clean -fd
             
             echo "2. Erzeuge neues Docker-Image (mit neuem Code)"
-
+            # `--no-cache` ist hier WICHTIG, damit die Umstrukturierung greift!
+            docker compose build --no-cache login-backend
+            
             echo "3. Starte alle Container neu"
-
             docker compose up -d --force-recreate
