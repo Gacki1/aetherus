@@ -45,13 +45,17 @@ INSTALLED_APPS = [
 from datetime import timedelta
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
 
     "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
 
     "ROTATE_REFRESH_TOKENS": True,
     "ALGORITHM": "HS256",
-    "SIGNING_KEY": SECRET_KEY
+    "SIGNING_KEY": SECRET_KEY,
+    'AUTH_COOKIE': 'refresh_token',
+    'AUTH_COOKIE_SECURE': True,      # Muss auf True im Produktionsbetrieb (HTTPS)
+    'AUTH_COOKIE_HTTP_ONLY': True,
+    'AUTH_COOKIE_SAMESITE': 'Lax',
 }
 
 REST_FRAMEWORK = {

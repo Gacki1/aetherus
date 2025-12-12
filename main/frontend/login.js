@@ -12,6 +12,7 @@ document.getElementById('login-form').addEventListener('submit', function (event
     const username = form.username.value;
     const password = form.password.value;
     const messageBox = document.getElementById('message-box');
+    const rememberMe = document.getElementById("rememberMeCheckbox").checked;
 
     // 1. Anzeige leeren
     messageBox.style.display = 'none';
@@ -25,7 +26,11 @@ document.getElementById('login-form').addEventListener('submit', function (event
             'Content-Type': 'application/json',
         },
         // Daten als JSON-String senden
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({
+            username,
+            password,
+            rememberMe: rememberMe,
+        })
     })
         .then(response => {
             // Den Statuscode überprüfen
