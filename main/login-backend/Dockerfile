@@ -1,7 +1,15 @@
-FROM node:18-alpine
-WORKDIR /usr/src/app
-COPY package.json .
-RUN npm install
+FROM python:3.11-slim
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
 COPY . .
-EXPOSE 3000
-CMD [ "node", "app.js" ]
+
+EXPOSE 8000
+
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
