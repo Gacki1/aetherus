@@ -22,7 +22,7 @@ def login_view(request):
                 login(request, user)
 
                 print(f"Login Erfolgreich für Benutzer: {username}")
-                return JsonResponse({"succes": True, "redirect": "/main/main.html"})
+                return JsonResponse({"succes": True, "redirect": "/main.html"})
             else:
 
                 # Daten sind falsch
