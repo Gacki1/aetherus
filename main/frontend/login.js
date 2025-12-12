@@ -14,10 +14,10 @@ document.getElementById('login-form').addEventListener('submit', function (event
     messageBox.textContent = '';
 
     // 2. POST-Anfrage an das Backend senden
-    fetch('/api/login/', {
+    fetch('/api/token/', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
         },
         // Daten als JSON-String senden
         body: JSON.stringify({ username, password })
@@ -38,18 +38,19 @@ document.getElementById('login-form').addEventListener('submit', function (event
             }
         })
         .then(data => {
-            // 3. Erfolg verarbeiten (200 OK)
-            if (data.success && data.redirect) {
-                messageBox.textContent = 'Login erfolgreich! Weiterleitung...';
-                messageBox.className = 'message success';
-                messageBox.style.display = 'block';
+            localStorage.setItem("access_token", data.access);
+            localStorage.setItem("refresh_token", data.refresh);
+            const REDIRECT_URL = "/main.html";
 
-                form.username.value = "";
-                form.password.value = "";
+            messageBox.textContent = 'Login erfolgreich! Weiterleitung...';
+            messageBox.className = 'message success';
+            messageBox.style.display = 'block';
 
-                // Weiterleitung zur Zielseite
-                window.location.href = data.redirect; // -> leitet zu /main.html weiter
-            }
+            form.username.value = "";
+            form.password.value = "";
+
+            // Weiterleitung zur Zielseite
+            window.location.href = REDIRECT_URL;
         })
         .catch(error => {
             // 4. Fehler verarbeiten (401 oder Netzwerkfehler)
