@@ -28,7 +28,7 @@ services:
     container_name: aetherus-container
     restart: unless-stopped
     volumes:
-    - ./main:/usr/share/nginx/html
+    - ./main/frontend:/usr/share/nginx/html
     - ./nginx.conf:/etc/nginx/conf.d/default.conf
     # Wichtig: Dieser Container muss NICHT seine Ports direkt nach außen exponieren,
     # da Caddy (im selben Netzwerk) ihn anspricht.
@@ -40,13 +40,13 @@ services:
 
   login-backend:
     build:
-      context: ./main/login-backend # Sagt Docker, wo das Dockerfile ist
+      context: ./main/backend/login-backend # Sagt Docker, wo das Dockerfile ist
       dockerfile: Dockerfile
     container_name: login-backend
     restart: unless-stopped
 
     volumes:
-    - ./main/login-backend:/app
+    - ./main/backend/login-backend:/app
 
     networks:
       - web-network
