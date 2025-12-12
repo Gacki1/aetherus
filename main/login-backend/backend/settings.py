@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-al@57g9r$c=t!%d&j2k-$ca6jl=j9uey3f-v&s5th3g=l_072&
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["aetherus.net", "login-backend", "localhost", "127.0.0.1"]
 
 
 # Application definition
@@ -120,3 +120,4 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+CSRF_TRUSTED_ORIGINS = ["https://aetherus.net"]
