@@ -36,4 +36,4 @@ jobs:
             
             # 3. Docker Compose neu starten
             cd $PROJECT_DIR
-            docker compose up -d --force-recreate
+            docker compose up -d --force-recreate --build
