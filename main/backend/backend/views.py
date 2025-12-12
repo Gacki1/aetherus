@@ -7,7 +7,6 @@ from rest_framework.response import Response
 from datetime import timedelta, datetime, timezone
 from django.conf import settings
 
-# 🚨 KORRIGIERT: Import des RefreshToken
 from rest_framework_simplejwt.tokens import RefreshToken 
 
 
