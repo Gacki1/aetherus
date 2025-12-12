@@ -38,6 +38,18 @@ services:
     # volumes:
     #   - ./my-website-files:/usr/share/nginx/html
 
+  login-backend:
+    build:
+      context: ./main/login-backend # Sagt Docker, wo das Dockerfile ist
+      dockerfile: Dockerfile
+    container_name: login-backend
+    restart: unless-stopped
+    networks:
+      - web-network
+    # Das Backend lauscht intern auf Port 3000
+    expose:
+      - 3000
+
 networks:
   web-network:
     # Definiert ein gemeinsames Netzwerk, damit Caddy den Website-Container ansprechen kann
