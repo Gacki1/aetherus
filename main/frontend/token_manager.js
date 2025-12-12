@@ -9,9 +9,7 @@ const REFRESH_INTERVAL_MS = ACCESS_TOKEN_LIFETIME_MS - 60000;
 
 let refreshTimer = null;
 
-// ----------------------------------------------------------------------
 // 1. Refresh-Funktion: Sendet Anfrage an Django
-// ----------------------------------------------------------------------
 async function refreshAccessToken() {
     console.log("Starte Token Refresh...");
 
@@ -50,9 +48,7 @@ async function refreshAccessToken() {
     }
 }
 
-// ----------------------------------------------------------------------
 // 2. Scheduler-Funktion
-// ----------------------------------------------------------------------
 function startRefreshTimer() {
     // Vorherigen Timer löschen, falls vorhanden
     if (refreshTimer) {
@@ -67,13 +63,10 @@ function startRefreshTimer() {
     console.log(`Nächster Token Refresh geplant in ${REFRESH_INTERVAL_MS / 1000} Sekunden.`);
 }
 
-// ----------------------------------------------------------------------
 // 3. Initialisierung
-// ----------------------------------------------------------------------
 
 // Überprüfen Sie, ob ein Token vorhanden ist, und starten Sie den Refresh-Timer.
 // Dies sollte auf jeder geschützten Seite (z.B. main.html) einmal aufgerufen werden.
 if (localStorage.getItem('access_token')) {
     startRefreshTimer();
 }
-// ----------------------------------------------------------------------
