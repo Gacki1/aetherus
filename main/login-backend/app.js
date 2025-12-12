@@ -6,7 +6,7 @@ app.use(express.json());
 app.post("/api/login", (req, res) => {
     const { username, password} = req.body;
 
-    if (username === "test" && password === "123") {
+    if (username === "andiriechtgut" && password === "coolesau") {
         console.log("Login Erfolgreich");
         res.status(200).json({ success: true, redirect: "/main.html"});
     } else {
