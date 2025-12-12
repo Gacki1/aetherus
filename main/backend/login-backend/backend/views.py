@@ -22,14 +22,14 @@ def login_view(request):
                 login(request, user)
 
                 print(f"Login Erfolgreich für Benutzer: {username}")
-                return JsonResponse({"succes": True, "redirect": "/main.html"})
+                return JsonResponse({"success": True, "redirect": "/main.html"})
             else:
 
                 # Daten sind falsch
                 print(f"Login Fehlgeschlagen für Benutzer: {username}")
-                return JsonResponse({"succes": False, "message": "Falscher Benutzername oder Passwort"}, status=401)
+                return JsonResponse({"success": False, "message": "Falscher Benutzername oder Passwort"}, status=401)
             
-        except json.JSONDecoreError:
-            return JsonResponse({"succes": False, "message": "Ungültiges JSON"}, status=400)
+        except json.JSONDecodeError:
+            return JsonResponse({"success": False, "message": "Ungültiges JSON"}, status=400)
         
     return JsonResponse({"message": "Nur POST erlaubt"}, status=405)
