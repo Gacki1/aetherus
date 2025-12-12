@@ -20,66 +20,73 @@ def get_refresh_token_max_age():
 # --- 1. Login Logik (Token-Ausgabe) ---
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    """
-    Erweiterter Serializer zur Verarbeitung des 'rememberMe'-Status
-    und zur Anpassung der Refresh Token Lebensdauer (EXP-Claim).
-    """
-    # Fügt das Feld 'rememberMe' hinzu, damit es validiert werden kann
+    # Fügt das Feld 'rememberMe' hinzu, damit es validiert werden kann (KEINE ÄNDERUNG HIER)
     rememberMe = serializers.BooleanField(required=False, default=False)
     
+    # NEUES Instanzfeld, um den Status zu speichern
+    remember_me_status = False
+
+    def validate(self, attrs):
+        # Führen Sie die Standard-Validierung und Authentifizierung durch
+        data = super().validate(attrs)
+        
+        # NEUE LOGIK: Speichern Sie den Status auf der Serializer-Instanz
+        # Wir greifen auf die validierten Daten von `rememberMe` zu
+        self.remember_me_status = attrs.get('rememberMe', False)
+        
+        # Der Rückgabewert data enthält nun 'access' und 'refresh'
+        return data
+
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
-        
-        # Zugriff auf den 'rememberMe'-Status aus den übergebenen Daten
-        remember_me = cls.context['request'].data.get('rememberMe', False)
 
-        # Token-Lebensdauer (exp) anpassen
-        if not remember_me:
-            # Wenn NICHT "Remember Me" -> Sehr kurze Lebensdauer (z.B. 2 Stunden)
-            # Wichtig: Diese Lebensdauer überschreibt die standardmäßige REFRESH_TOKEN_LIFETIME
-            short_lifetime = timedelta(hours=2) 
-            token.set_exp(from_time=datetime.now(timezone.utc), lifetime=short_lifetime)
-            
-        # Wenn 'rememberMe' TRUE ist, verwendet das Token die Standard-LIFETIME aus settings.py.
-        return token
+        return token # Einfach das Basistoken zurückgeben
 
 
 class CookieTokenObtainPairView(TokenObtainPairView):
-    """
-    Verarbeitet den Login, setzt das 'refresh_token' als HttpOnly Cookie
-    und steuert dessen Persistenz (max_age) basierend auf 'rememberMe'.
-    """
-    # Serializer anbinden
     serializer_class = CustomTokenObtainPairSerializer 
     
     def post(self, request, *args, **kwargs):
-        # Ruft die Logik des Serializers auf (Validierung und Token-Erstellung)
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        tokens = serializer.validated_data
-
+        tokens = serializer.validated_data # Enthält 'access' und 'refresh'
+        
+        # 1. Hole den 'rememberMe'-Status
+        remember_me = request.data.get('rememberMe', False)
+        
+        # 2. ANPASSUNG DER REFRESH TOKEN LEBENSDAUER (EXP)
+        
+        if tokens.get('refresh'):
+            # Wir benötigen die Token-Instanz, um die EXP anzupassen
+            refresh_token_str = tokens['refresh']
+            refresh_token_obj = RefreshToken(refresh_token_str)
+            
+            if not remember_me:
+                # Setze eine kurze Lebensdauer (z.B. 2 Stunden)
+                short_lifetime = timedelta(hours=2) 
+                
+                # Der Key 'exp' wird im Token neu gesetzt
+                refresh_token_obj.set_exp(from_time=datetime.now(timezone.utc), lifetime=short_lifetime)
+                
+                # Aktualisiere den String im Dictionary
+                tokens['refresh'] = str(refresh_token_obj)
+        
+        # 3. SETZEN DES COOKIES (LOGIK bleibt gleich)
         response = Response(tokens)
         
-        # WICHTIG: Hier steuern wir die Cookie-Lebensdauer (Persistenz)
         if tokens.get('refresh'):
             refresh_token = tokens.pop('refresh')
             
-            # Hole den 'rememberMe'-Status
-            remember_me = request.data.get('rememberMe', False)
-            
             if remember_me:
-                # 1. Wenn Remember Me: Setze langlebiges Cookie
                 max_age = get_refresh_token_max_age()
             else:
-                # 2. Wenn KEIN Remember Me: Setze Session-Cookie (wird bei Browser-Schluss gelöscht)
-                max_age = None 
+                max_age = None # Session-Cookie
             
-            # Setzen des HttpOnly Cookies
             response.set_cookie(
                 key='refresh_token',
                 value=refresh_token,
-                max_age=max_age, # Entscheidend für die Persistenz
+                max_age=max_age, 
                 secure=True, 
                 httponly=True, 
                 samesite='Lax' 
