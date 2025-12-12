@@ -46,7 +46,7 @@ services:
     restart: unless-stopped
 
     volumes:
-    - ./login-backend:/app
+    - ./main/login-backend:/app
 
     networks:
       - web-network
