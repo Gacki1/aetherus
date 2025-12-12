@@ -1,11 +1,10 @@
-# backend/views.py
-
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer, TokenObtainPairSerializer
 from rest_framework import serializers
-from rest_framework.response import Response # Stellen Sie sicher, dass Response richtig importiert ist
+from rest_framework.response import Response
 from datetime import timedelta, datetime, timezone
 from django.conf import settings
+from rest_framework_simplejwt.tokens import RefreshToken
 
 # --- Hilfsfunktionen ---
 
