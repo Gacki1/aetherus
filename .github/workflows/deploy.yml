@@ -1,9 +1,8 @@
 # .github/workflows/deploy.yml
-name: Auto Deployment via SSH
+name: Auto Deployment aetherus.net
 
 on:
   push:
-    # Der Workflow startet bei jedem Push auf den 'main' Branch
     branches:
       - main
 
@@ -15,22 +14,23 @@ jobs:
       - name: ⬇️ Checkout Code
         uses: actions/checkout@v4
 
-      - name: 🚀 Deploy via SSH and Restart Docker
+      - name: 🚀 Deployment auf Ubuntu-Server
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.REMOTE_HOST }}
-          username: ${{ secrets.REMOTE_USER }}
+          username: ${{ secrets.REMOTE_USER }} 
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            # 1. Zum Projektverzeichnis wechseln
-            cd /home/aetherus/
+            # 1. Zum Projekt-Root-Verzeichnis wechseln (/home/aetherus)
+            PROJECT_DIR="/home/aetherus"
             
             # 2. Neueste Änderungen von GitHub holen
-            # (Stellen Sie sicher, dass der Git-Repository-Code
-            # in Ihrem 'website-files' Ordner liegt oder dorthin gesynct wird)
-            git pull origin main
+            # Der '-C' Parameter führt den Befehl im angegebenen Verzeichnis aus.
+            git -C $PROJECT_DIR pull origin main
             
-            # 3. Docker Compose neu starten
-            # 'up -d' erstellt neue Container, falls Änderungen nötig sind,
-            # stoppt die alten und startet sie neu.
+            # 3. Zum Docker Compose Ordner wechseln
+            cd $PROJECT_DIR
+            
+            # 4. Docker Compose neu starten
+            # 'up -d' liest die aktualisierte docker-compose.yml (die sich im aktuellen Ordner befindet)
             docker compose up -d --force-recreate
