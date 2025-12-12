@@ -13,6 +13,8 @@ jobs:
     
       - name: ⬇️ Checkout Code
         uses: actions/checkout@v4
+        # WICHTIG: Verwenden Sie 'path' und 'ssh-known-hosts' NICHT, wenn Sie appleboy/ssh-action verwenden.
+        # appleboy/ssh-action führt den Pull direkt auf dem Server durch.
 
       - name: 🚀 Deployment auf Ubuntu-Server
         uses: appleboy/ssh-action@v1.0.0
@@ -23,17 +25,35 @@ jobs:
           script: |
             PROJECT_DIR="/home/aetherus"
             
-            # Wechselt temporär den Remote-URL auf HTTPS mit dem Secret Token, 
-            # zieht die Daten und wechselt zurück auf SSH (zur Sicherheit).
-            
-            # Syntax: https://TOKEN@github.com/USER/REPO.git
-            
-            # 1. Korrigieren Sie hier Ihren BENUTZERNAMEN und REPO-NAMEN
-            REPO_URL="https://${{ secrets.AETHERUS_DEPLOY_KEY }}@github.com/Gacki1/aetherus.git"
-            
-            # 2. PULL ausführen
-            git -C $PROJECT_DIR pull $REPO_URL main
-            
-            # 3. Docker Compose neu starten
             cd $PROJECT_DIR
-            docker compose up -d --force-recreate --build
+            
+            # --- ZUVERLÄSSIGER PULL ÜBER SSH/HTTP-Remote ---
+            # Stellt sicher, dass das lokale Repo das neueste ist.
+            # Der Server muss den SSH-Schlüssel oder das PAT-Token kennen.
+            # Wenn der Server das Repo schonmal geklont hat, reicht ein einfacher Pull.
+            
+            echo "1. Starte Git Pull (Abrufen der neuesten Änderungen)"
+            
+            # Führt einen sauberen Pull durch, der auch das Löschen/Umbenennen von Dateien erkennt
+            # und das lokale Repository mit GitHub synchronisiert.
+            git pull origin main
+            
+            # --- WICHTIGE ZUSÄTZLICHE MAßNAHME ---
+            # Da wir Ordner umbenannt/gelöscht haben:
+            # git clean -fd entfernt alle untracked Files (wie alte, leere Ordner)
+            # git reset --hard stellt sicher, dass das Arbeitsverzeichnis synchron ist
+            git reset --hard origin/main
+            git clean -fd
+            
+            echo "2. Erzeuge neues Docker-Image (mit neuem Code)"
+            
+            # --- KORREKTER BUILD-BEFEHL ---
+            # Führt den Build nur für den Backend-Service aus (schneller).
+            # --no-cache stellt sicher, dass alle Änderungen an der views.py/urls.py/settings.py geladen werden.
+            docker compose build --no-cache login-backend
+            
+            echo "3. Starte alle Container neu"
+            
+            # Startet alle Services (Nginx, Caddy, Backend).
+            # --force-recreate ist für neue Volumes wichtig.
+            docker compose up -d --force-recreate
