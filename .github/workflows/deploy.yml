@@ -29,7 +29,7 @@ jobs:
             # Syntax: https://TOKEN@github.com/USER/REPO.git
             
             # 1. Korrigieren Sie hier Ihren BENUTZERNAMEN und REPO-NAMEN
-            REPO_URL="https://${{ secrets.AETHERUS_DEPLOY_TOKEN }}@github.com/IhrGitHubBenutzername/IhrRepoName.git"
+            REPO_URL="https://${{ secrets.AETHERUS_DEPLOY_TOKEN }}@github.com/Gacki1/aetherus.git"
             
             # 2. PULL ausführen
             git -C $PROJECT_DIR pull $REPO_URL main
