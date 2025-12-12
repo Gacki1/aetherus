@@ -1,13 +1,13 @@
-// 1. Hilfsfunktion: Überprüft den Login-Status und ruft das Token ab
+// main.js
 
-function getAccessToken() {
+// 1. Zugriffsprüfung und Token-Abruf (Der Schutz-Mechanismus)
+function getAccessTokenAndProtect() {
     const token = localStorage.getItem('access_token');
 
-    // WICHTIG: Wenn kein Access Token vorhanden ist, leiten wir zur Login-Seite um.
+    // WICHTIG: Wenn kein Token vorhanden ist, wird sofort umgeleitet.
     if (!token) {
-        // Dies fängt den Fall ab, dass jemand direkt main.html aufruft
-        // oder das Token abgelaufen ist und der Refresh-Mechanismus versagt hat.
-        console.error("Kein Access Token gefunden. Weiterleitung zum Login.");
+        console.warn("Zugriff verweigert. Kein Access Token gefunden.");
+        // Leitet zur Login-Seite um, bevor die geschützte Seite vollständig lädt.
         window.location.href = '/login.html';
         return null; // Stoppt die weitere Ausführung
     }
@@ -16,40 +16,39 @@ function getAccessToken() {
 
 // 2. Funktion zum Abrufen geschützter Daten
 async function fetchProtectedData() {
-    const token = getAccessToken();
+    // Ruft das Token ab ODER leitet den Benutzer um (wegen getAccessTokenAndProtect)
+    const token = getAccessTokenAndProtect();
     if (!token) {
-        // Die getAccessToken Funktion hat bereits die Umleitung durchgeführt
+        // Die Umleitung ist bereits erfolgt
         return;
     }
 
     console.log("Versuche, geschützte Daten abzurufen...");
 
     try {
-        const response = await fetch('/api/user/data/', { // Beispiel-Endpunkt
+        const response = await fetch('/api/user/data/', {
             method: 'GET',
             headers: {
-                // ESSENZIELL: Das Access Token im 'Bearer' Format senden
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             }
         });
 
-        // Die JWT-Middleware in Django prüft diesen Header.
+        // ... (Restliche Logik für 200/401 Statuscodes) ...
 
         if (response.status === 200) {
             const data = await response.json();
             console.log("Daten erfolgreich abgerufen:", data);
-
-            // Hier könnten Sie die Daten auf der main.html anzeigen (z.B. user.name)
             document.getElementById('welcome-message').textContent = `Willkommen, ${data.username}!`;
 
         } else if (response.status === 401) {
-            // Dies tritt ein, wenn das Access Token ABGELAUFEN ist.
-            // Die token_manager.js sollte es bereits erneuern, aber falls nicht:
-            console.error("Access Token abgelaufen oder ungültig. Automatische Erneuerung sollte starten.");
+            // Dies kann passieren, wenn das Access Token gerade abgelaufen ist und 
+            // der automatische Refresh in token_manager.js noch nicht abgeschlossen ist.
+            console.error("Access Token abgelaufen. Der Refresh-Mechanismus sollte dieses Problem beheben.");
 
-            // In einer Produktionsumgebung würden Sie hier einen manuellen Refresh auslösen,
-            // aber da wir den automatischen Timer haben, warten wir im Normalfall.
+            // Optional: Wenn der Refresh-Mechanismus fehlschlägt, den Benutzer ausloggen:
+            // localStorage.removeItem('access_token');
+            // window.location.href = '/login.html'; 
 
         } else {
             console.error("Fehler beim Abruf der Daten:", response.status);
@@ -61,7 +60,6 @@ async function fetchProtectedData() {
 
 // 3. Ausführung beim Laden der Seite
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Überprüfe den Login-Status und starte den Refresh-Timer (in token_manager.js)
-    // 2. Lade die Benutzerdaten
+    // Führt zuerst den Schutz-Check aus, dann die Datenabfrage.
     fetchProtectedData();
 });
