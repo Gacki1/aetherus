@@ -40,13 +40,13 @@ services:
 
   login-backend:
     build:
-      context: ./main/backend/login-backend # Sagt Docker, wo das Dockerfile ist
+      context: ./main/backend # Sagt Docker, wo das Dockerfile ist
       dockerfile: Dockerfile
     container_name: login-backend
     restart: unless-stopped
 
     volumes:
-    - ./main/backend/login-backend:/app
+    - ./main/backend:/app
 
     networks:
       - web-network
