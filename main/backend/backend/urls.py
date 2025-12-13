@@ -16,8 +16,9 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from .views import CookieTokenObtainPairView
+from .views import CookieTokenObtainPairView, LogoutView
 from django.urls import path, include
+
 
 urlpatterns = [
     # 1. Admin-Pfad:
@@ -27,4 +28,5 @@ urlpatterns = [
 
     path('api/auth/', include('djoser.urls')),
     path('api/auth/', include('djoser.urls.jwt')),
+    path("api/auth/logout/", LogoutView.as_view(), name="auth_logout"),
 ]

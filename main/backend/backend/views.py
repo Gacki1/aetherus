@@ -6,6 +6,8 @@ from rest_framework import serializers
 from rest_framework.response import Response
 from datetime import timedelta, datetime, timezone
 from django.conf import settings
+from rest_framework.views import APIView
+from rest_framework import status
 
 from rest_framework_simplejwt.tokens import RefreshToken 
 
@@ -124,3 +126,18 @@ class CookieTokenRefreshView(TokenRefreshView):
             )
             
         return super().finalize_response(request, response, *args, **kwargs)
+    
+class LogoutView(APIView):
+    def post(self, request):
+        response = Response({"message": "Logout erfolgreich!"}, status=status.HTTP_200_OK)
+
+        response.set_cookie(
+            key="refresh_token",
+            values="",
+            max_age=0,
+            expires="Thu, 01 Jan 1970 00:00:00 GMT",
+            secure=True,
+            httponly=True,
+            samesite="Lax"
+        )
+        return response
