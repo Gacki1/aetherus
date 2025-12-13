@@ -25,6 +25,7 @@ urlpatterns = [
     path('admin/', admin.site.urls), 
 
     path("main.html", DashboardView.as_view(), name="dashboard"),
+    path("login.html", DashboardView.as_view(), name="login"),
 
     path("api/auth/login/", SessionLoginView.as_view(), name="login"),
     path("api/auth/logout/", SessionLogoutView.as_view(), name="logout"),

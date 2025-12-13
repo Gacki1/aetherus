@@ -5,7 +5,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 
 class DashboardView(LoginRequiredMixin, TemplateView):
     template_name="main.html"
@@ -58,3 +58,9 @@ class RedirectIfLoggedInMixin:
         if request.user.is_authenticated:
             return redirect("/main.html")
         return super().dispatch(request, *args, **kwargs)
+    
+def login_page_view(request):
+    if request.user.is_authenticated:
+        return redirect("/main.html")
+    
+    return render(request, "login.html")
