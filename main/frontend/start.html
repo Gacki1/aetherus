@@ -3,15 +3,28 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Startseite</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aetherus - Willkommen</title>
+    <link rel="stylesheet" href="css/start.css">
 </head>
 
 <body>
-    <h1>Hmm, noch nichts hier?</h1>
-    <p>Vielleicht sollte mal n meisterarchitekt hierfür kommen</p>
-    <script src="main.js"></script>
+    <div class="bg-glow-center"></div>
+    <div class="container">
+        <div class="main">
+            <h1>Hmm, noch nichts hier?</h1>
+            <p>Vielleicht sollte mal ein Meisterarchitekt hierfür kommen...</p>
+        </div>
 
-    <script src="token_manager.js"></script>
+        <div class="login_register">
+            <p>Wollen Sie sich direkt einloggen?</p>
+            <button class="btn-login" onclick="window.location.href='login.html'">Login</button>
+
+            <p>Oder sogar registrieren?</p>
+            <button class="btn-register" onclick="window.location.href='register.html'">Registrieren</button>
+            <span class="status-info">(Funktioniert aktuell noch nicht)</span>
+        </div>
+    </div>
 </body>
 
 </html>
