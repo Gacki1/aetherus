@@ -24,7 +24,7 @@ urlpatterns = [
     # 1. Admin-Pfad:
     path('admin/', admin.site.urls), 
 
-    path("templates/main.html/", DashboardView.as_view(), name="dashboard"),
+    path("main.html", DashboardView.as_view(), name="dashboard"),
 
     path("api/auth/login/", SessionLoginView.as_view(), name="login"),
     path("api/auth/logout/", SessionLogoutView.as_view(), name="logout"),
