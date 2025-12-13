@@ -18,14 +18,33 @@
 </body>
 
 <script>
-    const authMode = localStorage.getItem('auth_mode');
+    async function logoutUser() {
+        // Wir holen uns den CSRF-Token, den Django als Cookie setzt
+        const csrfToken = document.cookie
+            .split('; ')
+            .find(row => row.startsWith('csrftoken='))
+            ?.split('=')[1];
 
-        if (authMode === 'tab') {
-            if (!sessionStorage.getItem("tab_active")) {
-                logoutUser();
+        try {
+            const response = await fetch('/api/auth/logout/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken // Diesen Header braucht Django für Sessions!
+                }
+            });
+
+            if (response.ok) {
+                // Nach dem Logout im Backend löschen wir den Modus und leiten um
+                localStorage.removeItem('auth_mode');
+                window.location.href = '/login.html';
+            } else {
+                alert("Fehler beim Abmelden.");
             }
-            sessionStorage.setItem("tab_active", "true");
+        } catch (error) {
+            console.error("Netzwerkfehler beim Logout:", error);
         }
+    }
 </script>
 
 </html>
