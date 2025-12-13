@@ -16,16 +16,15 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from .views import SessionLogoutView, UserProfileView, SessionLoginView, DashboardView
+from .views import SessionLogoutView, UserProfileView, SessionLoginView, DashboardView, login_page_view
 from django.urls import path, include
-
 
 urlpatterns = [
     # 1. Admin-Pfad:
     path('admin/', admin.site.urls), 
 
     path("main.html", DashboardView.as_view(), name="dashboard"),
-    path("login.html", DashboardView.as_view(), name="login"),
+    path("login.html", login_page_view, name="login"),
 
     path("api/auth/login/", SessionLoginView.as_view(), name="login"),
     path("api/auth/logout/", SessionLogoutView.as_view(), name="logout"),
