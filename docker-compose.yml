@@ -37,10 +37,10 @@ services:
     #   - ./my-website-files:/usr/share/nginx/html
 
   login-backend:
-    build: ./backend
+    build: ./main/backend
     container_name: login-backend
     volumes:
-      - ./backend:/app
+      - ./main/backend:/app
     environment:
       - REDIS_URL=redis://redis:6379/1
     depends_on:
