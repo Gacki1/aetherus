@@ -3,16 +3,49 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Hauptseite</title>
+    <meta name ="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aetherus Dashboard</title>
     <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/main_dashboard.css">
 </head>
 
 <body>
-    <h1>Willkommen, {{ user.username }}</h1>
-    <p>Der Login über Django war erfolgreich. Diese Seite wird von Nginx bereitgestellt.</p>
+    <nav class="navbar">
+        <div class="nav-logo"></div>
+        <div class="nav-user">
+            <span>Willkommen, <strong>{{ user.username }}</strong></span>
+            <button onclick="logoutUser()" class="logout-btn">Abmelden</button>
+        </div>
+    </nav>
 
-    <button onclick="logoutUser()">Abmelden</button>
-    <script src="/logout.js"></script>
+    <main class="dashboard-container">
+        <header class="dashboard-header">
+            <h1>Dein Dashboard</h1>
+            <p>Hier hast du alle wichtigen Informationen im Blick.</p>
+        </header>
+        
+        <section class="stats-grid">
+            <div class="stat-card">
+                <h3>Status</h3>
+                <p class="status-online">Verbunden</p>
+            </div>
+            <div class="stat-card">
+                <h3>Letzter Login</h3>
+                <p>{{ user.last_login|date:"d.m.Y H:i" }}</p>
+            </div>
+            <div class="stat-card">
+                <h3>Berechtigungen</h3>
+                <p>{% if user.is_staff %}Administrator{% else %}Benutzer{% endif %}</p>
+            </div>
+        </section>
+        
+        <section class="content-area">
+            <div class="card">
+                <h2>Neuigkeiten</h2>
+                <p>Willkommen in der neuen Aetherus-Umgebung. Dein Login war erfolgreich!</p>
+            </div>
+        </section>
+    </main>
 </body>
 
 <script>
@@ -44,5 +77,4 @@
         }
     }
 </script>
-
 </html>
