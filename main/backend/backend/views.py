@@ -5,6 +5,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from django.shortcuts import redirect
 
 class DashboardView(LoginRequiredMixin, TemplateView):
     template_name="main.html"
@@ -51,3 +52,9 @@ class UserProfileView(APIView):
             "username": request.user.username,
             "email": request.user.email
         })
+
+class RedirectIfLoggedInMixin:
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            return redirect("/main.html")
+        return super().dispatch(request, *args, **kwargs)

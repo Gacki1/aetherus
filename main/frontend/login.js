@@ -73,4 +73,5 @@ document.getElementById('login-form').addEventListener('submit', function (event
             messageBox.className = 'message error';
             messageBox.style.display = 'block';
         });
+    
 });
