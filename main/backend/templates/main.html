@@ -4,14 +4,12 @@
 <head>
     <meta charset="UTF-8">
     <title>Hauptseite</title>
+    <link rel="stylesheet" href="/main/frontend/css/main.css">
 </head>
 
 <body>
     <h1>Willkommen, {{ user.username }}</h1>
     <p>Der Login über Django war erfolgreich. Diese Seite wird von Nginx bereitgestellt.</p>
-    <script src="main.js"></script>
-    
-    <script src="token_manager.js"></script>
 
     <button onclick="logoutUser()">Abmelden</button>
     <script src="/main/frontend/logout.js?v=1.1"></script>
