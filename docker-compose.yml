@@ -15,7 +15,7 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     networks:
-      - web-network
+      - aetherus-net
 
   # -------------------- Ihre Website/Anwendung --------------------
   aetherus-container:
@@ -31,7 +31,7 @@ services:
     # Wichtig: Dieser Container muss NICHT seine Ports direkt nach außen exponieren,
     # da Caddy (im selben Netzwerk) ihn anspricht.
     networks:
-      - web-network
+      - aetherus-net
     # Optional: Volume-Mount für die Website-Dateien
     # volumes:
     #   - ./my-website-files:/usr/share/nginx/html
@@ -46,7 +46,7 @@ services:
     depends_on:
       - redis
     networks:
-      - web-network
+      - aetherus-net
 
   # Redis Service
   redis:
@@ -54,14 +54,16 @@ services:
     container_name: aetherus-redis
     restart: always
     networks:
-      - web-network
+      - aetherus-net
     volumes:
       - redis_data:/data
 
 networks:
-  web-network:
+  aetherus-net:
+    driver: bridge
     # Definiert ein gemeinsames Netzwerk, damit Caddy den Website-Container ansprechen kann
 
 volumes:
   caddy_data:
   caddy_config:
+  redis_data:
