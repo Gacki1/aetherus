@@ -16,7 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from .views import CookieTokenObtainPairView, LogoutView
+from .views import CookieTokenObtainPairView, LogoutView, DashboardView
 from django.urls import path, include
 
 
@@ -29,4 +29,5 @@ urlpatterns = [
     path('api/auth/', include('djoser.urls')),
     path('api/auth/', include('djoser.urls.jwt')),
     path("api/auth/logout/", LogoutView.as_view(), name="auth_logout"),
+    path("main.html", DashboardView.as_view(), name="dashboard"),
 ]

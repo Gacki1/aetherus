@@ -8,82 +8,80 @@ from datetime import timedelta, datetime, timezone
 from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework import status
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views.generic import TemplateView
+from django.contrib.auth import login
+from django.contrib.auth import logout
 
 from rest_framework_simplejwt.tokens import RefreshToken 
 
 def get_refresh_token_max_age():
-    """
-    Berechnet die maximale Lebensdauer des Refresh Tokens in Sekunden aus den Settings.
-    """
+
     refresh_lifetime: timedelta = settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME']
     return int(refresh_lifetime.total_seconds())
 
-# --- 1. Login Logik (Token-Ausgabe) ---
-
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    """
-    Erweiterter Serializer zur Verarbeitung des 'rememberMe'-Status.
-    """
-    rememberMe = serializers.BooleanField(required=False, default=False)
-    
-    # get_token wird nicht mehr überschrieben, da die Token-Anpassung in der View erfolgt.
-    # Hier wird nur die Validierung sichergestellt.
-    pass 
 
+    rememberMe = serializers.BooleanField(required=False, default=False)
+    pass
 
 class CookieTokenObtainPairView(TokenObtainPairView):
-    """
-    Verarbeitet den Login, passt die Token-EXP an, setzt das Refresh Token als HttpOnly Cookie
-    und steuert dessen Persistenz (max_age) basierend auf 'rememberMe'.
-    """
     serializer_class = CustomTokenObtainPairSerializer 
     
     def post(self, request, *args, **kwargs):
+        # 1. Validierung über den Serializer (holt User & generiert Tokens)
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         tokens = serializer.validated_data # Enthält 'access' und 'refresh'
         
-        # 1. Hole den 'rememberMe'-Status
+        # 2. Remember Me Logik abrufen
+        # Wir erwarten vom Frontend 'rememberMe': true/false
         remember_me = request.data.get('rememberMe', False)
         
-        # 2. ANPASSUNG DER REFRESH TOKEN LEBENSDAUER (EXP)
-        if tokens.get('refresh'):
-            refresh_token_str = tokens['refresh']
-            
-            # Die Klasse RefreshToken muss importiert werden! (Ist jetzt behoben)
-            refresh_token_obj = RefreshToken(refresh_token_str)
-            
-            if not remember_me:
-                # Setze eine kurze Lebensdauer (z.B. 2 Stunden)
-                short_lifetime = timedelta(hours=2) 
-                
-                refresh_token_obj.set_exp(from_time=datetime.now(timezone.utc), lifetime=short_lifetime)
-                
-                # Aktualisiere den String im Dictionary
-                tokens['refresh'] = str(refresh_token_obj)
+        # 3. Refresh Token Objekt für Manipulation laden
+        refresh_token_str = tokens.get('refresh')
+        refresh_token_obj = RefreshToken(refresh_token_str)
+
+        # Modus für das Frontend mitschicken, damit JS weiß, ob es 'Tab-Logout' machen soll
+        auth_mode = 'browser_session' if remember_me else 'tab_session'
+
+        if not remember_me:
+            # Wenn KEIN Remember Me: Token-Lebensdauer im JWT selbst kurz halten
+            # (z.B. 2 Stunden, falls der Browser-Logout-Event mal fehlschlägt)
+            refresh_token_obj.set_exp(
+                from_time=datetime.now(timezone.utc), 
+                lifetime=timedelta(hours=2)
+            )
+            tokens['refresh'] = str(refresh_token_obj)
+
+        # 4. Response vorbereiten (Access Token bleibt im Body für das JS-Frontend)
+        response = Response({
+            'access': tokens.get('access'),
+            'mode': auth_mode  # Hilft dem Frontend bei der Tab-Close-Logik
+        })
         
-        # 3. SETZEN DES COOKIES
-        response = Response(tokens)
-        
+        # 5. Refresh Token aus Body entfernen und in HttpOnly Cookie packen
         if tokens.get('refresh'):
             refresh_token = tokens.pop('refresh')
-            
-            if remember_me:
-                max_age = get_refresh_token_max_age()
-            else:
-                max_age = None # Session-Cookie
-            
+
+            max_age = None
+
             response.set_cookie(
                 key='refresh_token',
                 value=refresh_token,
-                max_age=max_age, # Entscheidend für die Persistenz
-                secure=True, 
-                httponly=True, 
-                samesite='Lax' 
+                max_age=max_age, 
+                secure=True,     # Nur über HTTPS (im Deployment)
+                httponly=True,   # Schutz gegen XSS
+                samesite='Lax',  # Schutz gegen CSRF
+                path='/'         # Gültig für die gesamte Domain
             )
         
+        # 6. Synchronisation mit Django-Backend-Sessions (für main.html Schutz)
+        user = serializer.user
+        if user:
+            login(request, user)
+            
         return response
-
 
 # --- 2. Refresh Logik (Token-Erneuerung) ---
 
@@ -111,9 +109,7 @@ class CookieTokenRefreshView(TokenRefreshView):
     def finalize_response(self, request, response, *args, **kwargs):
         if response.data.get('refresh'):
             refresh_token = response.data.pop('refresh')
-            
-            # Wir verwenden die maximale Lebensdauer, da die Sicherheit über die Token-EXP
-            # (die im Login gesetzt wurde) gewährleistet ist.
+
             max_age = get_refresh_token_max_age()
             
             response.set_cookie(
@@ -129,6 +125,7 @@ class CookieTokenRefreshView(TokenRefreshView):
     
 class LogoutView(APIView):
     def post(self, request):
+        logout(request)
         response = Response({"message": "Logout erfolgreich"}, status=status.HTTP_200_OK)
         
         # Cookie löschen
@@ -143,3 +140,7 @@ class LogoutView(APIView):
             samesite='Lax'
         )
         return response
+    
+class DashboardView(LoginRequiredMixin, TemplateView):
+    template_name="main.html"
+    login_url="/login.html"

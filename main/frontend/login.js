@@ -2,6 +2,7 @@
 
 // Konstante für die Weiterleitung nach erfolgreichem Login
 const REDIRECT_URL = "/main.html";
+const data = await response.json();
 
 document.getElementById('login-form').addEventListener('submit', function (event) {
     // Verhindert das Standard-Senden des Formulars (Seiten-Neuladen)
@@ -33,11 +34,16 @@ document.getElementById('login-form').addEventListener('submit', function (event
         })
     })
         .then(response => {
-            // Den Statuscode überprüfen
+
             if (response.status === 200) {
-                // Erfolg, JSON-Daten lesen (enthält 'access' und 'refresh' im Body,
-                // wobei 'refresh' im Backend auch als Cookie gesetzt wird)
+
                 return response.json();
+
+                if (response.ok) {
+                    // Speichern, ob wir im Tab- oder Browser-Modus sind
+                    localStorage.setItem('auth_mode', data.mode);
+                    window.location.href = '/main.html';
+                }
             } else if (response.status === 401) {
                 // Fehler (Unauthorized), JSON-Daten lesen
                 return response.json().then(data => {
