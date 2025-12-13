@@ -59,8 +59,17 @@ body::before {
     font-size: 1.6rem;
     font-weight: 800;
     background: linear-gradient(to right, var(--accent-blue), var(--deep-blue));
+
+    /* Wichtig für die Kompatibilität: */
     -webkit-background-clip: text;
+    /* Für Chrome, Safari, Edge */
+    background-clip: text;
+    /* Standard-Eigenschaft für Firefox & Co. */
+
     -webkit-text-fill-color: transparent;
+    /* Macht den Text transparent, damit der Hintergrund durchscheint */
+    color: transparent;
+    /* Fallback */
 }
 
 .logout-btn {
