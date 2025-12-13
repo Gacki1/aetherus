@@ -83,18 +83,24 @@ class ActivateAccountView(APIView):
 
     def get(self, request, uidb64, token):
         try:
+            # 1. Dekodiere die User-ID aus dem Link
             uid = force_str(urlsafe_base64_decode(uidb64))
             user = User.objects.get(pk=uid)
         except (TypeError, ValueError, OverflowError, User.DoesNotExist):
             user = None
 
+        # 2. Prüfe, ob der User existiert und das Token gültig ist
         if user is not None and default_token_generator.check_token(user, token):
             user.is_active = True
             user.save()
-            # Nach Aktivierung zum Login schicken
+            # 3. Erfolg: Weiterleitung zum Login mit einem Parameter für eine Erfolgsmeldung
             return redirect("/login?activated=true")
         else:
-            return Response({"error": "Ungültiger oder abgelaufener Link"}, status=status.HTTP_400_BAD_REQUEST)
+            # 4. Fehler: Token abgelaufen oder manipuliert
+            return Response(
+                {"error": "Der Aktivierungslink ist ungültig oder abgelaufen."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 class SessionLoginView(APIView):
     permission_classes = [AllowAny]
