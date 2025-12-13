@@ -1,0 +1,34 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Datenbanken
+# Wir ignorieren die lokale SQLite Datenbank
+db.sqlite3
+db.sqlite3-journal
+
+# Django spezifisch
+local_settings.py
+db.sqlite3
+*.log
+media/
+staticfiles/
+
+# Environments (falls du venv im backend ordner hast)
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Redis / Celery
+celerybeat-schedule
+
+# IDEs
+.vscode/
+.idea/
+
+# Betriebssystem-Dateien
+.DS_Store
+Thumbs.db
