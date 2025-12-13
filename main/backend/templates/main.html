@@ -67,7 +67,7 @@
             if (response.ok) {
                 // Nach dem Logout im Backend löschen wir den Modus und leiten um
                 localStorage.removeItem('auth_mode');
-                window.location.href = '/login.html';
+                window.location.href = '/start.html';
             } else {
                 alert("Fehler beim Abmelden.");
             }
