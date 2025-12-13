@@ -16,7 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from .views import CookieTokenObtainPairView, LogoutView, DashboardView
+from .views import SessionLogoutView, UserProfileView, SessionLoginView, DashboardView
 from django.urls import path, include
 
 
@@ -24,10 +24,8 @@ urlpatterns = [
     # 1. Admin-Pfad:
     path('admin/', admin.site.urls), 
 
-    path('api/token/', CookieTokenObtainPairView.as_view(), name='token_obtain_pair'),
-
-    path('api/auth/', include('djoser.urls')),
-    path('api/auth/', include('djoser.urls.jwt')),
-    path("api/auth/logout/", LogoutView.as_view(), name="auth_logout"),
-    path("main.html", DashboardView.as_view(), name="dashboard"),
+    path("api/auth/login/", SessionLoginView.as_view(), name="login"),
+    path("api/auth/logout/", SessionLogoutView.as_view(), name="logout"),
+    path("api/auth/me/", UserProfileView.as_view(), name="user_me"),
+    path("main.html/", DashboardView.as_view(), name="dashboard"),
 ]

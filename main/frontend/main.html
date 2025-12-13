@@ -18,15 +18,13 @@
 </body>
 
 <script>
-    const authMode = localStorage.getItem('auth_mode'); // 'tab_session' oder 'browser_session'
+    const authMode = localStorage.getItem('auth_mode');
 
-        if (authMode === 'tab_session') {
-            window.addEventListener('beforeunload', function (e) {
-                // Dieser Code wird ausgeführt, wenn der Tab geschlossen wird
-                // Wir nutzen navigator.sendBeacon für den Logout, da fetch beim Schließen 
-                // des Tabs oft abgebrochen wird.
-                navigator.sendBeacon('/api/auth/logout/');
-            });
+        if (authMode === 'tab') {
+            if (!sessionStorage.getItem("tab_active")) {
+                logoutUser();
+            }
+            sessionStorage.setItem("tab_active", "true");
         }
 </script>
 
