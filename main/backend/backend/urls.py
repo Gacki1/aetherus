@@ -15,7 +15,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 from .views import (
     SessionLogoutView, 
     UserProfileView, 
@@ -25,21 +25,20 @@ from .views import (
     start_page_view, 
     register_page_view
 )
-from django.urls import path, include
 
 urlpatterns = [
-    # 1. Admin-Pfad:
     path('admin/', admin.site.urls), 
 
-    path("main", DashboardView.as_view(), name="dashboard"),
-    path("login", login_page_view, name="login"),
+    # HTML Seiten
     path("", start_page_view, name="start"),
-    path("register", register_page_view, name="register"),
+    path("main", DashboardView.as_view(), name="dashboard"),
+    path("login", login_page_view, name="login_page"),
+    path("register", register_page_view, name="register_page"),
 
-    path("api/auth/login/", SessionLoginView.as_view(), name="login"),
-    path("api/auth/logout/", SessionLogoutView.as_view(), name="logout"),
+    # API Endpunkte
+    path("api/auth/login/", SessionLoginView.as_view(), name="api_login"),
+    path("api/auth/logout/", SessionLogoutView.as_view(), name="api_logout"),
     path("api/auth/me/", UserProfileView.as_view(), name="user_me"),
 
     path('api/auth/', include('djoser.urls')),
-
 ]

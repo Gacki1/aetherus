@@ -61,14 +61,13 @@ class RedirectIfLoggedInMixin:
     
 def login_page_view(request):
     if request.user.is_authenticated:
-        return redirect("/main.html")
-    
+        return redirect("/main")
     return render(request, "login.html")
 
 def start_page_view(request):
     return render(request, "start.html")
 
-def start_page_view(request):
+def register_page_view(request):
     if request.user.is_authenticated:
         return redirect("/main")
     return render(request, "start.html")
