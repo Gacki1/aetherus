@@ -2,11 +2,10 @@ document.getElementById('register-form').addEventListener('submit', async functi
     e.preventDefault();
 
     const username = document.getElementById('reg-username').value;
+    const email = document.getElementById('reg-email').value; // E-Mail aus dem Feld holen
     const password = document.getElementById('reg-password').value;
     const re_password = document.getElementById('reg-password-confirm').value;
-    const messageBox = document.getElementById('message-box');
 
-    // Einfacher Check vorab
     if (password !== re_password) {
         showMessage("Passwörter stimmen nicht überein!", "error");
         return;
@@ -20,6 +19,7 @@ document.getElementById('register-form').addEventListener('submit', async functi
             },
             body: JSON.stringify({
                 username: username,
+                email: email,      // E-Mail an das Backend senden
                 password: password,
                 re_password: re_password
             })
@@ -28,13 +28,18 @@ document.getElementById('register-form').addEventListener('submit', async functi
         const data = await response.json();
 
         if (response.ok) {
-            showMessage("Account erfolgreich erstellt! Leite zum Login weiter...", "success");
+            // Text angepasst, da der User erst verifizieren muss
+            showMessage("Account erstellt! Bitte prüfe deine E-Mails zur Aktivierung.", "success");
             setTimeout(() => {
-                window.location.href = '/login.html';
-            }, 2000);
+                window.location.href = '/login'; // .html entfernt für Clean URLs
+            }, 3000);
         } else {
-            // Djoser gibt Fehlermeldungen oft als Objekt zurück (z.B. {username: ["Schon vergeben"]})
-            const errorMsg = data.username || data.password || data.non_field_errors || "Registrierung fehlgeschlagen.";
+            // Fehlerausgabe verfeinert
+            let errorMsg = "Registrierung fehlgeschlagen.";
+            if (data.email) errorMsg = `E-Mail: ${data.email[0]}`;
+            else if (data.username) errorMsg = `Username: ${data.username[0]}`;
+            else if (data.password) errorMsg = `Passwort: ${data.password[0]}`;
+
             showMessage(errorMsg, "error");
         }
     } catch (error) {

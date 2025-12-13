@@ -77,7 +77,7 @@ DJOSER = {
     'PASSWORD_RESET_CONFIRM_URL': 'password/reset/confirm/{uid}/{token}',
     'USERNAME_RESET_CONFIRM_URL': 'username/reset/confirm/{uid}/{token}',
     'ACTIVATION_URL': 'activate/{uid}/{token}',
-    'SEND_ACTIVATION_EMAIL': False, # Auf True setzen, wenn du E-Mail-Bestätigung willst
+    'SEND_ACTIVATION_EMAIL': True, # Auf True setzen, wenn du E-Mail-Bestätigung willst
     'SERIALIZERS': {}, 
 }
 
@@ -187,6 +187,10 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+
+DEFAULT_FROM_EMAIL = "Aetherus <noreply@aetherus.net>"
+SERVER_MAIL = "noreply@aetherus.net"
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 CSRF_TRUSTED_ORIGINS = ["https://aetherus.net", "http://localhost:8000"]
 

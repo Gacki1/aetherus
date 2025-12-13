@@ -23,7 +23,9 @@ from .views import (
     DashboardView, 
     login_page_view, 
     start_page_view, 
-    register_page_view
+    register_page_view,
+    RegisterAPIView,
+    ActivateAccountView
 )
 
 urlpatterns = [
@@ -39,6 +41,8 @@ urlpatterns = [
     path("api/auth/login/", SessionLoginView.as_view(), name="api_login"),
     path("api/auth/logout/", SessionLogoutView.as_view(), name="api_logout"),
     path("api/auth/me/", UserProfileView.as_view(), name="user_me"),
+    path("api/auth/users/", RegisterAPIView.as_view(), name="api_register"),
+    path("api/auth/activate/<uidb64>/<token>/", ActivateAccountView.as_view(), name="activate"),
 
     path('api/auth/', include('djoser.urls')),
 ]
