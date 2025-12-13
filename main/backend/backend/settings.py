@@ -77,6 +77,7 @@ DJOSER = {
     'PASSWORD_RESET_CONFIRM_URL': 'password/reset/confirm/{uid}/{token}',
     'USERNAME_RESET_CONFIRM_URL': 'username/reset/confirm/{uid}/{token}',
     'ACTIVATION_URL': 'activate/{uid}/{token}',
+    "LOGOUT_ON_PASSWORD_CHANGE": True,
     'SEND_ACTIVATION_EMAIL': True, # Auf True setzen, wenn du E-Mail-Bestätigung willst
     'SERIALIZERS': {
         'user_create': 'djoser.serializers.UserCreateSerializer',
@@ -190,21 +191,19 @@ CORS_ALLOWED_ORIGINS = [
 
 CORS_ALLOW_CREDENTIALS = True
 
-DEFAULT_FROM_EMAIL = "Aetherus <noreply@aetherus.net>"
-SERVER_MAIL = "noreply@aetherus.net"
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+DEFAULT_FROM_EMAIL = 'Aetherus <noreply@aetherus.net>'
+SERVER_EMAIL = 'noreply@aetherus.net' # War vorher SERVER_MAIL
 
-CSRF_TRUSTED_ORIGINS = ["https://aetherus.net", "http://localhost:8000"]
-
+# Sicherheit & Cookies
 SESSION_COOKIE_SECURE = True
-
 SESSION_COOKIE_HTTPONLY = True
-
 SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SECURE = True  # Sollte auf True sein, da aetherus.net HTTPS nutzt
+CSRF_COOKIE_HTTPONLY = False # Muss False sein, damit JS den Token lesen kann
+CSRF_TRUSTED_ORIGINS = ["https://aetherus.net"]
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-
-CSRF_COOKIE_HTTPONLY = False
 
 SECURE_HSTS_SECONDS = 3600
 SECURE_SSL_REDIRECT = False

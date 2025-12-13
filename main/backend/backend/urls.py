@@ -45,4 +45,5 @@ urlpatterns = [
     path("api/auth/activate/<uidb64>/<token>/", ActivateAccountView.as_view(), name="activate"),
 
     path('api/auth/', include('djoser.urls')),
+    path("api/auth/", include("djoser.urls.authtoken")),
 ]
