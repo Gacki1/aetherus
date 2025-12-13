@@ -59,7 +59,7 @@ services:
     container_name: aetherus-redis
     restart: always
     networks:
-      - aetherus-net
+      - web-network
     # Optional: Daten dauerhaft speichern, falls der Container stoppt
     volumes:
       - redis_data:/data
