@@ -16,13 +16,27 @@ document.getElementById('login-form').addEventListener('submit', function (event
     messageBox.style.display = 'none';
     messageBox.textContent = '';
 
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== "") {
+            const cookies = document.cookie.split(";");
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + "=")) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                }
+            }
+        }
+        return cookieValue;
+    }
+
     // POST-Anfrage an den neuen Session-basierten Endpunkt
     fetch('/api/auth/login/', { // Wichtig: URL passend zur urls.py
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            // Falls CSRF-Fehler auftreten, müsste hier der X-CSRFToken Header rein.
-            // Da wir die View aber mit @csrf_exempt markiert haben, geht es so.
+            "X-CSRFToken": getCookie("csrftoken"),
+
         },
         body: JSON.stringify({
             username,
