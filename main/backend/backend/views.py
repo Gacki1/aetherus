@@ -129,15 +129,17 @@ class CookieTokenRefreshView(TokenRefreshView):
     
 class LogoutView(APIView):
     def post(self, request):
-        response = Response({"message": "Logout erfolgreich!"}, status=status.HTTP_200_OK)
-
+        response = Response({"message": "Logout erfolgreich"}, status=status.HTTP_200_OK)
+        
+        # Cookie löschen
         response.set_cookie(
-            key="refresh_token",
-            values="",
+            key='refresh_token',
+            value='',
             max_age=0,
-            expires="Thu, 01 Jan 1970 00:00:00 GMT",
+            expires='Thu, 01 Jan 1970 00:00:00 GMT',
+            path='/', # Sicherstellen, dass der Pfad übereinstimmt!
             secure=True,
             httponly=True,
-            samesite="Lax"
+            samesite='Lax'
         )
         return response
