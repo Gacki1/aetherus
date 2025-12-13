@@ -16,7 +16,15 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from .views import SessionLogoutView, UserProfileView, SessionLoginView, DashboardView, login_page_view
+from .views import (
+    SessionLogoutView, 
+    UserProfileView, 
+    SessionLoginView, 
+    DashboardView, 
+    login_page_view, 
+    start_page_view, 
+    register_page_view
+)
 from django.urls import path, include
 
 urlpatterns = [
@@ -25,6 +33,8 @@ urlpatterns = [
 
     path("main", DashboardView.as_view(), name="dashboard"),
     path("login", login_page_view, name="login"),
+    path("start", start_page_view, name="start"),
+    path("register", register_page_view, name="register"),
 
     path("api/auth/login/", SessionLoginView.as_view(), name="login"),
     path("api/auth/logout/", SessionLogoutView.as_view(), name="logout"),

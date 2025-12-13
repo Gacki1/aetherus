@@ -64,3 +64,11 @@ def login_page_view(request):
         return redirect("/main.html")
     
     return render(request, "login.html")
+
+def start_page_view(request):
+    return render(request, "start.html")
+
+def start_page_view(request):
+    if request.user.is_authenticated:
+        return redirect("/main")
+    return render(request, "start.html")
