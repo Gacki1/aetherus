@@ -1,0 +1,167 @@
+/* Grund-Setup mit Animation */
+:root {
+    --bg-dark: #0f1215;
+    --card-bg: #1a1f24;
+    --accent-blue: #00d2ff;
+    --deep-blue: #3a7bd5;
+    --text-main: #e0e0e0;
+    --text-dim: #a0a0a0;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    margin: 0;
+    background: radial-gradient(circle at top right, #16222a, #0f1215);
+    color: var(--text-main);
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+/* Dezent animierter Hintergrund-Glow */
+body::before {
+    content: "";
+    position: fixed;
+    top: -10%;
+    left: -10%;
+    width: 40%;
+    height: 40%;
+    background: radial-gradient(circle, rgba(0, 210, 255, 0.05), transparent 70%);
+    z-index: -1;
+    animation: pulse 10s infinite alternate ease-in-out;
+}
+
+@keyframes pulse {
+    0% {
+        transform: translate(0, 0);
+    }
+
+    100% {
+        transform: translate(20%, 20%);
+    }
+}
+
+/* Navbar im Glassmorphism-Stil */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(26, 31, 36, 0.8);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0 2rem;
+    height: 70px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.nav-logo {
+    font-size: 1.6rem;
+    font-weight: 800;
+    background: linear-gradient(to right, var(--accent-blue), var(--deep-blue));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.logout-btn {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.logout-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
+}
+
+/* Dashboard Container */
+.dashboard-container {
+    max-width: 1200px;
+    margin: 3rem auto;
+    padding: 0 1.5rem;
+}
+
+h1 {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+    color: white;
+}
+
+.dashboard-header p {
+    color: var(--text-dim);
+    margin-bottom: 3rem;
+}
+
+/* Cards mit Hover-Effekt */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+}
+
+.stat-card,
+.card {
+    background: var(--card-bg);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 2rem;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    border-color: var(--accent-blue);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+/* Leuchtende Akzent-Linie an den Cards */
+.stat-card::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 3px;
+    height: 0;
+    background: var(--accent-blue);
+    transition: height 0.3s ease;
+}
+
+.stat-card:hover::after {
+    height: 100%;
+}
+
+.stat-card h3 {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 1rem;
+}
+
+.stat-card p {
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.status-online {
+    color: var(--accent-blue);
+    text-shadow: 0 0 10px rgba(0, 210, 255, 0.5);
+}
+
+/* Inhalt unterhalb */
+.content-area {
+    margin-top: 3rem;
+}
+
+.card h2 {
+    color: var(--accent-blue);
+    margin-top: 0;
+}
