@@ -33,7 +33,7 @@ urlpatterns = [
 
     path("main", DashboardView.as_view(), name="dashboard"),
     path("login", login_page_view, name="login"),
-    path("start", start_page_view, name="start"),
+    path("", start_page_view, name="start"),
     path("register", register_page_view, name="register"),
 
     path("api/auth/login/", SessionLoginView.as_view(), name="login"),
