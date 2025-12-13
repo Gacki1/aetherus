@@ -27,6 +27,7 @@ services:
     restart: unless-stopped
     volumes:
     - ./main/frontend:/usr/share/nginx/html
+    - ./backend/staticfiles:/usr/share/nginx/html/static:ro
     - ./nginx.conf:/etc/nginx/conf.d/default.conf
     # Wichtig: Dieser Container muss NICHT seine Ports direkt nach außen exponieren,
     # da Caddy (im selben Netzwerk) ihn anspricht.
