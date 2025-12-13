@@ -54,6 +54,16 @@ services:
     expose:
       - 8000
 
+  redis:
+    image: redis:7-alpine
+    container_name: aetherus-redis
+    restart: always
+    networks:
+      - aetherus-net
+    # Optional: Daten dauerhaft speichern, falls der Container stoppt
+    volumes:
+      - redis_data:/data
+
 networks:
   web-network:
     # Definiert ein gemeinsames Netzwerk, damit Caddy den Website-Container ansprechen kann
