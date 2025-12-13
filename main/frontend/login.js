@@ -4,28 +4,26 @@
 const REDIRECT_URL = "/main.html";
 
 document.getElementById('login-form').addEventListener('submit', function (event) {
-    // Verhindert das Standard-Senden des Formulars (Seiten-Neuladen)
     event.preventDefault();
 
-    // Elemente holen
     const form = event.target;
     const username = form.username.value;
     const password = form.password.value;
     const messageBox = document.getElementById('message-box');
     const rememberMe = document.getElementById("rememberMeCheckbox").checked;
 
-    // 1. Anzeige leeren
+    // Anzeige zurücksetzen
     messageBox.style.display = 'none';
-    messageBox.className = 'message';
     messageBox.textContent = '';
 
-    // 2. POST-Anfrage an das Backend senden (DRF Token Obtain View)
-    fetch('/api/token/', {
+    // POST-Anfrage an den neuen Session-basierten Endpunkt
+    fetch('/api/auth/login/', { // Wichtig: URL passend zur urls.py
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            // Falls CSRF-Fehler auftreten, müsste hier der X-CSRFToken Header rein.
+            // Da wir die View aber mit @csrf_exempt markiert haben, geht es so.
         },
-        // Daten als JSON-String senden
         body: JSON.stringify({
             username,
             password,
@@ -33,48 +31,31 @@ document.getElementById('login-form').addEventListener('submit', function (event
         })
     })
         .then(async response => {
+            const data = await response.json();
 
             if (response.status === 200) {
-                const data = await response.json();
-                if (response.ok) {
-                    // Speichern, ob wir im Tab- oder Browser-Modus sind
-                    localStorage.setItem('auth_mode', data.mode);
-                    window.location.href = '/main.html';
-                }
-                return response.json();
+                // Erfolg: Wir speichern den Modus für die Tab-Close-Logik
+                localStorage.setItem('auth_mode', data.mode);
+
+                messageBox.textContent = 'Login erfolgreich! Weiterleitung...';
+                messageBox.className = 'message success';
+                messageBox.style.display = 'block';
+
+                // Kurze Verzögerung, damit die Nachricht sichtbar ist und Cookies gesetzt werden
+                setTimeout(() => {
+                    window.location.href = REDIRECT_URL;
+                }, 500);
+
             } else if (response.status === 401) {
-                // Fehler (Unauthorized), JSON-Daten lesen
-                return response.json().then(data => {
-                    // DRF verwendet den Schlüssel "detail" für Fehlermeldungen
-                    throw new Error(data.detail || 'Anmeldung fehlgeschlagen.');
-                });
+                // Unauthorized (Falsche Zugangsdaten)
+                throw new Error(data.error || 'Anmeldung fehlgeschlagen.');
             } else {
-                // Unbekannter Serverfehler
+                // Anderer Serverfehler (z.B. 404 oder 500)
                 throw new Error('Serverfehler (' + response.status + ')');
             }
         })
-        .then(data => {
-            // 3. Erfolg verarbeiten (200 OK)
-
-            // Speichere das kurzlebige Access Token für API-Aufrufe
-            localStorage.setItem("access_token", data.access);
-
-            // Das Refresh Token wird automatisch vom Backend als HttpOnly Cookie gesetzt
-            // und muss hier NICHT gespeichert werden.
-
-            messageBox.textContent = 'Login erfolgreich! Weiterleitung...';
-            messageBox.className = 'message success';
-            messageBox.style.display = 'block';
-
-            form.username.value = "";
-            form.password.value = "";
-
-            // Weiterleitung zur Zielseite
-            window.location.href = REDIRECT_URL;
-        })
         .catch(error => {
-            // 4. Fehler verarbeiten (401, Netzwerkfehler, ungültiges JSON)
-            messageBox.textContent = error.message || 'Ein unbekannter Fehler ist aufgetreten.';
+            messageBox.textContent = error.message || 'Ein Netzwerkfehler ist aufgetreten.';
             messageBox.className = 'message error';
             messageBox.style.display = 'block';
         });

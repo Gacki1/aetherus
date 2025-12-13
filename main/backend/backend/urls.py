@@ -24,8 +24,12 @@ urlpatterns = [
     # 1. Admin-Pfad:
     path('admin/', admin.site.urls), 
 
+    path("main.html/", DashboardView.as_view(), name="dashboard"),
+
     path("api/auth/login/", SessionLoginView.as_view(), name="login"),
     path("api/auth/logout/", SessionLogoutView.as_view(), name="logout"),
     path("api/auth/me/", UserProfileView.as_view(), name="user_me"),
-    path("main.html/", DashboardView.as_view(), name="dashboard"),
+
+    path('api/auth/', include('djoser.urls')),
+
 ]
