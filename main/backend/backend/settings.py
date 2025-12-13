@@ -62,8 +62,12 @@ SIMPLE_JWT = {
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    )
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.persmissions.IsAuthenticated",
+    ),
 }
 
 # Djoser Konfiguration
@@ -184,7 +188,7 @@ CORS_ALLOWED_ORIGINS = [
 
 CORS_ALLOW_CREDENTIALS = True
 
-CSRF_TRUSTED_ORIGINS = ["https://aetherus.net"]
+CSRF_TRUSTED_ORIGINS = ["https://aetherus.net", "http://localhost:8000"]
 
 SESSION_COOKIE_SECURE = True
 
