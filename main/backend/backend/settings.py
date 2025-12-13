@@ -41,7 +41,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "djoser",
-    "rest_framework_authtoken"
+    "rest_framework.authtoken",
 ]
 
 from datetime import timedelta
