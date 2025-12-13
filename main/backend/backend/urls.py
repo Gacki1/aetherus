@@ -16,15 +16,15 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from .views import CookieTokenObtainPairView, CookieTokenRefreshView
+from .views import CookieTokenObtainPairView
+from django.urls import path, include
 
 urlpatterns = [
     # 1. Admin-Pfad:
     path('admin/', admin.site.urls), 
-    
-    # 2. Login-Endpunkt (Token-Ausgabe) mit Remember Me-Logik
+
     path('api/token/', CookieTokenObtainPairView.as_view(), name='token_obtain_pair'),
 
-    # 3. Refresh-Endpunkt (Token-Erneuerung) liest aus Cookie
-    path('api/token/refresh/', CookieTokenRefreshView.as_view(), name='token_refresh'),
+    path('api/auth/', include('djoser.urls')),
+    path('api/auth/', include('djoser.urls.jwt')),
 ]

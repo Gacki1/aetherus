@@ -40,6 +40,8 @@ INSTALLED_APPS = [
     "corsheaders",
     "rest_framework",
     "rest_framework_simplejwt",
+    "djoser",
+    "rest_framework_authtoken"
 ]
 
 from datetime import timedelta
@@ -53,7 +55,7 @@ SIMPLE_JWT = {
     "ALGORITHM": "HS256",
     "SIGNING_KEY": SECRET_KEY,
     'AUTH_COOKIE': 'refresh_token',
-    'AUTH_COOKIE_SECURE': True,      # Muss auf True im Produktionsbetrieb (HTTPS)
+    'AUTH_COOKIE_SECURE': True,
     'AUTH_COOKIE_HTTP_ONLY': True,
     'AUTH_COOKIE_SAMESITE': 'Lax',
 }
@@ -62,6 +64,17 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     )
+}
+
+# Djoser Konfiguration
+DJOSER = {
+    'USER_CREATE_PASSWORD_RETYPE': True, # Erfordert Passwort-Bestätigung im Frontend
+    'SET_PASSWORD_RETYPE': True,
+    'PASSWORD_RESET_CONFIRM_URL': 'password/reset/confirm/{uid}/{token}',
+    'USERNAME_RESET_CONFIRM_URL': 'username/reset/confirm/{uid}/{token}',
+    'ACTIVATION_URL': 'activate/{uid}/{token}',
+    'SEND_ACTIVATION_EMAIL': False, # Auf True setzen, wenn du E-Mail-Bestätigung willst
+    'SERIALIZERS': {}, 
 }
 
 MIDDLEWARE = [
@@ -170,3 +183,4 @@ APPEND_SLASH = False
 
 LOGIN_URL = None
 DEBUG = True
+

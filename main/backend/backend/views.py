@@ -9,9 +9,6 @@ from django.conf import settings
 
 from rest_framework_simplejwt.tokens import RefreshToken 
 
-
-# --- Hilfsfunktionen ---
-
 def get_refresh_token_max_age():
     """
     Berechnet die maximale Lebensdauer des Refresh Tokens in Sekunden aus den Settings.
