@@ -104,19 +104,25 @@ class ActivateAccountView(APIView):
 
         print(f"DEBUG: Erhaltener Key: {activation_key}")
         try:
-            # 1. Dekodiere die User-ID aus dem Link
+            # 1. Username aus dem Key extrahieren
+            # max_age=172800 sind 48 Stunden
             username = signer.unsign(activation_key, max_age=172800)
-            user = User.objects.get(username)
-        except (User.DoesNotExist, SignatureExpired):
-            return Response({"error": "Link abgelaufen oder ungültig"}, status=400)
-
-        except Exception:
-            return Response({"error": "Ungültiger Key"}, status=400)
+            user = User.objects.get(username=username) 
+            
+        except SignatureExpired:
+            print("DEBUG: Link ist abgelaufen")
+            return Response({"error": "Link abgelaufen"}, status=400)
+        except (User.DoesNotExist, Exception) as e:
+            print(f"DEBUG: Fehler: {str(e)}")
+            return Response({"error": "Ungültiger Key oder User existiert nicht"}, status=400)
         
+        # 2. User aktivieren
         if not user.is_active:
-            user.is_active=True
+            user.is_active = True
             user.save()
-            return redirect("login?activated=true")
+            # Nutze den vollen Pfad zum Redirect
+            return redirect("/login?activated=true")
+            
         return redirect("/login?already_active=true")
 
 
