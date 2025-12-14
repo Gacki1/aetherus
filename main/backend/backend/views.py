@@ -45,12 +45,15 @@ class RegisterAPIView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
+
+        print("--- REGISTRIERUNG GESTARTET ---")
         username = request.data.get("username")
         email = request.data.get("email")
         password = request.data.get("password")
         re_password = request.data.get("re_password")
 
         # Validierung
+        print("Passwörter validieren...")
         if password != re_password:
             return Response({"error": "Passwörter stimmen nicht überein"}, status=status.HTTP_400_BAD_REQUEST)
         
@@ -58,20 +61,25 @@ class RegisterAPIView(APIView):
             return Response({"error": "Benutzername bereits vergeben"}, status=status.HTTP_400_BAD_REQUEST)
 
         # 1. User erstellen (inaktiv!)
+        print("Inaktiven User erstellen...")
         user = User.objects.create_user(username=username, email=email, password=password)
         user.is_active = False 
         user.save()
+        print("User erfolgreich als Inaktiv gespeichert.")
 
         # 2. Token & Link generieren
+        print("Erstelle Verifizierungs-Link...")
         signer = TimestampSigner()
         activation_key = signer.sign(user.username)
         # Link zeigt auf deine Aetherus Domain
         activation_link = f"https://aetherus.net/api/auth/activate/{activation_key}/"
+        print(f"Link erstellt: {activation_link}")
 
         # 3. E-Mail senden
         subject = 'Aetherus - Account verifizieren'
         message = f'Willkommen {username}!\n\nKlicke auf den Link, um dein Konto zu aktivieren: {activation_link}'
         
+        print(f"Sende Mail an: {email} über Backend: {settings.EMAIL_BACKEND}")
         try:
             send_mail(
                 subject,
