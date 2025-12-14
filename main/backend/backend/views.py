@@ -101,9 +101,11 @@ class ActivateAccountView(APIView):
 
     def get(self, request, activation_key):
         signer = TimestampSigner()
+
+        print(f"DEBUG: Erhaltener Key: {activation_key}")
         try:
             # 1. Dekodiere die User-ID aus dem Link
-            username = signer.unsing(activation_key, max_age=172800)
+            username = signer.unsign(activation_key, max_age=172800)
             user = User.objects.get(username)
         except (User.DoesNotExist, SignatureExpired):
             return Response({"error": "Link abgelaufen oder ungültig"}, status=400)
