@@ -88,6 +88,7 @@ class RegisterAPIView(APIView):
                 [email],
                 fail_silently=False,
                 )
+            print("--- EMAIL ERFOLGREICH GESENDET ---")
         except Exception as e:
             print(f"E-Mail Fehler: {e}") # Debugging im Terminal
 
