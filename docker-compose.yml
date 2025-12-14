@@ -59,31 +59,6 @@ services:
     volumes:
       - redis_data:/data
 
-  mailserver:
-    image: ghcr.io/docker-mailserver/docker-mailserver:latest
-    container_name: mailserver
-    hostname: mail
-    domainname: aetherus.net
-    # Wir brauchen diese Ports für SMTP (Versand) und IMAP (Empfang)
-    ports:
-      - "25:25"    # SMTP (Server-to-Server)
-      - "587:587"  # Submission (Django-to-Mailserver)
-      - "993:993"  # IMAP (Falls du die Mails per Outlook/Handy lesen willst)
-    volumes:
-      - ./docker-data/dms/mail-data:/var/mail
-      - ./docker-data/dms/mail-state:/var/mail-state
-      - ./docker-data/dms/mail-logs:/var/log/mail
-      - ./docker-data/dms/config:/tmp/docker-mailserver
-      - /etc/localtime:/etc/localtime:ro
-    environment:
-      - ENABLE_SPAMASSASSIN=0 # Spart RAM
-      - ENABLE_CLAMAV=0       # Spart viel RAM (Antivirus)
-      - ENABLE_FAIL2BAN=1
-      - SSL_TYPE=selfsigned   # Für den Start okay, später nutzen wir dein LetsEncrypt
-      - OVERRIDE_HOSTNAME=mail.aetherus.net
-      - SPOOF_PROTECTION=0    # Erleichtert den Start für Django
-    restart: always
-
 networks:
   aetherus-net:
     driver: bridge
