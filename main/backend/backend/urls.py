@@ -1,19 +1,3 @@
-"""
-URL configuration for backend project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/5.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
 from django.contrib import admin
 from django.urls import path, include
 from .views import (
@@ -29,21 +13,26 @@ from .views import (
 )
 
 urlpatterns = [
+    # 1. API Registrierung & Aktivierung (Muss vor Djoser stehen!)
     path("api/auth/users/", RegisterAPIView.as_view(), name="api_register"),
+    # Geänderter Pfad für den TimestampSigner Workflow:
+    path("api/auth/activate/<str:activation_key>/", ActivateAccountView.as_view(), name="activate"),
+
+    # 2. Django Admin
     path('admin/', admin.site.urls), 
 
-    # HTML Seiten
+    # 3. HTML Seiten (Frontend-Routen)
     path("", start_page_view, name="start"),
     path("main", DashboardView.as_view(), name="dashboard"),
     path("login", login_page_view, name="login_page"),
     path("register", register_page_view, name="register_page"),
 
-    # API Endpunkte
+    # 4. API Authentifizierung
     path("api/auth/login/", SessionLoginView.as_view(), name="api_login"),
     path("api/auth/logout/", SessionLogoutView.as_view(), name="api_logout"),
     path("api/auth/me/", UserProfileView.as_view(), name="user_me"),
-    path("api/auth/activate/<uidb64>/<token>/", ActivateAccountView.as_view(), name="activate"),
 
+    # 5. Djoser (für Passwort-Reset etc.)
     path('api/auth/', include('djoser.urls')),
     path("api/auth/", include("djoser.urls.authtoken")),
 ]

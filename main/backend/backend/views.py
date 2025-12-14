@@ -9,6 +9,9 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.shortcuts import redirect, render
 from django.core.mail import send_mail
+from django.core.signing import TimestampSigner, SignatureExpired
+from django.utils import timezone
+import datetime
 
 # WICHTIG: Neue Imports für die Verifizierung
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
@@ -60,17 +63,23 @@ class RegisterAPIView(APIView):
         user.save()
 
         # 2. Token & Link generieren
-        uid = urlsafe_base64_encode(force_bytes(user.pk))
-        token = default_token_generator.make_token(user)
+        signer = TimestampSigner()
+        activation_key = signer.sign(user.username)
         # Link zeigt auf deine Aetherus Domain
-        activation_link = f"https://aetherus.net/api/auth/activate/{uid}/{token}/"
+        activation_link = f"https://aetherus.net/api/auth/activate/{activation_key}/"
 
         # 3. E-Mail senden
         subject = 'Aetherus - Account verifizieren'
         message = f'Willkommen {username}!\n\nKlicke auf den Link, um dein Konto zu aktivieren: {activation_link}'
         
         try:
-            send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [email])
+            send_mail(
+                subject,
+                message, 
+                settings.DEFAULT_FROM_EMAIL, 
+                [email],
+                fail_silently=False,
+                )
         except Exception as e:
             print(f"E-Mail Fehler: {e}") # Debugging im Terminal
 
@@ -81,26 +90,24 @@ class RegisterAPIView(APIView):
 class ActivateAccountView(APIView):
     permission_classes = [AllowAny]
 
-    def get(self, request, uidb64, token):
+    def get(self, request, activation_key):
+        signer = TimestampSigner()
         try:
             # 1. Dekodiere die User-ID aus dem Link
-            uid = force_str(urlsafe_base64_decode(uidb64))
-            user = User.objects.get(pk=uid)
-        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
-            user = None
+            username = signer.unsing(activation_key, max_age=172800)
+            user = User.objects.get(username)
+        except (User.DoesNotExist, SignatureExpired):
+            return Response({"error": "Link abgelaufen oder ungültig"}, status=400)
 
-        # 2. Prüfe, ob der User existiert und das Token gültig ist
-        if user is not None and default_token_generator.check_token(user, token):
-            user.is_active = True
+        except Exception:
+            return Response({"error": "Ungültiger Key"}, status=400)
+        
+        if not user.is_active:
+            user.is_active=True
             user.save()
-            # 3. Erfolg: Weiterleitung zum Login mit einem Parameter für eine Erfolgsmeldung
-            return redirect("/login?activated=true")
-        else:
-            # 4. Fehler: Token abgelaufen oder manipuliert
-            return Response(
-                {"error": "Der Aktivierungslink ist ungültig oder abgelaufen."}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return redirect("login?activated=true")
+        return redirect("/login?already_active=true")
+
 
 class SessionLoginView(APIView):
     permission_classes = [AllowAny]
