@@ -4,3 +4,4 @@ djangorestframework
 djangorestframework-simplejwt
 djoser
 django-redis
+python-dotenv
