@@ -18,24 +18,24 @@ from django.core.mail import send_mail
 # --- Bestehenden Page-Views ---
 
 class DashboardView(LoginRequiredMixin, TemplateView):
-    template_name = "main.html"
+    template_name = "/main"
     login_url = "/login"
 
 
 def login_page_view(request):
     if request.user.is_authenticated:
         return redirect("/main")
-    return render(request, "login.html")
+    return render(request, "/login")
 
 def start_page_view(request):
     if request.user.is_authenticated:
         return redirect("/main")
-    return render(request, "start.html")
+    return render(request, "/start")
 
 def register_page_view(request):
     if request.user.is_authenticated:
         return redirect("/main")
-    return render(request, "register.html")
+    return render(request, "/register")
 
 # --- Neue API-Logik für die Registrierung ---
 
