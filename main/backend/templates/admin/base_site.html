@@ -8,58 +8,138 @@
             <div class="core-ring"></div>
         </div>
         <span class="logo-text">AETHERUS</span>
-        <span class="logo-sub">ADMIN PANEL v3.1</span>
+        <span class="logo-sub">ADMIN_PANEL_v3.2</span>
     </a>
 </h1>
+{% endblock %}
 
+{% block extrastyle %}
+{{ block.super }}
 <style>
-    .core-container {
+    :root {
+        --body-bg: #010101;
+        --primary: #d31d20;
+        --secondary: #1a0202;
+        --accent: #f5dd5d;
+        --line-color: rgba(255, 0, 0, 0.15);
+        --tech-border: 1px solid rgba(255, 0, 0, 0.3);
+    }
+
+    /* Hintergrund mit fließendem Raster */
+    body {
+        background-color: var(--body-bg) !important;
+        background-image:
+            linear-gradient(var(--line-color) 1px, transparent 1px),
+            linear-gradient(90deg, var(--line-color) 1px, transparent 1px),
+            radial-gradient(circle at 50% 0%, #5a0000 0%, transparent 70%) !important;
+        background-size: 50px 50px, 50px 50px, 100% 100% !important;
+        background-attachment: fixed !important;
+        animation: grid-move 4s infinite linear;
+        color: #e0e0e0 !important;
+    }
+
+    @keyframes grid-move {
+        from {
+            background-position: 0 0, 0 0, 0 0;
+        }
+
+        to {
+            background-position: 50px 50px, 50px 50px, 0 0;
+        }
+    }
+
+    /* --- CYBER-BUTTONS MIT LINIEN-EFFEKT --- */
+    .button,
+    input[type=submit],
+    input[type=button],
+    .submit-row input {
+        background: rgba(255, 0, 0, 0.05) !important;
+        border: 1px solid rgba(255, 0, 0, 0.2) !important;
+        color: var(--primary) !important;
+        text-transform: uppercase;
+        font-weight: 900 !important;
+        padding: 8px 20px !important;
         position: relative;
-        width: 20px;
-        height: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        cursor: pointer;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        /* Die abgeschnittenen Ecken */
+        clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
     }
 
-    .core-node {
-        width: 8px;
-        height: 8px;
-        background: #ff0000;
-        border-radius: 1px;
-        transform: rotate(45deg);
-        box-shadow: 0 0 15px #ff0000;
-        z-index: 2;
+    /* Der Linien-Effekt beim Hovern */
+    .button:hover,
+    input[type=submit]:hover {
+        color: #fff !important;
+        border-color: var(--primary) !important;
+        background: rgba(255, 0, 0, 0.1) !important;
     }
 
-    .core-ring {
+    /* Wir nutzen Pseudo-Elemente für die "umziehenden" Linien */
+    .button::before,
+    input[type=submit]::before {
+        content: "";
         position: absolute;
+        top: 0;
+        left: -100%;
         width: 100%;
-        height: 100%;
-        border: 1px solid #ff4d4d;
-        border-radius: 3px;
-        animation: rotate-ring 2s infinite linear;
-        /* Kern dreht sich jetzt auch schneller */
-        opacity: 0.5;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, var(--primary), transparent);
+        transition: 0s;
     }
 
-    .logo-text {
-        color: var(--accent);
-        font-weight: 900;
-        letter-spacing: 5px;
-        filter: drop-shadow(0 0 10px rgba(245, 221, 93, 0.4));
-        font-size: 1.4rem;
+    .button:hover::before,
+    input[type=submit]:hover::before {
+        left: 100%;
+        transition: 0.6s linear;
     }
 
-    .logo-sub {
-        color: #666;
+    /* --- MODULE & BOXEN --- */
+    .module {
+        background: rgba(5, 5, 5, 0.9) !important;
+        border: 1px solid var(--line-color) !important;
+        clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 0 100%);
+        box-shadow: 10px 10px 30px rgba(0, 0, 0, 0.5) !important;
+        margin-bottom: 20px !important;
+    }
+
+    .module h2 {
+        background: #1a0202 !important;
+        border-bottom: 1px solid var(--primary) !important;
+        color: var(--primary) !important;
         font-family: 'monospace';
-        font-size: 0.55em;
         letter-spacing: 2px;
-        border-left: 1px solid #666;
-        padding-left: 10px;
+        font-size: 0.8rem !important;
     }
 
+    /* Sidebar-Styling */
+    #nav-sidebar {
+        background: rgba(0, 0, 0, 0.95) !important;
+        border-right: 2px solid var(--primary) !important;
+    }
+
+    /* Breadcrumbs-Tuning */
+    div.breadcrumbs {
+        background: #000 !important;
+        border-bottom: 1px solid var(--primary) !important;
+        font-family: 'monospace';
+        font-size: 10px;
+        color: #555 !important;
+    }
+
+    /* Formularfelder passend zum Design */
+    input[type=text],
+    input[type=password],
+    textarea,
+    select {
+        background: #0a0a0a !important;
+        border: 1px solid #333 !important;
+        color: #ff4d4d !important;
+        border-radius: 0 !important;
+        clip-path: polygon(0 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%);
+    }
+
+    /* Animation für das Logo-Core */
     @keyframes rotate-ring {
         from {
             transform: rotate(0deg);
@@ -69,94 +149,9 @@
             transform: rotate(360deg);
         }
     }
-</style>
-{% endblock %}
 
-{% block extrastyle %}
-{{ block.super }}
-<style>
-    :root {
-        --body-bg: #020202;
-        --primary: #d31d20;
-        --secondary: #1a0202;
-        --accent: #f5dd5d;
-        --line-color: rgba(255, 0, 0, 0.15);
-        /* Linien etwas deutlicher gemacht */
-    }
-
-    /* Hintergrund mit SCHNELL wandernden Linien */
-    body {
-        background-color: var(--body-bg) !important;
-        background-image:
-            linear-gradient(var(--line-color) 1px, transparent 1px),
-            linear-gradient(90deg, var(--line-color) 1px, transparent 1px),
-            radial-gradient(circle at 50% 0%, #5a0000 0%, transparent 70%),
-            radial-gradient(circle at 0% 100%, #2a0000 0%, transparent 40%) !important;
-        background-size: 60px 60px, 60px 60px, 100% 100%, 100% 100% !important;
-        background-attachment: fixed !important;
-
-        /* Geschwindigkeit von 20s auf 5s reduziert = 4x schneller */
-        animation: grid-move 5s infinite linear;
-        color: #e0e0e0 !important;
-    }
-
-    @keyframes grid-move {
-        from {
-            background-position: 0 0, 0 0, 0 0, 0 0;
-        }
-
-        to {
-            background-position: 60px 60px, 60px 60px, 0 0, 0 0;
-        }
-    }
-
-    /* Scanline (body::after) wurde entfernt */
-
-    .module {
-        background: rgba(10, 10, 10, 0.9) !important;
-        border: 1px solid var(--line-color) !important;
-        box-shadow: 0 0 20px rgba(0, 0, 0, 0.7) !important;
-        clip-path: polygon(0 0, calc(100% - 15px) 0, 100% 15px, 100% 100%, 0 100%);
-        backdrop-filter: blur(10px);
-    }
-
-    .module h2 {
-        background: linear-gradient(90deg, #300000 0%, #7a0000 100%) !important;
-        border-bottom: 1px solid var(--primary) !important;
-        color: #fff !important;
-        font-family: 'monospace';
-        letter-spacing: 2px;
-    }
-
-    .button,
-    input[type=submit] {
-        background: transparent !important;
-        border: 1px solid var(--primary) !important;
-        color: var(--primary) !important;
-        clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
-        text-transform: uppercase;
-        font-weight: 900 !important;
-        transition: 0.2s;
-    }
-
-    .button:hover,
-    input[type=submit]:hover {
-        background: var(--primary) !important;
-        color: white !important;
-        box-shadow: 0 0 25px var(--primary);
-    }
-
-    #nav-sidebar {
-        background: rgba(0, 0, 0, 0.9) !important;
-        border-right: 2px solid var(--primary) !important;
-    }
-
-    /* Command Line Style Breadcrumbs */
-    div.breadcrumbs {
-        background: rgba(0, 0, 0, 0.8) !important;
-        border-bottom: 1px solid var(--primary) !important;
-        font-family: 'monospace';
-        color: #888 !important;
+    .core-ring {
+        animation: rotate-ring 2s infinite linear;
     }
 </style>
 {% endblock %}
