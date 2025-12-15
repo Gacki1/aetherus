@@ -1,14 +1,54 @@
-# Caddyfile
 aetherus.net {
-    # Stellt sicher, dass das SSL-Zertifikat automatisch angefordert wird
-    # Caddy regelt dies automatisch, da es die Standardeinstellung ist.
+    # --- 1. Statische Dateien ---
+    # Entspricht: location /static/
+    handle_path /static/* {
+        root * /app/staticfiles
+        file_server
+    }
 
-    # Proxy-Anfragen an Ihren Website-Container weiterleiten
-    reverse_proxy aetherus-container:80
+    # Entspricht deinem Nginx-Block für Bilder/CSS/JS im Root
+    handle /assets/* {
+        root * /usr/share/caddy/html
+        file_server
+    }
+
+    # --- 2. HTML-Endungen entfernen (SEO) ---
+    @html_suffix path *.html
+    redir @html_suffix {path.strip_suffix.html} permanent
+
+    # --- 3. Django Backend & Pages ---
+    # Wir leiten gezielt die Pfade an Django (login-backend:8000) weiter
+    handle /api/* {
+        reverse_proxy login-backend:8000
+    }
+    
+    handle /admin/* {
+        reverse_proxy login-backend:8000
+    }
+
+    # Die einzelnen Seiten (/, /login, /register, /main)
+    @django_pages path / /login /register /main
+    handle @django_pages {
+        reverse_proxy login-backend:8000
+    }
+
+    # --- 4. Fallback ---
+    # Alles andere versucht erst lokale Dateien, dann 404
+    handle {
+        root * /usr/share/caddy/html
+        try_files {path} {path}/ =404
+    }
 }
 
-# Optional: Falls Sie auch die Subdomain www.aetherus.com verwenden wollen
+# --- 5. Mailcow Setup ---
+mail.aetherus.net {
+    reverse_proxy 172.30.1.1:8080 {
+        # Caddy setzt Header wie X-Forwarded-For automatisch korrekt
+        header_up Host {host}
+    }
+}
+
+# --- 6. WWW Redirect ---
 www.aetherus.net {
-    # Leitet www.aetherus.com auf die Hauptdomain um
     redir https://aetherus.net{uri}
 }

@@ -5,43 +5,29 @@ services:
     container_name: caddy
     restart: unless-stopped
     ports:
-      # Exponiert HTTP und HTTPS nach außen
       - "80:80"
       - "443:443"
     volumes:
-      # Verknüpft das lokale Caddyfile mit dem Container
       - ./caddy-setup/Caddyfile:/etc/caddy/Caddyfile
-      # Persistenter Speicher für Zertifikate und Logs
+      # Wir mounten die statischen Dateien direkt in Caddy
+      - ./main/frontend:/usr/share/caddy/html
+      - ./backend/staticfiles:/app/staticfiles:ro
       - caddy_data:/data
       - caddy_config:/config
     networks:
       - aetherus-net
+    # Wichtig: Caddy muss wissen, wo die Mailcow-IP (172.30.1.1) liegt. 
+    # Docker findet das normalerweise über das Gateway.
 
-  # -------------------- Ihre Website/Anwendung --------------------
-  aetherus-container:
-    # Ersetzen Sie 'nginx:latest' durch das Image Ihrer Anwendung
-    # Beispiel: Wenn Sie eine statische Seite haben, können Sie Nginx verwenden
-    # Wenn Sie ein eigenes Projekt haben, verwenden Sie Ihr eigenes Image
-    image: nginx:latest
-    container_name: aetherus-container
-    restart: unless-stopped
-    volumes:
-    - ./main/frontend:/usr/share/nginx/html
-    - ./backend/staticfiles:/usr/share/nginx/html/static:ro
-    - ./nginx.conf:/etc/nginx/conf.d/default.conf
-    # Wichtig: Dieser Container muss NICHT seine Ports direkt nach außen exponieren,
-    # da Caddy (im selben Netzwerk) ihn anspricht.
-    networks:
-      - aetherus-net
-    # Optional: Volume-Mount für die Website-Dateien
-    # volumes:
-    #   - ./my-website-files:/usr/share/nginx/html
-
+  # -------------------- Django Backend --------------------
   login-backend:
     build: ./main/backend
     container_name: login-backend
+    restart: unless-stopped
     volumes:
       - ./main/backend:/app
+      # Falls Django Static-Files generiert, teilen wir sie hier
+      - ./backend/staticfiles:/app/staticfiles
     env_file:
       - .env
     environment:
@@ -64,7 +50,6 @@ services:
 networks:
   aetherus-net:
     driver: bridge
-    # Definiert ein gemeinsames Netzwerk, damit Caddy den Website-Container ansprechen kann
 
 volumes:
   caddy_data:
