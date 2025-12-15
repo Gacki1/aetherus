@@ -170,5 +170,5 @@ class UserProfileView(APIView):
 class RedirectIfLoggedInMixin:
     def dispatch(self, request, *args, **kwargs):
         if request.user.is_authenticated:
-            return redirect("/main.html")
+            return redirect("/main")
         return super().dispatch(request, *args, **kwargs)
