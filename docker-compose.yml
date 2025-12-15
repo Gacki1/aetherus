@@ -50,6 +50,10 @@ services:
 networks:
   aetherus-net:
     driver: bridge
+  mailcow-net:
+    external: true
+    name: mailcowdockerized_mailcow-network
+
 
 volumes:
   caddy_data:

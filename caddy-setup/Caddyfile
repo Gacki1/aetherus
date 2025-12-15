@@ -29,10 +29,9 @@ aetherus.net {
 
 # --- 2. MAILCOW (Subdomain) ---
 mail.aetherus.net {
-    reverse_proxy 172.30.1.1:8080 {
-        # Wichtig für Mailcow (SOGo) Websockets & ActiveSync
-        header_up Upgrade {http.request.header.Upgrade}
-        header_up Connection {http.request.header.Connection}
+    reverse_proxy nginx-mailcow:80 {
+        header_up Host {host}
+        header_up X-Forwarded-Proto {scheme}
     }
 }
 
