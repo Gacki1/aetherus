@@ -31,7 +31,7 @@ SECRET_KEY = 'django-insecure-al@57g9r$c=t!%d&j2k-$ca6jl=j9uey3f-v&s5th3g=l_072&
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["aetherus.net", "login-backend", "localhost", "127.0.0.1"]
+ALLOWED_HOSTS = ["aetherus.net", "login-backend", "localhost", "127.0.0.1", 'mail.aetherus.net', '91.99.59.168']
 
 
 # Application definition
@@ -219,7 +219,7 @@ CSRF_TRUSTED_ORIGINS = ["https://aetherus.net"]
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 SECURE_HSTS_SECONDS = 3600
-SECURE_SSL_REDIRECT = True
+SECURE_SSL_REDIRECT = False
 
 APPEND_SLASH = False
 
