@@ -15,11 +15,27 @@ from django.core.signing import TimestampSigner, SignatureExpired
 from django.conf import settings
 from django.core.mail import send_mail
 
-# --- Deine bestehenden Page-Views ---
+# --- Bestehenden Page-Views ---
 
 class DashboardView(LoginRequiredMixin, TemplateView):
     template_name = "main.html"
     login_url = "/login"
+
+
+def login_page_view(request):
+    if request.user.is_authenticated:
+        return redirect("/main")
+    return render(request, "login.html")
+
+def start_page_view(request):
+    if request.user.is_authenticated:
+        return redirect("/main")
+    return render(request, "start.html")
+
+def register_page_view(request):
+    if request.user.is_authenticated:
+        return redirect("/main")
+    return render(request, "register.html")
 
 # --- Neue API-Logik für die Registrierung ---
 
@@ -156,18 +172,3 @@ class RedirectIfLoggedInMixin:
         if request.user.is_authenticated:
             return redirect("/main.html")
         return super().dispatch(request, *args, **kwargs)
-    
-def login_page_view(request):
-    if request.user.is_authenticated:
-        return redirect("/main")
-    return render(request, "login.html")
-
-def start_page_view(request):
-    if request.user.is_authenticated:
-        return redirect("/main")
-    return render(request, "start.html")
-
-def register_page_view(request):
-    if request.user.is_authenticated:
-        return redirect("/main")
-    return render(request, "register.html")
