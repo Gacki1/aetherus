@@ -1,12 +1,13 @@
 {% extends "admin/base.html" %}
 
-{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin')
-}}{% endblock %}
-
 {% block branding %}
 <h1 id="site-name">
-    <a href="{% url 'admin:index' %}" style="color: var(--accent);">
-        AETHERUS <span style="color: white;">CONTROL</span>
+    <a href="{% url 'admin:index' %}" style="display: flex; align-items: center; gap: 10px;">
+        <span
+            style="color: var(--accent); font-weight: 800; letter-spacing: 1px; filter: drop-shadow(0 0 5px rgba(245, 221, 93, 0.5));">
+            AETHERUS
+        </span>
+        <span style="color: #fff; font-weight: 200; opacity: 0.8;">CONTROL</span>
     </a>
 </h1>
 {% endblock %}
@@ -14,54 +15,101 @@
 {% block extrastyle %}
 {{ block.super }}
 <style>
-    /* DEINE ROTEN FARBEN - Orientiert an deinem Main-Design */
     :root {
+        /* Tiefes Aetherus-Rot-Schema */
         --primary: #bb2124;
-        /* Kräftiges Rot */
-        --secondary: #8b1a1a;
-        /* Dunkleres Rot für Header */
+        --secondary: #4a0e0e;
+        /* Sehr dunkles Rot für Tiefe */
         --accent: #f5dd5d;
-        /* Gold-Gelb für den Text-Akzent */
         --primary-fg: #fff;
 
-        --header-bg: var(--secondary);
+        /* Hintergrund mit Tiefe (Radialer Verlauf wie auf der Main-Page) */
+        --body-bg: #0f0505;
+        --darkened-bg: #1a0808;
+
+        --header-bg: linear-gradient(135deg, #6b1113 0%, #3a0809 100%);
         --header-color: #fff;
-        --header-branding-color: var(--accent);
 
-        --breadcrumbs-bg: #5a1212;
-        /* Sehr dunkles Rot */
-        --link-fg: #a11f1f;
-        --link-hover-color: #7a1515;
+        --breadcrumbs-bg: #2d0a0a;
+        --link-fg: #ff4d4d;
+        --link-hover-color: #ff8080;
+
+        --button-bg: linear-gradient(180deg, #bb2124 0%, #8b1618 100%);
+        --button-hover-bg: #d92629;
     }
 
-    /* Dark Mode Korrekturen */
-    @media (prefers-color-scheme: dark) {
-        :root {
-            --primary: #7a1515;
-            --secondary: #4a0000;
-            --breadcrumbs-bg: #330000;
-            --link-fg: #ff6b6b;
-            --selected-row: #4a0000;
-        }
+    /* Der leuchtende Hintergrund-Effekt */
+    body {
+        background: radial-gradient(circle at 50% -20%, #4a0e0e 0%, #0f0505 80%) no-repeat fixed !important;
+        color: #eee !important;
     }
 
+    /* Header mit Glow und Tiefe */
     #header {
-        background: var(--secondary) !important;
+        background: var(--header-bg) !important;
+        border-bottom: 1px solid rgba(255, 77, 77, 0.3) !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5) !important;
+    }
+
+    /* Module (Boxen) mit Glas-Effekt */
+    .module {
+        background: rgba(255, 255, 255, 0.03) !important;
+        border: 1px solid rgba(255, 77, 77, 0.1) !important;
+        backdrop-filter: blur(10px);
+        border-radius: 8px !important;
+        overflow: hidden;
     }
 
     .module h2,
     .module th,
     .selector-chosen h2 {
-        background: var(--primary) !important;
+        background: linear-gradient(90deg, #8b1618 0%, #bb2124 100%) !important;
+        color: #fff !important;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
+    /* Breadcrumbs (Pfadanzeige) */
     div.breadcrumbs {
         background: var(--breadcrumbs-bg) !important;
+        border-bottom: 1px solid rgba(255, 77, 77, 0.2) !important;
+        color: #ccc !important;
     }
 
+    /* Buttons mit Leuchten */
     .button,
-    input[type=submit] {
-        background: var(--primary) !important;
+    input[type=submit],
+    input[type=button],
+    .submit-row input {
+        background: var(--button-bg) !important;
+        border: none !important;
+        box-shadow: 0 0 10px rgba(187, 33, 36, 0.3) !important;
+        transition: all 0.3s ease !important;
+    }
+
+    .button:hover,
+    input[type=submit]:hover {
+        box-shadow: 0 0 20px rgba(187, 33, 36, 0.6) !important;
+        transform: translateY(-1px);
+    }
+
+    /* Sidebar Anpassung */
+    #nav-sidebar {
+        background: rgba(15, 5, 5, 0.95) !important;
+        border-right: 1px solid rgba(255, 77, 77, 0.2) !important;
+    }
+
+    /* Tabellen-Zeilen */
+    .row1 {
+        background: rgba(255, 255, 255, 0.02) !important;
+    }
+
+    .row2 {
+        background: rgba(255, 255, 255, 0.05) !important;
+    }
+
+    tr:hover {
+        background: rgba(187, 33, 36, 0.1) !important;
     }
 </style>
 {% endblock %}
