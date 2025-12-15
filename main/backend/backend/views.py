@@ -21,19 +21,6 @@ class DashboardView(LoginRequiredMixin, TemplateView):
     template_name = "main.html"
     login_url = "/login"
 
-def login_page_view(request):
-    if request.user.is_authenticated:
-        return redirect("/main")
-    return render(request, "login.html")
-
-def start_page_view(request):
-    return render(request, "start.html")
-
-def register_page_view(request):
-    if request.user.is_authenticated:
-        return redirect("/main")
-    return render(request, "register.html")
-
 # --- Neue API-Logik für die Registrierung ---
 
 class RegisterAPIView(APIView):
