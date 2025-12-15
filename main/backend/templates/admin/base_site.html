@@ -1,0 +1,16 @@
+{% extends "admin/base.html" %}
+
+{% block extrastyle %}
+<link rel="stylesheet" type="text/css" href="/static/admin_red.css">
+<style>
+    /* Kleiner Fix, falls noch blaue Reste da sind */
+    #header {
+        background: #bb2124 !important;
+    }
+
+    .module h2,
+    .module th {
+        background: #bb2124 !important;
+    }
+</style>
+{% endblock %}
