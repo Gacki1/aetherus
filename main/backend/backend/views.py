@@ -18,7 +18,7 @@ from django.core.mail import send_mail
 # --- Bestehenden Page-Views ---
 
 class DashboardView(LoginRequiredMixin, TemplateView):
-    template_name = "/main"
+    template_name = "main.html"
     login_url = "/login"
 
 
