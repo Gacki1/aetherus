@@ -1,67 +1,72 @@
+{
+    # Globale Optionen (optional, hilft bei Debugging)
+    email dein-email@aetherus.net
+}
+
+# --- 1. HAUPTDOMAIN (Django & Frontend) ---
 aetherus.net {
-    # --- 1. Statische Dateien ---
+    
+    # Pfad für Django-statische Dateien (Admin-CSS, etc.)
+    # Entspricht: ./backend/staticfiles -> /app/staticfiles
     handle_path /static/* {
         root * /app/staticfiles
         file_server
     }
 
+    # Pfad für deine Frontend-Assets (Bilder, JS, eigenes CSS)
+    # Entspricht: ./main/frontend -> /usr/share/caddy/html
     handle /assets/* {
         root * /usr/share/caddy/html
         file_server
     }
 
-    # --- 2. HTML-Endungen entfernen ---
-
-    @html_files {
-        path *.html
-        not path /main.html # Ausnahme für deine Hauptseite, falls nötig
-    }
-# Nur umleiten, wenn es nicht die API oder das Backend betrifft
-    handle @html_files {
-        redir {path.strip_suffix.html} permanent
-    }
-
-    # --- 3. Django Backend & Pages ---
-    handle /api/* {
-        reverse_proxy login-backend:8000 {
-            # WICHTIG: Damit Django merkt, dass HTTPS aktiv ist
-            header_up X-Forwarded-Proto {scheme}
-            header_up Host {host}
-        }
-    }
-    
-    handle /admin/* {
+    # --- Spezial-Handling für /main ---
+    # Verhindert den 404/Redirect-Loop für das Dashboard
+    handle /main {
         reverse_proxy login-backend:8000 {
             header_up X-Forwarded-Proto {scheme}
             header_up Host {host}
         }
     }
 
-    @django_pages path / /login /register /main
-    handle @django_pages {
+    # Rewrite für Leute, die noch die alte .html Adresse im Cache haben
+    rewrite /main.html /main
+
+    # --- Django Backend Routen ---
+    # Alles, was an die API oder den Admin geht
+    @django_backend path /api/* /admin/* /login /register /
+    handle @django_backend {
         reverse_proxy login-backend:8000 {
             header_up X-Forwarded-Proto {scheme}
             header_up Host {host}
         }
     }
 
-    # --- 4. Fallback ---
+    # --- Fallback für statische HTML Dateien ---
+    # Wenn ein Pfad nicht oben abgefangen wurde, suche im HTML-Ordner
     handle {
         root * /usr/share/caddy/html
-        try_files {path} {path}/ =404
+        try_files {path} {path}.html /start.html =404
+    }
+
+    # Sicherheits-Header (Verhindert CSS-Blockaden durch Browser)
+    header {
+        X-Content-Type-Options nosniff
     }
 }
 
-# --- 5. Mailcow Setup ---
+# --- 2. MAILCOW (Subdomain) ---
 mail.aetherus.net {
-    # Nutze hier die Gateway-IP deines Mailcow-Netzwerks
+    # Wir nutzen das Gateway deines Mailcow-Netzwerks (172.30.1.1)
     reverse_proxy 172.30.1.1:8080 {
         header_up Host {host}
         header_up X-Forwarded-Proto {scheme}
+        
+        # Wichtig für Mailcow-Websockets/ActiveSync
+        header_up Upgrade {http.request.header.Upgrade}
+        header_up Connection {http.request.header.Connection}
     }
 }
 
-# --- 6. WWW Redirect ---
-www.aetherus.net {
-    redir https://aetherus.net{uri}
-}
+# --- 3. WWW-UMLEITUNG ---
+www.a
