@@ -1,7 +1,7 @@
 // login.js
 
 // Konstante für die Weiterleitung nach erfolgreichem Login
-const REDIRECT_URL = "/main.html";
+const REDIRECT_URL = "/main";
 
 document.getElementById('login-form').addEventListener('submit', function (event) {
     event.preventDefault();
