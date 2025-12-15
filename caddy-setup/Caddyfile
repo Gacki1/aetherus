@@ -11,8 +11,15 @@ aetherus.net {
     }
 
     # --- 2. HTML-Endungen entfernen ---
-    @html_suffix path *.html
-    redir @html_suffix {path.strip_suffix.html} permanent
+
+    @html_files {
+        path *.html
+        not path /main.html # Ausnahme für deine Hauptseite, falls nötig
+    }
+# Nur umleiten, wenn es nicht die API oder das Backend betrifft
+    handle @html_files {
+        redir {path.strip_suffix.html} permanent
+    }
 
     # --- 3. Django Backend & Pages ---
     handle /api/* {
