@@ -1,61 +1,42 @@
-{
-    # Globale Optionen (optional, hilft bei Debugging)
-    email dein-email@aetherus.net
-}
-
 # --- 1. HAUPTDOMAIN (Django & Frontend) ---
 aetherus.net {
-    # 1. Django Static (Admin-Panel etc.)
+    # Pfad für Django-statische Dateien (z.B. Admin-CSS)
+    # Erwartet Dateien in: ./backend/staticfiles
     handle_path /static/* {
         root * /app/staticfiles
         file_server
     }
 
-    # 2. Deine Frontend-Dateien (login.js, style.css, etc.)
-    # Wir sagen Caddy: Wenn eine Datei im Root / nicht gefunden wird, 
-    # schau direkt im html-Ordner nach.
+    # Root-Verzeichnis für deine Frontend-Dateien (login.js, style.css, etc.)
+    # Erwartet Dateien in: ./main/frontend
     root * /usr/share/caddy/html
-
-    # Erlaubt den direkten Zugriff auf .js und .css Dateien im Root
     file_server
 
-    # 3. Spezial-Handling für /main
+    # Spezial-Handling für das Dashboard (verhindert .html Loops)
     handle /main {
-        reverse_proxy login-backend:8000 {
-            header_up X-Forwarded-Proto {scheme}
-            header_up Host {host}
-        }
+        reverse_proxy login-backend:8000
     }
 
-    # 4. Django Backend Routen
+    # Backend-Routen für Django
     @django_backend path /api/* /admin/* /login /register /
     handle @django_backend {
-        reverse_proxy login-backend:8000 {
-            header_up X-Forwarded-Proto {scheme}
-            header_up Host {host}
-        }
+        reverse_proxy login-backend:8000
     }
 
-    # 5. Fallback für HTML
+    # Fallback: Versuche die Datei direkt zu finden, sonst mit .html, sonst start.html
     try_files {path} {path}.html /start.html
-
-
-    # Sicherheits-Header (Verhindert CSS-Blockaden durch Browser)
-    header {
-        X-Content-Type-Options nosniff
-    }
-
+}
 
 # --- 2. MAILCOW (Subdomain) ---
-    mail.aetherus.net {
-    # Wir nutzen das Gateway deines Mailcow-Netzwerks (172.30.1.1)
-        reverse_proxy 172.30.1.1:8080 {
-            header_up Host {host}
-            header_up X-Forwarded-Proto {scheme}
-        
-        # Wichtig für Mailcow-Websockets/ActiveSync
-            header_up Upgrade {http.request.header.Upgrade}
-            header_up Connection {http.request.header.Connection}
-        }
+mail.aetherus.net {
+    reverse_proxy 172.30.1.1:8080 {
+        # Wichtig für Mailcow (SOGo) Websockets & ActiveSync
+        header_up Upgrade {http.request.header.Upgrade}
+        header_up Connection {http.request.header.Connection}
     }
+}
+
+# --- 3. WWW REDIRECT ---
+www.aetherus.net {
+    redir https://aetherus.net{uri}
 }
