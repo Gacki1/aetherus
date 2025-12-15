@@ -2,114 +2,158 @@
 
 {% block branding %}
 <h1 id="site-name">
-    <a href="{% url 'admin:index' %}" style="display: flex; align-items: center; gap: 10px;">
+    <a href="{% url 'admin:index' %}" style="display: flex; align-items: center; gap: 12px; text-decoration: none;">
         <span
-            style="color: var(--accent); font-weight: 800; letter-spacing: 1px; filter: drop-shadow(0 0 5px rgba(245, 221, 93, 0.5));">
+            style="width: 8px; height: 8px; background: #ff0000; border-radius: 50%; box-shadow: 0 0 10px #ff0000; animation: pulse 2s infinite;"></span>
+        <span
+            style="color: var(--accent); font-weight: 900; letter-spacing: 3px; filter: drop-shadow(0 0 8px rgba(245, 221, 93, 0.6));">
             AETHERUS
         </span>
-        <span style="color: #fff; font-weight: 200; opacity: 0.8;">CONTROL</span>
+        <span
+            style="color: #666; font-family: 'Courier New', monospace; font-size: 0.7em; letter-spacing: 2px;">[CORE_ACCESS]</span>
     </a>
 </h1>
+
+<style>
+    @keyframes pulse {
+        0% {
+            transform: scale(0.95);
+            box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7);
+        }
+
+        70% {
+            transform: scale(1);
+            box-shadow: 0 0 0 10px rgba(255, 0, 0, 0);
+        }
+
+        100% {
+            transform: scale(0.95);
+            box-shadow: 0 0 0 0 rgba(255, 0, 0, 0);
+        }
+    }
+</style>
 {% endblock %}
 
 {% block extrastyle %}
 {{ block.super }}
 <style>
     :root {
-        /* Tiefes Aetherus-Rot-Schema */
-        --primary: #bb2124;
-        --secondary: #4a0e0e;
-        /* Sehr dunkles Rot für Tiefe */
+        /* Tiefschwarzes Interface */
+        --body-bg: #050505;
+        --primary: #9d1214;
+        --secondary: #1a0505;
         --accent: #f5dd5d;
         --primary-fg: #fff;
 
-        /* Hintergrund mit Tiefe (Radialer Verlauf wie auf der Main-Page) */
-        --body-bg: #0f0505;
-        --darkened-bg: #1a0808;
+        /* Tech-Farben */
+        --line-color: rgba(255, 0, 0, 0.15);
+        /* Rote technische Linien */
+        --glow-color: rgba(187, 33, 36, 0.4);
 
-        --header-bg: linear-gradient(135deg, #6b1113 0%, #3a0809 100%);
-        --header-color: #fff;
+        --header-bg: #000;
+        --breadcrumbs-bg: #0a0a0a;
 
-        --breadcrumbs-bg: #2d0a0a;
         --link-fg: #ff4d4d;
         --link-hover-color: #ff8080;
-
-        --button-bg: linear-gradient(180deg, #bb2124 0%, #8b1618 100%);
-        --button-hover-bg: #d92629;
     }
 
-    /* Der leuchtende Hintergrund-Effekt */
+    /* Hintergrunde mit technischem Grid-Muster */
     body {
-        background: radial-gradient(circle at 50% -20%, #4a0e0e 0%, #0f0505 80%) no-repeat fixed !important;
-        color: #eee !important;
+        background-color: var(--body-bg) !important;
+        background-image:
+            linear-gradient(var(--line-color) 1px, transparent 1px),
+            linear-gradient(90deg, var(--line-color) 1px, transparent 1px),
+            radial-gradient(circle at 50% 0%, #4a0000 0%, transparent 60%) !important;
+        background-size: 40px 40px, 40px 40px, 100% 100% !important;
+        background-attachment: fixed !important;
+        color: #d1d1d1 !important;
+        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
     }
 
-    /* Header mit Glow und Tiefe */
+    /* Glaseffekt für den Header */
     #header {
-        background: var(--header-bg) !important;
-        border-bottom: 1px solid rgba(255, 77, 77, 0.3) !important;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5) !important;
+        background: rgba(0, 0, 0, 0.9) !important;
+        border-bottom: 2px solid var(--primary) !important;
+        box-shadow: 0 0 20px rgba(187, 33, 36, 0.2) !important;
+        backdrop-filter: blur(5px);
     }
 
-    /* Module (Boxen) mit Glas-Effekt */
+    /* Breadcrumbs im Command-Line-Stil */
+    div.breadcrumbs {
+        background: rgba(10, 10, 10, 0.8) !important;
+        border-bottom: 1px solid var(--line-color) !important;
+        font-family: 'Courier New', monospace;
+        font-size: 11px;
+        text-transform: uppercase;
+        color: #888 !important;
+    }
+
+    /* Karten / Module mit scharfen Tech-Kanten */
     .module {
-        background: rgba(255, 255, 255, 0.03) !important;
-        border: 1px solid rgba(255, 77, 77, 0.1) !important;
-        backdrop-filter: blur(10px);
-        border-radius: 8px !important;
-        overflow: hidden;
+        background: rgba(15, 15, 15, 0.9) !important;
+        border: 1px solid var(--line-color) !important;
+        border-left: 4px solid var(--primary) !important;
+        /* Tech-Akzent an der Seite */
+        box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.5) !important;
+        border-radius: 0 !important;
+        /* Eckig wirkt technischer */
     }
 
     .module h2,
     .module th,
     .selector-chosen h2 {
-        background: linear-gradient(90deg, #8b1618 0%, #bb2124 100%) !important;
-        color: #fff !important;
+        background: #1a0505 !important;
+        color: var(--primary) !important;
+        border-bottom: 1px solid var(--primary) !important;
+        font-weight: bold;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 1px;
     }
 
-    /* Breadcrumbs (Pfadanzeige) */
-    div.breadcrumbs {
-        background: var(--breadcrumbs-bg) !important;
-        border-bottom: 1px solid rgba(255, 77, 77, 0.2) !important;
-        color: #ccc !important;
-    }
-
-    /* Buttons mit Leuchten */
+    /* Buttons mit Cyber-Glow */
     .button,
-    input[type=submit],
-    input[type=button],
-    .submit-row input {
-        background: var(--button-bg) !important;
-        border: none !important;
-        box-shadow: 0 0 10px rgba(187, 33, 36, 0.3) !important;
-        transition: all 0.3s ease !important;
+    input[type=submit] {
+        background: transparent !important;
+        border: 1px solid var(--primary) !important;
+        color: var(--primary) !important;
+        text-transform: uppercase;
+        font-weight: bold;
+        transition: all 0.2s !important;
+        position: relative;
+        border-radius: 0 !important;
     }
 
     .button:hover,
     input[type=submit]:hover {
-        box-shadow: 0 0 20px rgba(187, 33, 36, 0.6) !important;
-        transform: translateY(-1px);
+        background: var(--primary) !important;
+        color: white !important;
+        box-shadow: 0 0 15px var(--primary) !important;
     }
 
-    /* Sidebar Anpassung */
+    /* Sidebar - Dunkler und schmaler */
     #nav-sidebar {
-        background: rgba(15, 5, 5, 0.95) !important;
-        border-right: 1px solid rgba(255, 77, 77, 0.2) !important;
+        background: rgba(0, 0, 0, 0.95) !important;
+        border-right: 1px solid var(--line-color) !important;
     }
 
-    /* Tabellen-Zeilen */
-    .row1 {
-        background: rgba(255, 255, 255, 0.02) !important;
+    /* Scrollbars im Tech-Style */
+    ::-webkit-scrollbar {
+        width: 6px;
     }
 
-    .row2 {
-        background: rgba(255, 255, 255, 0.05) !important;
+    ::-webkit-scrollbar-track {
+        background: #000;
     }
 
-    tr:hover {
-        background: rgba(187, 33, 36, 0.1) !important;
+    ::-webkit-scrollbar-thumb {
+        background: var(--primary);
+    }
+
+    /* Login-Container Fix */
+    .login #container {
+        background: #0a0a0a !important;
+        border: 1px solid var(--primary) !important;
+        box-shadow: 0 0 30px rgba(187, 33, 36, 0.3) !important;
     }
 </style>
 {% endblock %}
