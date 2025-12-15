@@ -3,49 +3,69 @@
 {% block branding %}
 <h1 id="site-name">
     <a href="{% url 'admin:index' %}" style="display: flex; align-items: center; gap: 12px; text-decoration: none;">
-        <div class="core-node"></div>
+        <div class="core-container">
+            <div class="core-node"></div>
+            <div class="core-ring"></div>
+        </div>
         <span class="logo-text">AETHERUS</span>
-        <span class="logo-sub">[SYS_ADMIN_v2.0]</span>
+        <span class="logo-sub">SECURE_INTERFACE_v3.0</span>
     </a>
 </h1>
 
 <style>
+    .core-container {
+        position: relative;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
     .core-node {
-        width: 10px;
-        height: 10px;
-        background: #ff4d4d;
-        border-radius: 2px;
-        box-shadow: 0 0 15px #ff0000;
-        animation: core-pulse 3s infinite ease-in-out;
+        width: 8px;
+        height: 8px;
+        background: #ff0000;
+        border-radius: 1px;
         transform: rotate(45deg);
+        box-shadow: 0 0 15px #ff0000;
+        z-index: 2;
+    }
+
+    .core-ring {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        border: 1px solid #ff4d4d;
+        border-radius: 3px;
+        animation: rotate-ring 4s infinite linear;
+        opacity: 0.5;
     }
 
     .logo-text {
         color: var(--accent);
         font-weight: 900;
-        letter-spacing: 4px;
+        letter-spacing: 5px;
         filter: drop-shadow(0 0 10px rgba(245, 221, 93, 0.4));
+        font-size: 1.4rem;
     }
 
     .logo-sub {
-        color: #555;
+        color: #444;
         font-family: 'monospace';
-        font-size: 0.6em;
+        font-size: 0.55em;
         letter-spacing: 2px;
+        border-left: 1px solid #444;
+        padding-left: 10px;
     }
 
-    @keyframes core-pulse {
-
-        0%,
-        100% {
-            transform: rotate(45deg) scale(0.8);
-            opacity: 0.5;
+    @keyframes rotate-ring {
+        from {
+            transform: rotate(0deg);
         }
 
-        50% {
-            transform: rotate(225deg) scale(1.2);
-            opacity: 1;
-            box-shadow: 0 0 25px #ff0000;
+        to {
+            transform: rotate(360deg);
         }
     }
 </style>
@@ -55,115 +75,123 @@
 {{ block.super }}
 <style>
     :root {
-        --body-bg: #030303;
-        --primary: #c31417;
-        --secondary: #120303;
+        --body-bg: #020202;
+        --primary: #d31d20;
+        --secondary: #1a0202;
         --accent: #f5dd5d;
-        --line-base: rgba(255, 0, 0, 0.08);
-        --line-bold: rgba(255, 0, 0, 0.15);
+        --line-color: rgba(255, 0, 0, 0.12);
     }
 
-    /* Der "Zufällige" Tech-Hintergrund */
+    /* Hintergrund mit animierten wandernden Linien */
     body {
         background-color: var(--body-bg) !important;
         background-image:
-            /* Grobes, unregelmäßiges Raster */
-            linear-gradient(var(--line-bold) 1px, transparent 1px),
-            linear-gradient(90deg, var(--line-bold) 1px, transparent 1px),
-            /* Feineres, versetztes Raster für "Noise" */
-            linear-gradient(var(--line-base) 1px, transparent 1px),
-            linear-gradient(90deg, var(--line-base) 1px, transparent 1px),
-            /* Der rote Tiefen-Glow */
-            radial-gradient(circle at 80% 20%, #3d0000 0%, transparent 40%),
-            radial-gradient(circle at 20% 80%, #2a0000 0%, transparent 40%),
-            radial-gradient(circle at 50% 0%, #610000 0%, transparent 70%) !important;
-
-        /* Die unterschiedlichen Größen erzeugen das "zufällige" Muster */
-        background-size: 120px 120px, 120px 120px, 30px 30px, 30px 30px, 100% 100%, 100% 100%, 100% 100% !important;
+            /* Ebene 1: Wanderndes Raster */
+            linear-gradient(var(--line-color) 1px, transparent 1px),
+            linear-gradient(90deg, var(--line-color) 1px, transparent 1px),
+            /* Ebene 2: Tiefen-Glows */
+            radial-gradient(circle at 50% 0%, #5a0000 0%, transparent 70%),
+            radial-gradient(circle at 0% 100%, #2a0000 0%, transparent 40%) !important;
+        background-size: 60px 60px, 60px 60px, 100% 100%, 100% 100% !important;
         background-attachment: fixed !important;
+        animation: grid-move 20s infinite linear;
+        /* Hier ist die Bewegung! */
         color: #e0e0e0 !important;
     }
 
-    /* Tech-Dekoration: Ein vertikaler Scan-Strich-Effekt */
-    body::before {
+    @keyframes grid-move {
+        from {
+            background-position: 0 0, 0 0, 0 0, 0 0;
+        }
+
+        to {
+            background-position: 60px 60px, 60px 60px, 0 0, 0 0;
+        }
+    }
+
+    /* Tech-Scanline Effekt (Horizontaler Strich der durchläuft) */
+    body::after {
         content: "";
         position: fixed;
-        top: 0;
+        top: -100%;
         left: 0;
         width: 100%;
-        height: 100%;
-        background: linear-gradient(0deg, transparent 0%, rgba(255, 0, 0, 0.03) 50%, transparent 100%);
-        background-size: 100% 4px;
+        height: 100px;
+        background: linear-gradient(to bottom, transparent, rgba(255, 0, 0, 0.05), transparent);
+        animation: scanline 8s infinite linear;
         pointer-events: none;
-        z-index: 1000;
-        opacity: 0.5;
+        z-index: 9999;
     }
 
-    /* Container & Module */
-    #header {
-        background: rgba(0, 0, 0, 0.95) !important;
-        border-bottom: 2px solid var(--primary) !important;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8) !important;
-        position: relative;
+    @keyframes scanline {
+        0% {
+            top: -10%;
+        }
+
+        100% {
+            top: 110%;
+        }
     }
 
-    /* Schräge Tech-Kante für Module */
+    /* Modernisierte Module mit schrägen Ecken und Glow */
     .module {
-        background: rgba(10, 10, 10, 0.8) !important;
-        border: 1px solid var(--line-bold) !important;
-        border-top: 3px solid var(--primary) !important;
-        position: relative;
-        clip-path: polygon(0 0, 100% 0, 100% 100%, 5px 100%, 0 calc(100% - 5px));
-        /* Abgeschnittene Ecke unten links */
+        background: rgba(10, 10, 10, 0.85) !important;
+        border: 1px solid var(--line-color) !important;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.5) !important;
+        clip-path: polygon(0 0, calc(100% - 15px) 0, 100% 15px, 100% 100%, 0 100%);
+        /* Tech-Cut oben rechts */
+        backdrop-filter: blur(10px);
     }
 
-    /* Tabellen & Listen */
     .module h2 {
-        background: #1a0202 !important;
-        font-family: 'monospace';
-        text-transform: uppercase;
-        font-size: 0.9em;
+        background: linear-gradient(90deg, #300000 0%, #600000 100%) !important;
         border-bottom: 1px solid var(--primary) !important;
         color: var(--primary) !important;
+        font-family: 'monospace';
+        font-size: 0.85rem !important;
+        letter-spacing: 2px;
     }
 
-    /* Buttons: Jetzt mit "Invert"-Glow */
+    /* Buttons: Cyber-Shape */
     .button,
     input[type=submit] {
         background: transparent !important;
         border: 1px solid var(--primary) !important;
         color: var(--primary) !important;
-        clip-path: polygon(10% 0, 100% 0, 100% 70%, 90% 100%, 0 100%, 0 30%);
-        /* "Blade Runner" Button Shape */
-        padding: 5px 20px !important;
+        clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+        text-transform: uppercase;
+        font-weight: 900 !important;
         transition: 0.3s;
     }
 
     .button:hover,
     input[type=submit]:hover {
         background: var(--primary) !important;
-        color: #fff !important;
+        color: white !important;
         box-shadow: 0 0 20px var(--primary);
+        transform: scale(1.05);
     }
 
-    /* Sidebar - Glassmorphism */
+    /* Sidebar-Tuning */
     #nav-sidebar {
-        background: rgba(5, 5, 5, 0.9) !important;
-        backdrop-filter: blur(10px);
-        border-right: 1px solid var(--line-bold) !important;
+        background: rgba(0, 0, 0, 0.9) !important;
+        border-right: 2px solid var(--primary) !important;
     }
 
-    /* Command Line Style Breadcrumbs */
-    div.breadcrumbs {
+    /* Inputs im Terminal-Stil */
+    input[type=text],
+    input[type=password],
+    textarea,
+    select {
         background: #000 !important;
-        border-bottom: 1px solid var(--primary) !important;
-        font-family: 'monospace';
-        font-size: 10px;
-        color: #666 !important;
+        border: 1px solid #333 !important;
+        color: #ff4d4d !important;
+        font-family: 'monospace' !important;
     }
 
-    div.breadcrumbs a {
-        color: var(--primary) !important;
+    input:focus {
+        border-color: var(--primary) !important;
+        box-shadow: 0 0 10px var(--primary) !important;
     }
 </style>
 {% endblock %}
