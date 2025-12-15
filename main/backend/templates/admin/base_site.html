@@ -3,32 +3,49 @@
 {% block branding %}
 <h1 id="site-name">
     <a href="{% url 'admin:index' %}" style="display: flex; align-items: center; gap: 12px; text-decoration: none;">
-        <span
-            style="width: 8px; height: 8px; background: #ff0000; border-radius: 50%; box-shadow: 0 0 10px #ff0000; animation: pulse 2s infinite;"></span>
-        <span
-            style="color: var(--accent); font-weight: 900; letter-spacing: 3px; filter: drop-shadow(0 0 8px rgba(245, 221, 93, 0.6));">
-            AETHERUS
-        </span>
-        <span
-            style="color: #666; font-family: 'Courier New', monospace; font-size: 0.7em; letter-spacing: 2px;">[CORE_ACCESS]</span>
+        <div class="core-node"></div>
+        <span class="logo-text">AETHERUS</span>
+        <span class="logo-sub">[SYS_ADMIN_v2.0]</span>
     </a>
 </h1>
 
 <style>
-    @keyframes pulse {
-        0% {
-            transform: scale(0.95);
-            box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7);
-        }
+    .core-node {
+        width: 10px;
+        height: 10px;
+        background: #ff4d4d;
+        border-radius: 2px;
+        box-shadow: 0 0 15px #ff0000;
+        animation: core-pulse 3s infinite ease-in-out;
+        transform: rotate(45deg);
+    }
 
-        70% {
-            transform: scale(1);
-            box-shadow: 0 0 0 10px rgba(255, 0, 0, 0);
-        }
+    .logo-text {
+        color: var(--accent);
+        font-weight: 900;
+        letter-spacing: 4px;
+        filter: drop-shadow(0 0 10px rgba(245, 221, 93, 0.4));
+    }
 
+    .logo-sub {
+        color: #555;
+        font-family: 'monospace';
+        font-size: 0.6em;
+        letter-spacing: 2px;
+    }
+
+    @keyframes core-pulse {
+
+        0%,
         100% {
-            transform: scale(0.95);
-            box-shadow: 0 0 0 0 rgba(255, 0, 0, 0);
+            transform: rotate(45deg) scale(0.8);
+            opacity: 0.5;
+        }
+
+        50% {
+            transform: rotate(225deg) scale(1.2);
+            opacity: 1;
+            box-shadow: 0 0 25px #ff0000;
         }
     }
 </style>
@@ -38,122 +55,115 @@
 {{ block.super }}
 <style>
     :root {
-        /* Tiefschwarzes Interface */
-        --body-bg: #050505;
-        --primary: #9d1214;
-        --secondary: #1a0505;
+        --body-bg: #030303;
+        --primary: #c31417;
+        --secondary: #120303;
         --accent: #f5dd5d;
-        --primary-fg: #fff;
-
-        /* Tech-Farben */
-        --line-color: rgba(255, 0, 0, 0.15);
-        /* Rote technische Linien */
-        --glow-color: rgba(187, 33, 36, 0.4);
-
-        --header-bg: #000;
-        --breadcrumbs-bg: #0a0a0a;
-
-        --link-fg: #ff4d4d;
-        --link-hover-color: #ff8080;
+        --line-base: rgba(255, 0, 0, 0.08);
+        --line-bold: rgba(255, 0, 0, 0.15);
     }
 
-    /* Hintergrunde mit technischem Grid-Muster */
+    /* Der "Zufällige" Tech-Hintergrund */
     body {
         background-color: var(--body-bg) !important;
         background-image:
-            linear-gradient(var(--line-color) 1px, transparent 1px),
-            linear-gradient(90deg, var(--line-color) 1px, transparent 1px),
-            radial-gradient(circle at 50% 0%, #4a0000 0%, transparent 60%) !important;
-        background-size: 40px 40px, 40px 40px, 100% 100% !important;
+            /* Grobes, unregelmäßiges Raster */
+            linear-gradient(var(--line-bold) 1px, transparent 1px),
+            linear-gradient(90deg, var(--line-bold) 1px, transparent 1px),
+            /* Feineres, versetztes Raster für "Noise" */
+            linear-gradient(var(--line-base) 1px, transparent 1px),
+            linear-gradient(90deg, var(--line-base) 1px, transparent 1px),
+            /* Der rote Tiefen-Glow */
+            radial-gradient(circle at 80% 20%, #3d0000 0%, transparent 40%),
+            radial-gradient(circle at 20% 80%, #2a0000 0%, transparent 40%),
+            radial-gradient(circle at 50% 0%, #610000 0%, transparent 70%) !important;
+
+        /* Die unterschiedlichen Größen erzeugen das "zufällige" Muster */
+        background-size: 120px 120px, 120px 120px, 30px 30px, 30px 30px, 100% 100%, 100% 100%, 100% 100% !important;
         background-attachment: fixed !important;
-        color: #d1d1d1 !important;
-        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+        color: #e0e0e0 !important;
     }
 
-    /* Glaseffekt für den Header */
+    /* Tech-Dekoration: Ein vertikaler Scan-Strich-Effekt */
+    body::before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(0deg, transparent 0%, rgba(255, 0, 0, 0.03) 50%, transparent 100%);
+        background-size: 100% 4px;
+        pointer-events: none;
+        z-index: 1000;
+        opacity: 0.5;
+    }
+
+    /* Container & Module */
     #header {
-        background: rgba(0, 0, 0, 0.9) !important;
+        background: rgba(0, 0, 0, 0.95) !important;
         border-bottom: 2px solid var(--primary) !important;
-        box-shadow: 0 0 20px rgba(187, 33, 36, 0.2) !important;
-        backdrop-filter: blur(5px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8) !important;
+        position: relative;
     }
 
-    /* Breadcrumbs im Command-Line-Stil */
-    div.breadcrumbs {
-        background: rgba(10, 10, 10, 0.8) !important;
-        border-bottom: 1px solid var(--line-color) !important;
-        font-family: 'Courier New', monospace;
-        font-size: 11px;
-        text-transform: uppercase;
-        color: #888 !important;
-    }
-
-    /* Karten / Module mit scharfen Tech-Kanten */
+    /* Schräge Tech-Kante für Module */
     .module {
-        background: rgba(15, 15, 15, 0.9) !important;
-        border: 1px solid var(--line-color) !important;
-        border-left: 4px solid var(--primary) !important;
-        /* Tech-Akzent an der Seite */
-        box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.5) !important;
-        border-radius: 0 !important;
-        /* Eckig wirkt technischer */
+        background: rgba(10, 10, 10, 0.8) !important;
+        border: 1px solid var(--line-bold) !important;
+        border-top: 3px solid var(--primary) !important;
+        position: relative;
+        clip-path: polygon(0 0, 100% 0, 100% 100%, 5px 100%, 0 calc(100% - 5px));
+        /* Abgeschnittene Ecke unten links */
     }
 
-    .module h2,
-    .module th,
-    .selector-chosen h2 {
-        background: #1a0505 !important;
-        color: var(--primary) !important;
-        border-bottom: 1px solid var(--primary) !important;
-        font-weight: bold;
+    /* Tabellen & Listen */
+    .module h2 {
+        background: #1a0202 !important;
+        font-family: 'monospace';
         text-transform: uppercase;
-        letter-spacing: 1px;
+        font-size: 0.9em;
+        border-bottom: 1px solid var(--primary) !important;
+        color: var(--primary) !important;
     }
 
-    /* Buttons mit Cyber-Glow */
+    /* Buttons: Jetzt mit "Invert"-Glow */
     .button,
     input[type=submit] {
         background: transparent !important;
         border: 1px solid var(--primary) !important;
         color: var(--primary) !important;
-        text-transform: uppercase;
-        font-weight: bold;
-        transition: all 0.2s !important;
-        position: relative;
-        border-radius: 0 !important;
+        clip-path: polygon(10% 0, 100% 0, 100% 70%, 90% 100%, 0 100%, 0 30%);
+        /* "Blade Runner" Button Shape */
+        padding: 5px 20px !important;
+        transition: 0.3s;
     }
 
     .button:hover,
     input[type=submit]:hover {
         background: var(--primary) !important;
-        color: white !important;
-        box-shadow: 0 0 15px var(--primary) !important;
+        color: #fff !important;
+        box-shadow: 0 0 20px var(--primary);
     }
 
-    /* Sidebar - Dunkler und schmaler */
+    /* Sidebar - Glassmorphism */
     #nav-sidebar {
-        background: rgba(0, 0, 0, 0.95) !important;
-        border-right: 1px solid var(--line-color) !important;
+        background: rgba(5, 5, 5, 0.9) !important;
+        backdrop-filter: blur(10px);
+        border-right: 1px solid var(--line-bold) !important;
     }
 
-    /* Scrollbars im Tech-Style */
-    ::-webkit-scrollbar {
-        width: 6px;
+    /* Command Line Style Breadcrumbs */
+    div.breadcrumbs {
+        background: #000 !important;
+        border-bottom: 1px solid var(--primary) !important;
+        font-family: 'monospace';
+        font-size: 10px;
+        color: #666 !important;
     }
 
-    ::-webkit-scrollbar-track {
-        background: #000;
-    }
-
-    ::-webkit-scrollbar-thumb {
-        background: var(--primary);
-    }
-
-    /* Login-Container Fix */
-    .login #container {
-        background: #0a0a0a !important;
-        border: 1px solid var(--primary) !important;
-        box-shadow: 0 0 30px rgba(187, 33, 36, 0.3) !important;
+    div.breadcrumbs a {
+        color: var(--primary) !important;
     }
 </style>
 {% endblock %}
