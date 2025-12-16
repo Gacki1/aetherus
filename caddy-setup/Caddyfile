@@ -20,7 +20,7 @@ aetherus.net, www.aetherus.net {
 
 # --- 2. MAILCOW (Subdomain) ---
 mail.aetherus.net {
-    reverse_proxy nginx-mailcow:80 {
+    reverse_proxy nginx-mailcow:8080 {
         header_up Host {host}
         header_up X-Forwarded-Proto https
     }
