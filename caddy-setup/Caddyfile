@@ -20,19 +20,19 @@ aetherus.net, www.aetherus.net {
 
 # --- 2. MAILCOW (Subdomain) ---
 mail.aetherus.net {
+    # HIER: Die Umleitungskorrektur kommt NACH dem reverse_proxy Block
+    
+    # 1. Standard Reverse Proxy (sendet Upstream Header)
     reverse_proxy nginx-mailcow:8080 {
-        # Alle Header-Anweisungen werden in den 'header' Block verschoben
-        header {
-            # Upstream Header (zu Mailcow)
-            Host {host}
-            X-Forwarded-Proto https
-            X-Forwarded-For {remote_host}
-            X-Forwarded-Host {host}
-
-            # Downstream Header (von Mailcow zurück zum Browser)
-            # Fängt die fehlerhafte Umleitung ab und korrigiert den Hostnamen.
-            # WICHTIG: Die Argumente müssen durch Leerzeichen getrennt sein.
-            Location replace "https://nginx-mailcow" "https://mail.aetherus.net"
-        }
+        header_up Host {host}
+        header_up X-Forwarded-Proto https
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Host {host}
     }
+
+    # 2. Downstream Header Modifikation (Korrigiert die Umleitung)
+    # Fängt die fehlerhafte Umleitung ab und korrigiert den Hostnamen.
+    # Wichtig: Diese Anweisung ist ein separater Handler und sollte *nach* dem proxy kommen.
+    # WICHTIG: Die Replace-Syntax muss ohne Anführungszeichen sein, um Argumente zu trennen.
+    header Location replace https://nginx-mailcow https://mail.aetherus.net
 }
