@@ -1,26 +1,21 @@
 # --- 1. HAUPTDOMAIN (Django & Frontend) ---
 aetherus.net, www.aetherus.net {
-    # 1. DEFINIERE STATISCHE ROOTS
-    # Root für dein Frontend (z.B. index.html)
+
     root * /usr/share/caddy/html
     
-    # Root für Django's gesammelte statische Dateien (Admin-CSS, etc.)
-    # WICHTIG: Django-Static muss separat behandelt werden, da es ein anderes Verzeichnis ist
+
     handle_path /static/* {
         root * /app/staticfiles
         file_server
     }
     
-    # 2. DEFINIERE BACKEND-ROUTEN (Django)
-    # Diese Routen gehen NUR an Django (APIs, Admin, Login, Register)
-    @backend path /api/* /admin/* /login /register /main /*
+
+    @backend path /api/* /admin/* /login /register /main /
     reverse_proxy @backend login-backend:8000
 
-    # 3. FALLBACK ZU FRONTEND
-    # Versuche, die Datei direkt zu finden (z.B. /about.html), sonst /index.html oder /start.html
-    # Wir nehmen '/index.html' als Fallback für die Root-Seite an.
-    try_files {path} {path}.html /index.html
-    file_server
+
+    try_files {path} {path}.html /index.html 
+    file_server 
 }
 
 # --- 2. MAILCOW (Subdomain) ---
