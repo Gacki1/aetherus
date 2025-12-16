@@ -13,7 +13,7 @@ aetherus.net, www.aetherus.net {
     
     # 2. DEFINIERE BACKEND-ROUTEN (Django)
     # Diese Routen gehen NUR an Django (APIs, Admin, Login, Register)
-    @backend path /api/* /admin/* /login /register /main*
+    @backend path /api/* /admin/* /login /register /main /*
     reverse_proxy @backend login-backend:8000
 
     # 3. FALLBACK ZU FRONTEND
