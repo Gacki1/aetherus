@@ -23,5 +23,7 @@ mail.aetherus.net {
     reverse_proxy nginx-mailcow:8080 {
         header_up Host {host}
         header_up X-Forwarded-Proto https
+        header_up X-Forwarded-Proto {remote_host}
+        header_up X-Forwarded-Proto {host}
     }
 }
