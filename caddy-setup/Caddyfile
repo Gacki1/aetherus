@@ -21,14 +21,18 @@ aetherus.net, www.aetherus.net {
 # --- 2. MAILCOW (Subdomain) ---
 mail.aetherus.net {
     reverse_proxy nginx-mailcow:8080 {
-        # Standard Proxy Header
-        header_up Host {host}
-        header_up X-Forwarded-Proto https
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Host {host}
-        
-        # WICHTIG: Korrigierte Syntax. Ersetzt die interne Adresse durch die öffentliche Domain.
-        # Entfernt den abschließenden Schrägstrich (/), um die genaue Übereinstimmung zu verbessern.
-        header_down Location replace https://nginx-mailcow https://mail.aetherus.net
+        # Alle Header-Anweisungen werden in den 'header' Block verschoben
+        header {
+            # Upstream Header (zu Mailcow)
+            Host {host}
+            X-Forwarded-Proto https
+            X-Forwarded-For {remote_host}
+            X-Forwarded-Host {host}
+
+            # Downstream Header (von Mailcow zurück zum Browser)
+            # Fängt die fehlerhafte Umleitung ab und korrigiert den Hostnamen.
+            # WICHTIG: Die Argumente müssen durch Leerzeichen getrennt sein.
+            Location replace "https://nginx-mailcow" "https://mail.aetherus.net"
+        }
     }
 }
