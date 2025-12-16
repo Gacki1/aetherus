@@ -21,10 +21,9 @@ aetherus.net, www.aetherus.net {
 # --- 2. MAILCOW (Subdomain) ---
 mail.aetherus.net {
     reverse_proxy nginx-mailcow:8080 {
-        # Nutzt das Standard-Header-Set für Reverse Proxies (inkl. Host und X-Forwarded-Proto)
-        # und ist oft zuverlässiger als das manuelle Setzen.
-        transport http {
-            # Hier sind keine weiteren Header-Anweisungen nötig
-        }
+        header_up Host {host}
+        header_up X-Forwarded-Proto https
+        header_up X-Forwarded-For {remote_host} 
+        header_up X-Forwarded-Host {host}
     }
 }
