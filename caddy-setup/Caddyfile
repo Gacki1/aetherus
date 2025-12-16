@@ -27,8 +27,8 @@ mail.aetherus.net {
         header_up X-Forwarded-For {remote_host}
         header_up X-Forwarded-Host {host}
         
-        # WICHTIG: Korrigiert den fehlerhaften Location-Header von Mailcow.
-        # Ersetzt die interne Adresse (nginx-mailcow) durch die öffentliche Domain.
-        header_down Location replace https://nginx-mailcow/ https://mail.aetherus.net/
+        # WICHTIG: Korrigierte Syntax. Ersetzt die interne Adresse durch die öffentliche Domain.
+        # Entfernt den abschließenden Schrägstrich (/), um die genaue Übereinstimmung zu verbessern.
+        header_down Location replace https://nginx-mailcow https://mail.aetherus.net
     }
 }
