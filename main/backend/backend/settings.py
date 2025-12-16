@@ -31,7 +31,14 @@ SECRET_KEY = 'django-insecure-al@57g9r$c=t!%d&j2k-$ca6jl=j9uey3f-v&s5th3g=l_072&
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["aetherus.net", "login-backend", "localhost", "127.0.0.1", 'mail.aetherus.net', '91.99.59.168']
+ALLOWED_HOSTS = [
+    "aetherus.net",
+    "www.aetherus.net" 
+    "login-backend", 
+    "localhost", 
+    "127.0.0.1",  
+    '91.99.59.168'
+    ]
 
 
 # Application definition
