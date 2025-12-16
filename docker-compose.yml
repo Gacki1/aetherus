@@ -16,6 +16,7 @@ services:
       - caddy_config:/config
     networks:
       - aetherus-net
+      - mailcow-net
     # Wichtig: Caddy muss wissen, wo die Mailcow-IP (172.30.1.1) liegt. 
     # Docker findet das normalerweise über das Gateway.
 
