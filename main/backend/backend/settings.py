@@ -234,3 +234,16 @@ LOGIN_URL = "/login.html"
 DEBUG = True
 
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
+# Die URL für den Browser (http://.../static/...)
+STATIC_URL = 'static/'
+
+# WOHIN soll kopiert werden? (Das Ziel -> für Caddy)
+# Dieser Ordner wird automatisch erstellt.
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# WOHER kommen die Dateien? (Deine Quelle)
+# Hier muss dein neuer Ordner "static" eingetragen sein.
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+]
