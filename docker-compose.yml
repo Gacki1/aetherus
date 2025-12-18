@@ -21,10 +21,10 @@ services:
     # Docker findet das normalerweise über das Gateway.
 
   # -------------------- Django Backend --------------------
-  login-backend:
+  backend:
     command: python manage.py runserver 0.0.0.0:8000
     build: ./main/backend
-    container_name: login-backend
+    container_name: backend
     restart: unless-stopped
     volumes:
       - ./main/backend:/app
