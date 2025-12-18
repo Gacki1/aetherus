@@ -11,7 +11,7 @@ aetherus.net, www.aetherus.net {
     
 
     @backend path /api/* /admin/* /login /register /main /
-    reverse_proxy @backend login-backend:8000
+    reverse_proxy @backend backend:8000
 
 
     try_files {path} {path}.html /index.html 
