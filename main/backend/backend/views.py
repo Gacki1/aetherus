@@ -75,7 +75,7 @@ class RegisterAPIView(APIView):
 
         # 3. E-Mail senden
         subject = 'Aetherus - Account verifizieren'
-        message = f'Willkommen {username}!\n\nKlicke auf den Link, um dein Konto zu aktivieren: {activation_link}'
+        message = f'Willkommen {username}!\n\nEs freut uns dass du dich auf Aetherus etwas umsehen willst!\n\nKlicke noch auf den Link, um dein Konto zu aktivieren: {activation_link}\n\nDein Aetherus Team.'
         
         print(f"Sende Mail an: {email} über Backend: {settings.EMAIL_BACKEND}")
         try:
