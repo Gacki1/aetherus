@@ -14,7 +14,7 @@ from .views import (
 
 urlpatterns = [
     # 1. API Registrierung & Aktivierung (Muss vor Djoser stehen!)
-    path("api/auth/users/", RegisterAPIView.as_view(), name="api_register"),
+    path("api/auth/register/", RegisterAPIView.as_view(), name="api_register"),
     # Geänderter Pfad für den TimestampSigner Workflow:
     path("api/auth/activate/<str:activation_key>/", ActivateAccountView.as_view(), name="activate"),
 

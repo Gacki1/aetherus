@@ -207,12 +207,12 @@ CORS_ALLOW_CREDENTIALS = True
 load_dotenv()
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = "mailserver"
+EMAIL_HOST = "mail.aetherus.net"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = "noreply@aetherus.net"
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
-DEFAULT_FROM_EMAIL = 'Aetherus <noreply@aetherus.net>'
+DEFAULT_FROM_EMAIL = 'Aetherus Team <noreply@aetherus.net>'
 SERVER_EMAIL = 'noreply@aetherus.net' # War vorher SERVER_MAIL
 
 # Sicherheit & Cookies
