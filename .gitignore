@@ -13,7 +13,6 @@ local_settings.py
 db.sqlite3
 *.log
 media/
-staticfiles/
 
 # Environments (falls du venv im backend ordner hast)
 .env
