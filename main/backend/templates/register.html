@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{% load static%} <!DOCTYPE html>
 <html lang="de">
 
 <head>
@@ -47,7 +47,7 @@
         <p style="margin-top: 20px; font-size: 0.85rem;">Bereits einen Account? <a href="login" style="color: #58a6ff; text-decoration: none;">Hier einloggen</a></p>
     </div>
 
-    <script src="/register.js"></script>
+    <script src="{% static 'js/register.js' %}"></script>
 </body>
 
 </html>
