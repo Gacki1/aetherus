@@ -1,25 +1,24 @@
 # --- 1. HAUPTDOMAIN (Django & Frontend) ---
 aetherus.net, www.aetherus.net {
 
-    root * /usr/share/caddy/html
-    
-
+    # A. Statische Dateien (CSS, JS, Bilder)
+    # Caddy liefert diese direkt aus dem Volume, das wir teilen
     handle_path /static/* {
         root * /app/staticfiles
         file_server
     }
-    
-    reverse_proxy backend:8000
 
-    try_files {path} {path}.html /index.html 
-    file_server 
+    # B. Alles andere -> Django Backend
+    # Keine "try_files", kein globaler "file_server".
+    # Django entscheidet, ob es /login, /register oder 404 gibt.
+    reverse_proxy backend:8000
 }
 
 # --- 2. MAILCOW (Subdomain) ---
 mail.aetherus.net {
     reverse_proxy nginx-mailcow:8080 {
         header_up Host {host}
-        header_up X-Forwarded-Proto https # Dies ist der entscheidende Header, der jetzt funktionieren sollte
+        header_up X-Forwarded-Proto https
         header_up X-Forwarded-For {remote_host}
         header_up X-Forwarded-Host {host}
     }
