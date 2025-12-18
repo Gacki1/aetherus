@@ -14,6 +14,7 @@ services:
       - ./backend/staticfiles:/app/staticfiles:ro
       - caddy_data:/data
       - caddy_config:/config
+      - static_volume:/app/staticfiles
     networks:
       - aetherus-net
       - mailcow-net
@@ -27,7 +28,9 @@ services:
     container_name: backend
     restart: unless-stopped
     volumes:
+      - .:/app
       - ./main/backend:/app
+      - static_volume:/app/staticfiles
       # Falls Django Static-Files generiert, teilen wir sie hier
       - ./backend/staticfiles:/app/staticfiles
     env_file:
@@ -61,3 +64,4 @@ volumes:
   caddy_data:
   caddy_config:
   redis_data:
+  static_volume
