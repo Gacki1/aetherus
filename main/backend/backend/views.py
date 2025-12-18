@@ -83,7 +83,7 @@ class RegisterAPIView(APIView):
                 subject,
                 message, 
                 settings.DEFAULT_FROM_EMAIL, 
-                email,
+                [email],
                 fail_silently=False,
                 )
             print("--- EMAIL ERFOLGREICH GESENDET ---")
