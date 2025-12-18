@@ -29,7 +29,7 @@ document.getElementById('register-form').addEventListener('submit', async functi
 
         if (response.ok) {
             // Text angepasst, da der User erst verifizieren muss
-            showMessage("Account erstellt! Bitte prüfe deine E-Mails zur Aktivierung.", "success");
+            showMessage("Account erstellt! Bitte prüfe deine E-Mails (auch den Spam Ordner) zur Aktivierung.", "success");
             setTimeout(() => {
                 window.location.href = '/login'; // .html entfernt für Clean URLs
             }, 3000);
