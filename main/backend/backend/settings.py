@@ -33,7 +33,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = [
     "aetherus.net",
-    "www.aetherus.net" 
+    "www.aetherus.net", 
     "login-backend", 
     "localhost", 
     "127.0.0.1",  
