@@ -187,3 +187,13 @@ body {
     .nav-center { gap: 10px; }
     .chat-link { padding: 6px 16px; font-size: 0.9rem; }
 }
+
+.chat-link.active {
+    background: rgba(0, 210, 255, 0.25);
+    /* Hellerer Hintergrund */
+    border-color: var(--neon-cyan);
+    color: #fff !important;
+    box-shadow: 0 0 20px rgba(0, 210, 255, 0.6),
+        inset 0 0 10px rgba(0, 210, 255, 0.2);
+    transform: translateY(-2px);
+}

@@ -1,86 +1,30 @@
-{% load static %}
-<!DOCTYPE html>
-<html lang="de">
+{% extends 'base.html' %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aetherus - Dashboard</title>
-    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
-</head>
+{% block content %}
+<header class="dashboard-header">
+    <h1>Dein Dashboard</h1>
+    <p>Hier hast du alle wichtigen Informationen im Blick.</p>
+</header>
 
-<body>
-    <nav class="navbar">
-        <div class="nav-logo">AETHERUS</div>
+<section class="stats-grid">
+    <div class="stat-card">
+        <h3>Status</h3>
+        <p class="status-online">Verbunden</p>
+    </div>
+    <div class="stat-card">
+        <h3>Letzter Login</h3>
+        <p>{{ user.last_login|date:"d.m.Y H:i" }}</p>
+    </div>
+    <div class="stat-card">
+        <h3>Berechtigungen</h3>
+        <p>{% if user.is_staff %}Administrator{% else %}Benutzer{% endif %}</p>
+    </div>
+</section>
 
-        <div class="nav-center">
-            <a href="/chat" class="nav-link chat-link">
-                <span class="icon">💬</span> Chat
-            </a>
-        </div>
-
-        <div class="nav-user">
-            <span>Willkommen, <strong>{{ user.username }}</strong></span>
-            <button onclick="logoutUser()" class="logout-btn">Abmelden</button>
-        </div>
-    </nav>
-
-    <main class="dashboard-container">
-        <header class="dashboard-header">
-            <h1>Dein Dashboard</h1>
-            <p>Hier hast du alle wichtigen Informationen im Blick.</p>
-        </header>
-
-        <section class="stats-grid">
-            <div class="stat-card">
-                <h3>Status</h3>
-                <p class="status-online">Verbunden</p>
-            </div>
-            <div class="stat-card">
-                <h3>Letzter Login</h3>
-                <p>{{ user.last_login|date:"d.m.Y H:i" }}</p>
-            </div>
-            <div class="stat-card">
-                <h3>Berechtigungen</h3>
-                <p>{% if user.is_staff %}Administrator{% else %}Benutzer{% endif %}</p>
-            </div>
-        </section>
-
-        <section class="content-area">
-            <div class="card">
-                <h2>Neuigkeiten</h2>
-                <p>Willkommen in der neuen Aetherus-Umgebung. Dein Login war erfolgreich!</p>
-            </div>
-        </section>
-    </main>
-</body>
-
-<script>
-    async function logoutUser() {
-        const csrfToken = document.cookie
-            .split('; ')
-            .find(row => row.startsWith('csrftoken='))
-            ?.split('=')[1];
-
-        try {
-            const response = await fetch('/api/auth/logout/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                }
-            });
-
-            if (response.ok) {
-                localStorage.removeItem('auth_mode');
-                window.location.href = '/start';
-            } else {
-                alert("Fehler beim Abmelden.");
-            }
-        } catch (error) {
-            console.error("Netzwerkfehler beim Logout:", error);
-        }
-    }
-</script>
-
-</html>
+<section class="content-area">
+    <div class="card">
+        <h2>Neuigkeiten</h2>
+        <p>Willkommen in der neuen Aetherus-Umgebung. Dein Login war erfolgreich!</p>
+    </div>
+</section>
+{% endblock %}

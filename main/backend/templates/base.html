@@ -1,0 +1,63 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aetherus</title>
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="nav-logo">AETHERUS</div>
+
+        <div class="nav-center">
+            <a href="/chat" class="nav-link chat-link {% if '/chat/' in request.path %}active{% endif %}">
+                <span class="icon">💬</span> Chat
+            </a>
+
+            <a href="/main" class="nav-link {% if '/main/' in request.path %}active{% endif %}">
+                🏠 Dashboard
+            </a>
+        </div>
+
+        <div class="nav-user">
+            <span>Willkommen, <strong>{{ user.username }}</strong></span>
+            <button onclick="logoutUser()" class="logout-btn">Abmelden</button>
+        </div>
+    </nav>
+
+    <main class="dashboard-container">
+        {% block content %}
+        {% endblock %}
+    </main>
+</body>
+
+<script>
+    async function logoutUser() {
+        const csrfToken = document.cookie
+            .split('; ')
+            .find(row => row.startsWith('csrftoken='))
+            ?.split('=')[1];
+
+        try {
+            const response = await fetch('/api/auth/logout/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                }
+            });
+            if (response.ok) {
+                localStorage.removeItem('auth_mode');
+                window.location.href = '/';
+            }
+        } catch (error) {
+            console.error("Logout Fehler:", error);
+        }
+    }
+</script>
+
+</html>
