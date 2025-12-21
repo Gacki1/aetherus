@@ -7,9 +7,7 @@ from .views.auth import (
     SessionLogoutView,
     UserProfileView
 )
-from .views.middleware import (
-    GuestRestrictionMiddleware
-)
+
 from .views.pages import (
     DashboardView,
     login_page_view,
