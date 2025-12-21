@@ -10,10 +10,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.shortcuts import redirect, render
 from django.core.mail import send_mail
 from django.core.signing import TimestampSigner, SignatureExpired
-
-# WICHTIG: Neue Imports für die Verifizierung
 from django.conf import settings
-from django.core.mail import send_mail
 
 # --- Bestehenden Page-Views ---
 
@@ -170,8 +167,32 @@ class UserProfileView(APIView):
             "email": request.user.email
         })
 
-class RedirectIfLoggedInMixin:
-    def dispatch(self, request, *args, **kwargs):
+class GuestRestrictionMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
         if request.user.is_authenticated:
-            return redirect("/main")
-        return super().dispatch(request, *args, **kwargs)
+            return self.get_response(request)
+        
+        allowed_paths = [
+            "/start",
+            "/login",
+            "/register",
+            "/static/",
+            "/media/",
+            "/api/",
+            "/admin/"
+        ]
+
+        current_path = request.path
+        is_allowed = False
+        for path in allowed_paths:
+            if current_path.startswith(path):
+                is_allowed = True
+                break
+        
+        if is_allowed:
+            return self.get_response(request)
+        else:
+            return redirect("/start")
