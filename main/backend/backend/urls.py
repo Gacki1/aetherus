@@ -4,7 +4,7 @@ from django.views.generic import RedirectView
 from .views import pages, auth
 
 urlpatterns = [
-    path('', RedirectView.as_view(url='/start/', permanent=False)),
+    path('', RedirectView.as_view(url='/start', permanent=False)),
 
     # 1. API Registrierung & Aktivierung (Muss vor Djoser stehen!)
     path("api/auth/register/", auth.RegisterAPIView.as_view(), name="api_register"),
