@@ -23,4 +23,4 @@ class GuestRestrictionMiddleware:
         if request.path == '/' or any(request.path.startswith(prefix) for prefix in allowed_prefixes):
             return self.get_response(request)
 
-        return redirect('')
+        return redirect('/login')
