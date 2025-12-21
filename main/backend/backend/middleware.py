@@ -5,27 +5,22 @@ class GuestRestrictionMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        # 1. Eingeloggte User dürfen alles
         if request.user.is_authenticated:
             return self.get_response(request)
-        
-        allowed_paths = [
-            "/",
-            "/login",
-            "/register",
-            "/static/",
-            "/media/",
-            "/api/",
-            "/admin/"
+
+        # 2. Liste der erlaubten Präfixe (OHNE '/')
+        allowed_prefixes = [
+            '/', 
+            '/login', 
+            '/register', 
+            '/static/', 
+            '/media/', 
+            '/api/',
+            '/admin/'
         ]
 
-        current_path = request.path
-        is_allowed = False
-        for path in allowed_paths:
-            if current_path.startswith(path):
-                is_allowed = True
-                break
-        
-        if is_allowed:
+        if request.path == '/' or any(request.path.startswith(prefix) for prefix in allowed_prefixes):
             return self.get_response(request)
-        else:
-            return redirect("")
+
+        return redirect('')
