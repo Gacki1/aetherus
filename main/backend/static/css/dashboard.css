@@ -1,3 +1,6 @@
+/* =========================================
+   1. GRUNDLAGEN & FARBEN
+   ========================================= */
 :root {
     --bg-black: #0a0c10;
     --card-bg: #13171c;
@@ -15,10 +18,13 @@ body {
     font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     margin: 0;
     min-height: 100vh;
+    /* Dezenter Blau-Schimmer im Hintergrund */
     background: radial-gradient(circle at 50% -20%, #1a2a3a 0%, var(--bg-black) 80%);
 }
 
-/* --- Navigation --- */
+/* =========================================
+   2. NAVIGATION BAR
+   ========================================= */
 .navbar {
     display: flex;
     justify-content: space-between;
@@ -33,6 +39,7 @@ body {
     z-index: 1000;
 }
 
+/* --- Logo --- */
 .nav-logo {
     font-size: 1.8rem;
     font-weight: 800;
@@ -45,43 +52,63 @@ body {
     cursor: default;
 }
 
+/* --- Mittlerer Bereich (Buttons) --- */
 .nav-center {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 15px;
+    /* Abstand zwischen den Buttons */
 }
 
-.nav-link {
+/* Das "Pillen"-Design für Dashboard & Chat */
+.nav-pill {
     text-decoration: none;
     font-weight: 600;
     display: flex;
     align-items: center;
-    transition: all 0.3s ease;
-}
-
-/* CHAT BUTTON DESIGN */
-.chat-link {
-    background: rgba(0, 210, 255, 0.08);
-    border: 1px solid rgba(0, 210, 255, 0.3);
-    color: var(--neon-cyan) !important;
+    gap: 8px;
+    padding: 8px 20px;
     border-radius: 50px;
-    padding: 8px 24px;
-    gap: 10px;
+    /* Runde Form */
+
+    /* Standard (Inaktiv): Transparent, dünner Rahmen */
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-muted);
+
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.chat-link:hover {
-    background: rgba(0, 210, 255, 0.2);
-    border-color: var(--neon-cyan);
-    color: #fff !important;
-    box-shadow: 0 0 15px rgba(0, 210, 255, 0.4), inset 0 0 10px rgba(0, 210, 255, 0.1);
+/* Hover-Effekt (Maus drüber) */
+.nav-pill:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-white);
     transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.3);
 }
 
-.chat-link:hover .icon {
-    transform: scale(1.2) rotate(-10deg);
-    transition: transform 0.3s ease;
+/* ACTIVE STATE (Wenn man auf der Seite ist) */
+/* Das ist der "Aufleuchten"-Effekt */
+.nav-pill.active {
+    /* Hintergrund wird bläulich gefüllt */
+    background: rgba(0, 210, 255, 0.15);
+
+    /* Rahmen wird Neon-Cyan */
+    border-color: var(--neon-cyan);
+
+    /* Text wird strahlend weiß */
+    color: #fff !important;
+
+    /* NEON GLOW EFFEKT */
+    box-shadow: inset 0 0 10px rgba(0, 210, 255, 0.2),
+        /* Innen */
+        0 0 15px rgba(0, 210, 255, 0.5),
+        /* Außen klein */
+        0 0 30px rgba(0, 210, 255, 0.2);
+    /* Außen groß */
 }
 
+/* --- User Bereich (Rechts) --- */
 .nav-user {
     display: flex;
     align-items: center;
@@ -105,7 +132,9 @@ body {
     box-shadow: 0 0 15px rgba(255, 77, 77, 0.4);
 }
 
-/* --- Layout Container --- */
+/* =========================================
+   3. HAUPT-LAYOUT
+   ========================================= */
 .dashboard-container {
     max-width: 1100px;
     margin: 3rem auto;
@@ -114,8 +143,15 @@ body {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .dashboard-header h1 {
@@ -128,7 +164,9 @@ body {
     font-size: 1.1rem;
 }
 
-/* --- Stats Grid --- */
+/* =========================================
+   4. STATS GRID (Karten)
+   ========================================= */
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -136,7 +174,8 @@ body {
     margin-top: 2.5rem;
 }
 
-.stat-card, .card {
+.stat-card,
+.card {
     background: var(--card-bg);
     border: 1px solid rgba(255, 255, 255, 0.05);
     padding: 1.8rem;
@@ -146,6 +185,7 @@ body {
     overflow: hidden;
 }
 
+/* Karte leuchtet beim Hover */
 .stat-card:hover {
     transform: scale(1.03);
     border-color: var(--accent-blue);
@@ -171,29 +211,34 @@ body {
     text-shadow: 0 0 10px rgba(0, 255, 170, 0.3);
 }
 
-/* --- Content Area --- */
+/* =========================================
+   5. CONTENT AREA (Abstand Fix)
+   ========================================= */
 .content-area {
     margin-top: 4rem;
+    /* Abstand nach oben */
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
     animation: fadeIn 1s ease-out;
 }
 
-/* --- Mobile --- */
+/* =========================================
+   6. RESPONSIVE (Handy)
+   ========================================= */
 @media (max-width: 768px) {
-    .navbar { padding: 0 1rem; }
-    .nav-user span { display: none; }
-    .nav-center { gap: 10px; }
-    .chat-link { padding: 6px 16px; font-size: 0.9rem; }
-}
+    .navbar {
+        padding: 0 1rem;
+    }
 
-.chat-link.active {
-    background: rgba(0, 210, 255, 0.25);
-    /* Hellerer Hintergrund */
-    border-color: var(--neon-cyan);
-    color: #fff !important;
-    box-shadow: 0 0 20px rgba(0, 210, 255, 0.6),
-        inset 0 0 10px rgba(0, 210, 255, 0.2);
-    transform: translateY(-2px);
+    .nav-user span {
+        display: none;
+        /* Usernamen ausblenden */
+    }
+
+    .nav-pill {
+        padding: 6px 14px;
+        /* Buttons kleiner machen */
+        font-size: 0.9rem;
+    }
 }
