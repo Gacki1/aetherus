@@ -9,7 +9,7 @@ class GuestRestrictionMiddleware:
             return self.get_response(request)
         
         allowed_paths = [
-            "/start",
+            "/",
             "/login",
             "/register",
             "/static/",
