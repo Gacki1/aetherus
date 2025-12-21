@@ -1,16 +1,21 @@
 from django.contrib import admin
 from django.urls import path, include
-from .views import (
-    SessionLogoutView, 
-    UserProfileView, 
-    SessionLoginView, 
-    DashboardView, 
-    login_page_view, 
-    start_page_view, 
-    register_page_view,
-    chat_page_view,
+from .views.auth import (
     RegisterAPIView,
-    ActivateAccountView
+    ActivateAccountView,
+    SessionLoginView,
+    SessionLogoutView,
+    UserProfileView
+)
+from .views.middleware import (
+    GuestRestrictionMiddleware
+)
+from .views.pages import (
+    DashboardView,
+    login_page_view,
+    chat_page_view,
+    start_page_view,
+    register_page_view
 )
 
 urlpatterns = [

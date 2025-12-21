@@ -1,43 +1,13 @@
-import json
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.views.generic import TemplateView
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from django.shortcuts import redirect, render
+from django.shortcuts import redirect
 from django.core.mail import send_mail
 from django.core.signing import TimestampSigner, SignatureExpired
 from django.conf import settings
-
-# --- Bestehenden Page-Views ---
-
-class DashboardView(LoginRequiredMixin, TemplateView):
-    template_name = "main.html"
-    login_url = "/login"
-
-
-def login_page_view(request):
-    if request.user.is_authenticated:
-        return redirect("/main")
-    return render(request, "login.html")
-
-def chat_page_view(request):
-    return render(request, "chat.html")
-
-def start_page_view(request):
-    if request.user.is_authenticated:
-        return redirect("/main")
-    return render(request, "start.html")
-
-def register_page_view(request):
-    if request.user.is_authenticated:
-        return redirect("/main")
-    return render(request, "register.html")
-
-# --- Neue API-Logik für die Registrierung ---
 
 class RegisterAPIView(APIView):
     permission_classes = [AllowAny]
@@ -150,14 +120,14 @@ class SessionLoginView(APIView):
             }, status=status.HTTP_200_OK)
         
         return Response({"error": "Ungültige Anmeldedaten"}, status=status.HTTP_401_UNAUTHORIZED)
-    
+
 class SessionLogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
         logout(request)
         return Response({"message": "Erfolgreich ausgeloggt"}, status=status.HTTP_200_OK)
-    
+
 class UserProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -166,33 +136,3 @@ class UserProfileView(APIView):
             "username": request.user.username,
             "email": request.user.email
         })
-
-class GuestRestrictionMiddleware:
-    def __init__(self, get_response):
-        self.get_response = get_response
-
-    def __call__(self, request):
-        if request.user.is_authenticated:
-            return self.get_response(request)
-        
-        allowed_paths = [
-            "/start",
-            "/login",
-            "/register",
-            "/static/",
-            "/media/",
-            "/api/",
-            "/admin/"
-        ]
-
-        current_path = request.path
-        is_allowed = False
-        for path in allowed_paths:
-            if current_path.startswith(path):
-                is_allowed = True
-                break
-        
-        if is_allowed:
-            return self.get_response(request)
-        else:
-            return redirect("/start")
