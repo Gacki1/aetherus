@@ -1,6 +1,3 @@
-/* =========================================
-   1. GRUNDLAGEN & VARIABLEN
-   ========================================= */
 :root {
     --bg-black: #0a0c10;
     --card-bg: #13171c;
@@ -18,13 +15,10 @@ body {
     font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     margin: 0;
     min-height: 100vh;
-    /* Dezenter Blau-Schimmer im Hintergrund */
     background: radial-gradient(circle at 50% -20%, #1a2a3a 0%, var(--bg-black) 80%);
 }
 
-/* =========================================
-   2. NAVIGATION BAR
-   ========================================= */
+/* --- Navigation --- */
 .navbar {
     display: flex;
     justify-content: space-between;
@@ -39,7 +33,6 @@ body {
     z-index: 1000;
 }
 
-/* --- Logo --- */
 .nav-logo {
     font-size: 1.8rem;
     font-weight: 800;
@@ -49,18 +42,15 @@ body {
     background-clip: text;
     -webkit-text-fill-color: transparent;
     color: transparent;
-    /* Fallback */
     cursor: default;
 }
 
-/* --- Mittlerer Bereich (Chat Button) --- */
 .nav-center {
     display: flex;
     align-items: center;
     gap: 20px;
 }
 
-/* Basis-Link-Stil */
 .nav-link {
     text-decoration: none;
     font-weight: 600;
@@ -69,38 +59,29 @@ body {
     transition: all 0.3s ease;
 }
 
-/* Spezielles Design für den CHAT Button (Neon-Look) */
+/* CHAT BUTTON DESIGN */
 .chat-link {
-    /* Glasiger Hintergrund */
     background: rgba(0, 210, 255, 0.08);
-    /* Neon-Rahmen */
     border: 1px solid rgba(0, 210, 255, 0.3);
-    /* Neon-Textfarbe */
     color: var(--neon-cyan) !important;
-    /* Runde Form */
     border-radius: 50px;
     padding: 8px 24px;
     gap: 10px;
 }
 
-/* Hover-Effekt für Chat Button */
 .chat-link:hover {
     background: rgba(0, 210, 255, 0.2);
     border-color: var(--neon-cyan);
     color: #fff !important;
-    /* Der Neon-Glow */
-    box-shadow: 0 0 15px rgba(0, 210, 255, 0.4),
-        inset 0 0 10px rgba(0, 210, 255, 0.1);
+    box-shadow: 0 0 15px rgba(0, 210, 255, 0.4), inset 0 0 10px rgba(0, 210, 255, 0.1);
     transform: translateY(-2px);
 }
 
-/* Icon-Animation beim Hover */
 .chat-link:hover .icon {
     transform: scale(1.2) rotate(-10deg);
     transition: transform 0.3s ease;
 }
 
-/* --- Rechter Bereich (User & Logout) --- */
 .nav-user {
     display: flex;
     align-items: center;
@@ -124,9 +105,7 @@ body {
     box-shadow: 0 0 15px rgba(255, 77, 77, 0.4);
 }
 
-/* =========================================
-   3. HAUPT-LAYOUT (Dashboard Container)
-   ========================================= */
+/* --- Layout Container --- */
 .dashboard-container {
     max-width: 1100px;
     margin: 3rem auto;
@@ -135,15 +114,8 @@ body {
 }
 
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .dashboard-header h1 {
@@ -156,9 +128,7 @@ body {
     font-size: 1.1rem;
 }
 
-/* =========================================
-   4. STATS GRID (Obere Karten)
-   ========================================= */
+/* --- Stats Grid --- */
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -166,8 +136,7 @@ body {
     margin-top: 2.5rem;
 }
 
-.stat-card,
-.card {
+.stat-card, .card {
     background: var(--card-bg);
     border: 1px solid rgba(255, 255, 255, 0.05);
     padding: 1.8rem;
@@ -177,7 +146,6 @@ body {
     overflow: hidden;
 }
 
-/* Hover Effekt: Rahmen leuchtet auf */
 .stat-card:hover {
     transform: scale(1.03);
     border-color: var(--accent-blue);
@@ -203,40 +171,19 @@ body {
     text-shadow: 0 0 10px rgba(0, 255, 170, 0.3);
 }
 
-/* =========================================
-   5. CONTENT AREA (Unterer Bereich)
-   ========================================= */
+/* --- Content Area --- */
 .content-area {
-    /* Hier ist der wichtige Abstand nach oben (ca. 64px) */
     margin-top: 4rem;
-
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
     animation: fadeIn 1s ease-out;
-    /* Lädt sanft rein */
 }
 
-/* =========================================
-   6. RESPONSIVE DESIGN (Mobile)
-   ========================================= */
+/* --- Mobile --- */
 @media (max-width: 768px) {
-    .navbar {
-        padding: 0 1rem;
-    }
-
-    .nav-user span {
-        display: none;
-        /* Namen auf Handy ausblenden */
-    }
-
-    .nav-center {
-        gap: 10px;
-    }
-
-    .chat-link {
-        padding: 6px 16px;
-        /* Chat Button etwas kleiner auf Handy */
-        font-size: 0.9rem;
-    }
+    .navbar { padding: 0 1rem; }
+    .nav-user span { display: none; }
+    .nav-center { gap: 10px; }
+    .chat-link { padding: 6px 16px; font-size: 0.9rem; }
 }
