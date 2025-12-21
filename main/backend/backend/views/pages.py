@@ -1,6 +1,7 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import TemplateView
 from django.shortcuts import redirect, render
+from django.contrib.auth.decorators import login_required
 
 class DashboardView(LoginRequiredMixin, TemplateView):
     template_name = "main.html"
@@ -12,6 +13,7 @@ def login_page_view(request):
         return redirect("/main")
     return render(request, "login.html")
 
+@login_required(login_url='/')
 def chat_page_view(request):
     return render(request, "chat.html")
 
