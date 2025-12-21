@@ -147,3 +147,17 @@ body {
         display: none;
     }
 }
+
+/* --- Content Area (Der Bereich unter den Stats) --- */
+.content-area {
+    /* Hier ist der entscheidende Abstand nach oben */
+    margin-top: 4rem;
+
+    /* Optional: Damit es sauber aussieht, falls du Karten darin hast */
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+
+    /* Optional: Einblende-Animation wie beim Rest */
+    animation: fadeIn 1s ease-out;
+}

@@ -157,17 +157,3 @@ button:active {
     transform: translateY(-1px);
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
 }
-
-/* --- Content Area (Der Bereich unter den Stats) --- */
-.content-area {
-    /* Hier ist der entscheidende Abstand nach oben */
-    margin-top: 4rem;
-
-    /* Optional: Damit es sauber aussieht, falls du Karten darin hast */
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-
-    /* Optional: Einblende-Animation wie beim Rest */
-    animation: fadeIn 1s ease-out;
-}
