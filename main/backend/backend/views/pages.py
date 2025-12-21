@@ -13,7 +13,7 @@ def login_page_view(request):
         return redirect("/main")
     return render(request, "login.html")
 
-@login_required(login_url='/')
+@login_required(login_url='/login')
 def chat_page_view(request):
     return render(request, "chat.html")
 
