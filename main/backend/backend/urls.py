@@ -8,6 +8,7 @@ from .views import (
     login_page_view, 
     start_page_view, 
     register_page_view,
+    chat_page_view,
     RegisterAPIView,
     ActivateAccountView
 )
@@ -23,6 +24,7 @@ urlpatterns = [
 
     # 3. HTML Seiten (Frontend-Routen)
     path("", start_page_view, name="start"),
+    path("chat", chat_page_view, name="chat"),
     path("main", DashboardView.as_view(), name="dashboard"),
     path("login", login_page_view, name="login_page"),
     path("register", register_page_view, name="register_page"),

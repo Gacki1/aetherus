@@ -27,6 +27,9 @@ def login_page_view(request):
         return redirect("/main")
     return render(request, "login.html")
 
+def chat_page_view(request):
+    return render(request, "chat.html")
+
 def start_page_view(request):
     if request.user.is_authenticated:
         return redirect("/main")
