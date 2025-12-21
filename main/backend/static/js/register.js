@@ -42,12 +42,6 @@ document.getElementById('register-form').addEventListener('submit', async functi
 
         if (response.ok) {
             showMessage("Account erstellt! Bitte prüfe deine E-Mails (auch den Spam Ordner) zur Aktivierung.", "success");
-
-            // Button bleibt deaktiviert, damit niemand während der Weiterleitung nochmal klickt
-
-            setTimeout(() => {
-                window.location.href = '/login';
-            }, 3000);
         } else {
             // Fehlerausgabe
             let errorMsg = "Registrierung fehlgeschlagen.";
