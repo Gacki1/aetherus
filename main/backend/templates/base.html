@@ -12,17 +12,17 @@
 <body>
     <nav class="navbar">
         <div class="nav-logo">AETHERUS</div>
-    
+
         <div class="nav-center">
             <a href="/main" class="nav-pill {% if '/main' in request.path or '/start' in request.path %}active{% endif %}">
                 <span class="icon">🏠</span> Dashboard
             </a>
-        
-            <a href="/chat" class="nav-pill {% if '/chat/' in request.path %}active{% endif %}">
+
+            <a href="/chat" class="nav-pill {% if '/chat' in request.path %}active{% endif %}">
                 <span class="icon">💬</span> Chat
             </a>
         </div>
-    
+
         <div class="nav-user">
             <span>Willkommen, <strong>{{ user.username }}</strong></span>
             <button onclick="logoutUser()" class="logout-btn">Abmelden</button>
