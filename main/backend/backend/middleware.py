@@ -28,4 +28,4 @@ class GuestRestrictionMiddleware:
         if is_allowed:
             return self.get_response(request)
         else:
-            return redirect("/start")
+            return redirect("")
