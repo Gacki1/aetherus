@@ -17,9 +17,9 @@ class GuestRestrictionMiddleware:
 
         # 2. Liste verbessern (Mit Slashes am Ende!)
         allowed_prefixes = [
-            '/start/', 
-            '/login/', 
-            '/register/', 
+            '/start', 
+            '/login', 
+            '/register', 
             '/static/', 
             '/media/', 
             '/api/',
