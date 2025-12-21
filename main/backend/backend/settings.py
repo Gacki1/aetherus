@@ -55,6 +55,8 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "djoser",
     "rest_framework.authtoken",
+    "backend",
+    "channels"
 ]
 
 from datetime import timedelta
@@ -144,6 +146,19 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'backend.wsgi.application'
+
+# Sagt Django, wo der Einstiegspunkt für den asynchronen Chat ist
+ASGI_APPLICATION = 'backend.asgi.application'
+
+# Konfiguration für Redis (Unser Nachrichten-Speicher)
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("redis", 6379)], # "redis" ist der Name aus docker-compose
+        },
+    },
+}
 
 
 # Database

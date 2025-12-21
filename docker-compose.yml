@@ -42,6 +42,7 @@ services:
       - PYTHONUNBUFFERED=1 # Damit du Logs sofort siehst
     depends_on:
       - redis
+      - db
     networks:
       - aetherus-net
 
@@ -54,6 +55,8 @@ services:
       - aetherus-net
     volumes:
       - redis_data:/data
+    expose:
+      - 6379
 
 networks:
   aetherus-net:
