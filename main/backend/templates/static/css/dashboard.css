@@ -15,7 +15,6 @@ body {
     font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     margin: 0;
     min-height: 100vh;
-    /* Dezenter Blau-Schimmer im Hintergrund */
     background: radial-gradient(circle at 50% -20%, #1a2a3a 0%, var(--bg-black) 80%);
 }
 
@@ -23,6 +22,7 @@ body {
 .navbar {
     display: flex;
     justify-content: space-between;
+    /* Links Logo, Mitte Chat, Rechts User */
     align-items: center;
     padding: 0 2rem;
     height: 70px;
@@ -43,6 +43,43 @@ body {
     background-clip: text;
     -webkit-text-fill-color: transparent;
     color: transparent;
+    /* Fallback */
+    cursor: default;
+}
+
+/* NEU: Styling für den Chat Link */
+.nav-center {
+    display: flex;
+    gap: 20px;
+}
+
+.nav-link {
+    text-decoration: none;
+    color: var(--text-muted);
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.nav-link:hover {
+    color: #fff;
+    background: rgba(0, 136, 255, 0.1);
+    box-shadow: 0 0 15px rgba(0, 136, 255, 0.15);
+}
+
+.chat-link .icon {
+    font-size: 1.2rem;
+}
+
+/* User Bereich Rechts */
+.nav-user {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
 }
 
 .logout-btn {
@@ -111,7 +148,6 @@ body {
     overflow: hidden;
 }
 
-/* Hover Effekt: Rahmen leuchtet auf */
 .stat-card:hover {
     transform: scale(1.03);
     border-color: var(--accent-blue);
@@ -137,6 +173,18 @@ body {
     text-shadow: 0 0 10px rgba(0, 255, 170, 0.3);
 }
 
+/* --- Content Area Fix --- */
+.content-area {
+    /* WICHTIG: Hier habe ich 10px auf 4rem geändert. 
+       Das sorgt für den sichtbaren Abstand! */
+    margin-top: 4rem;
+
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    animation: fadeIn 1s ease-out;
+}
+
 /* --- Responsive --- */
 @media (max-width: 768px) {
     .navbar {
@@ -146,10 +194,10 @@ body {
     .nav-user span {
         display: none;
     }
-}
 
-.content-area {
+    .nav-center {
+        gap: 10px;
+    }
 
-    margin-top: 10px;
-
+    /* Chat Button etwas enger auf Mobile */
 }
