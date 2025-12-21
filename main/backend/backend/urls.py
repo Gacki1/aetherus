@@ -1,41 +1,30 @@
 from django.contrib import admin
 from django.urls import path, include
-from .views.auth import (
-    RegisterAPIView,
-    ActivateAccountView,
-    SessionLoginView,
-    SessionLogoutView,
-    UserProfileView
-)
-
-from .views.pages import (
-    DashboardView,
-    login_page_view,
-    chat_page_view,
-    start_page_view,
-    register_page_view
-)
+from django.views.generic import RedirectView
+from .views import pages, auth
 
 urlpatterns = [
+    path('', RedirectView.as_view(url='/start/', permanent=False)),
+
     # 1. API Registrierung & Aktivierung (Muss vor Djoser stehen!)
-    path("api/auth/register/", RegisterAPIView.as_view(), name="api_register"),
+    path("api/auth/register/", auth.RegisterAPIView.as_view(), name="api_register"),
     # Geänderter Pfad für den TimestampSigner Workflow:
-    path("api/auth/activate/<str:activation_key>/", ActivateAccountView.as_view(), name="activate"),
+    path("api/auth/activate/<str:activation_key>/", auth.ActivateAccountView.as_view(), name="activate"),
 
     # 2. Django Admin
     path('admin/', admin.site.urls), 
 
     # 3. HTML Seiten (Frontend-Routen)
-    path("start", start_page_view, name="start"),
-    path("chat", chat_page_view, name="chat"),
-    path("main", DashboardView.as_view(), name="dashboard"),
-    path("login", login_page_view, name="login_page"),
-    path("register", register_page_view, name="register_page"),
+    path("start", pages.start_page_view, name="start"),
+    path("chat", pages.chat_page_view, name="chat"),
+    path("main", pages.DashboardView.as_view(), name="dashboard"),
+    path("login", pages.login_page_view, name="login_page"),
+    path("register", pages.register_page_view, name="register_page"),
 
     # 4. API Authentifizierung
-    path("api/auth/login/", SessionLoginView.as_view(), name="api_login"),
-    path("api/auth/logout/", SessionLogoutView.as_view(), name="api_logout"),
-    path("api/auth/me/", UserProfileView.as_view(), name="user_me"),
+    path("api/auth/login/", auth.SessionLoginView.as_view(), name="api_login"),
+    path("api/auth/logout/", auth.SessionLogoutView.as_view(), name="api_logout"),
+    path("api/auth/me/", auth.UserProfileView.as_view(), name="user_me"),
 
     # 5. Djoser (für Passwort-Reset etc.)
     path('api/auth/', include('djoser.urls')),
