@@ -26,7 +26,7 @@ urlpatterns = [
     path('admin/', admin.site.urls), 
 
     # 3. HTML Seiten (Frontend-Routen)
-    path("", start_page_view, name="start"),
+    path("start", start_page_view, name="start"),
     path("chat", chat_page_view, name="chat"),
     path("main", DashboardView.as_view(), name="dashboard"),
     path("login", login_page_view, name="login_page"),
