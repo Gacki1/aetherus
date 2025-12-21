@@ -1,14 +1,218 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<header class="dashboard-header">
-    <h1>Globaler Chat</h1>
-    <p>Tausche dich mit anderen Mitgliedern aus.</p>
-</header>
+<style>
+    /* Spezifisches Design für den Chat-Bereich */
+    .chat-container {
+        display: flex;
+        flex-direction: column;
+        height: 75vh; /* Füllt den Großteil des Screens */
+        background: #0d1117;
+        border: 1px solid rgba(0, 210, 255, 0.2);
+        border-radius: 12px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        overflow: hidden;
+    }
 
-<section class="content-area">
-    <div class="card" style="height: 400px; display: flex; align-items: center; justify-content: center;">
-        <p style="color: #8b949e;">Chat-Modul wird geladen... (Hier bauen wir bald die Logik ein)</p>
-    </div>
-</section>
+    /* 1. Der Verlauf der Nachrichten */
+    #chat-log {
+        flex-grow: 1;
+        padding: 20px;
+        overflow-y: auto; /* Scrollbar wenn voll */
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    /* Scrollbar Design */
+    #chat-log::-webkit-scrollbar {
+        width: 8px;
+    }
+    #chat-log::-webkit-scrollbar-thumb {
+        background: #333;
+        border-radius: 4px;
+    }
+
+    /* 2. Einzelne Nachricht */
+    .message {
+        max-width: 70%;
+        padding: 10px 15px;
+        border-radius: 10px;
+        font-size: 0.95rem;
+        line-height: 1.4;
+        position: relative;
+        animation: popIn 0.3s ease-out;
+    }
+
+    @keyframes popIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message-header {
+        font-size: 0.75rem;
+        margin-bottom: 4px;
+        opacity: 0.7;
+        font-weight: bold;
+    }
+
+    /* Nachrichten von ANDEREN (Links, Grau) */
+    .message.received {
+        align-self: flex-start;
+        background: #1f2428;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #e6edf3;
+        border-bottom-left-radius: 2px;
+    }
+    .message.received .message-header {
+        color: #00d2ff; /* Neon Cyan Name */
+    }
+
+    /* Nachrichten von MIR (Rechts, Blau) */
+    .message.sent {
+        align-self: flex-end;
+        background: rgba(0, 136, 255, 0.2);
+        border: 1px solid rgba(0, 136, 255, 0.4);
+        color: white;
+        border-bottom-right-radius: 2px;
+    }
+    .message.sent .message-header {
+        text-align: right;
+        color: #a5d6ff;
+    }
+
+    /* 3. Eingabe-Bereich unten */
+    .chat-input-area {
+        padding: 15px;
+        background: #161b22;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        gap: 10px;
+    }
+
+    #chat-message-input {
+        flex-grow: 1;
+        background: #0d1117;
+        border: 1px solid #30363d;
+        color: white;
+        padding: 12px;
+        border-radius: 6px;
+        outline: none;
+        transition: border-color 0.2s;
+    }
+
+    #chat-message-input:focus {
+        border-color: #00d2ff;
+        box-shadow: 0 0 10px rgba(0, 210, 255, 0.1);
+    }
+
+    #chat-message-submit {
+        background: #00d2ff; /* Neon Cyan */
+        color: #000;
+        font-weight: bold;
+        border: none;
+        padding: 0 25px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    #chat-message-submit:hover {
+        background: #33e0ff;
+        box-shadow: 0 0 15px rgba(0, 210, 255, 0.4);
+        transform: translateY(-1px);
+    }
+</style>
+
+    <header class="dashboard-header">
+        <h1>Globaler Chat</h1>
+        <p>Verbunden als <span style="color: var(--neon-cyan)">{{ user.username }}</span></p>
+    </header>
+
+    <section class="content-area">
+        <div class="chat-container">
+            <div id="chat-log">
+                <div style="text-align: center; color: #555; font-size: 0.8rem; margin-top: 20px;">
+                    --- Chat-Raum betreten ---
+                </div>
+            </div>
+
+            <div class="chat-input-area">
+                <input id="chat-message-input" type="text" placeholder="Schreibe eine Nachricht..." autofocus>
+                <button id="chat-message-submit">Senden ➤</button>
+            </div>
+        </div>
+    </section>
+
+    {{ user.username|json_script:"user_username" }}
+
+    <script>
+        // 1. Usernamen aus dem Django-Template holen
+        const myUsername = JSON.parse(document.getElementById('user_username').textContent);
+
+        // 2. WebSocket URL aufbauen (ws:// oder wss://)
+        const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+        const wsUrl = protocol + window.location.host + '/ws/chat/';
+
+        console.log("Verbinde zu:", wsUrl);
+        const chatSocket = new WebSocket(wsUrl);
+
+        // --- WENN EINE NACHRICHT REINKOMMT ---
+        chatSocket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            const message = data.message;
+            const sender = data.username;
+
+            // Ist die Nachricht von mir oder von anderen?
+            const isMe = (sender === myUsername);
+            const messageClass = isMe ? 'sent' : 'received';
+            const senderDisplay = isMe ? 'Ich' : sender;
+
+            // HTML bauen
+            const messageElement = `
+                <div class="message ${messageClass}">
+                    <div class="message-header">${senderDisplay}</div>
+                    <div class="message-body">${message}</div>
+                </div>
+            `;
+
+            // Ins Log einfügen
+            const chatLog = document.querySelector('#chat-log');
+            chatLog.insertAdjacentHTML('beforeend', messageElement);
+
+            // Automatisch nach unten scrollen
+            chatLog.scrollTop = chatLog.scrollHeight;
+        };
+
+        // --- WENN DIE VERBINDUNG ABBRICHT ---
+        chatSocket.onclose = function(e) {
+            console.error('Chat Socket geschlossen.');
+            alert("Verbindung zum Chat verloren. Bitte Seite neu laden.");
+        };
+
+        // --- NACHRICHT SENDEN (Button Klick) ---
+        document.querySelector('#chat-message-submit').onclick = function(e) {
+            sendMessage();
+        };
+
+        // --- NACHRICHT SENDEN (Enter Taste) ---
+        document.querySelector('#chat-message-input').onkeyup = function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        };
+
+        function sendMessage() {
+            const messageInputDom = document.querySelector('#chat-message-input');
+            const message = messageInputDom.value;
+
+            if (message.trim() !== "") {
+                chatSocket.send(JSON.stringify({
+                    'message': message,
+                    'username': myUsername
+                }));
+                messageInputDom.value = ''; // Feld leeren
+            }
+        }
+    </script>
 {% endblock %}
