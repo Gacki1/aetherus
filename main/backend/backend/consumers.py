@@ -3,8 +3,14 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import User
 from .models import ChatMessage
+from django.utils.html import escape
 
 class ChatConsumer(AsyncWebsocketConsumer):
+
+    async def receive(self, text_data):
+        data = json.loads(text_data)
+        message = escape(data["message"])
+
     async def connect(self):
         self.room_group_name = "global_chat"
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)

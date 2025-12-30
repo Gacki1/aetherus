@@ -47,7 +47,7 @@ chatSocket.onmessage = function (e) {
                     <span>${senderDisplay}</span>
                     ${deleteHtml}
                 </div>
-                <div class="message-body">${message}</div>
+                <div class="message-body">${escapeHtml(message)}</div> 
             </div>
         `;
 
@@ -93,4 +93,14 @@ function sendMessage() {
         messageInputDom.value = '';
         messageInputDom.focus();
     }
+}
+
+function escapeHtml(text) {
+    if (!text) return text;
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
