@@ -1,7 +1,6 @@
 {% extends 'base.html' %}
 {% load static %} {% block content %}
 <link rel="stylesheet" href="{% static 'css/chat.css' %}">
-<link rel="script" href="{% static 'js/chat.js' %}">
 
 <header class="dashboard-header">
     <h1>Globaler Chat</h1>
@@ -33,5 +32,7 @@
 
 {{ user.username|json_script:"user_username" }}
 {{ user.is_staff|json_script:"user_is_admin" }}
+
+<script src="{% static 'js/chat.js' %}"></script>
 
 {% endblock %}
