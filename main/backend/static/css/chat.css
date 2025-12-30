@@ -1,0 +1,170 @@
+/* backend/static/css/chat.css */
+
+/* --- 1. HAUPT-LAYOUT DES CHATS --- */
+.chat-container {
+    display: flex;
+    flex-direction: column;
+    height: 75vh;
+    /* Füllt den Bildschirm gut aus */
+    background: #0d1117;
+    border: 1px solid rgba(0, 210, 255, 0.2);
+    border-radius: 12px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    position: relative;
+}
+
+/* --- 2. NACHRICHTEN VERLAUF --- */
+#chat-log {
+    flex-grow: 1;
+    padding: 20px;
+    overflow-y: auto;
+    /* Scrollbar wenn voll */
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+/* Scrollbar Design */
+#chat-log::-webkit-scrollbar {
+    width: 8px;
+}
+
+#chat-log::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 4px;
+}
+
+#chat-log::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* --- 3. EINZELNE NACHRICHT --- */
+.message {
+    max-width: 70%;
+    padding: 10px 15px;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    line-height: 1.4;
+    position: relative;
+    animation: popIn 0.3s ease-out;
+    word-wrap: break-word;
+    /* Lange Wörter umbrechen */
+}
+
+@keyframes popIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.message-header {
+    font-size: 0.75rem;
+    margin-bottom: 4px;
+    opacity: 0.8;
+    font-weight: bold;
+    display: flex;
+    /* Damit Name und Lösch-Button nebeneinander sind */
+    justify-content: space-between;
+    align-items: center;
+    min-width: 120px;
+    /* Mindestbreite für Header */
+}
+
+/* Nachrichten von ANDEREN (Links, Grau) */
+.message.received {
+    align-self: flex-start;
+    background: #1f2428;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #e6edf3;
+    border-bottom-left-radius: 2px;
+}
+
+.message.received .message-header span {
+    color: #00d2ff;
+    /* Neon Cyan Name */
+}
+
+/* Nachrichten von MIR (Rechts, Blau) */
+.message.sent {
+    align-self: flex-end;
+    background: rgba(0, 136, 255, 0.2);
+    border: 1px solid rgba(0, 136, 255, 0.4);
+    color: white;
+    border-bottom-right-radius: 2px;
+}
+
+.message.sent .message-header {
+    flex-direction: row-reverse;
+    /* Mein Name rechts, Löschbutton links davon */
+}
+
+.message.sent .message-header span {
+    color: #a5d6ff;
+}
+
+/* --- 4. ADMIN LÖSCH BUTTON --- */
+.delete-btn {
+    background: transparent;
+    border: none;
+    color: #ff4d4d;
+    /* Warn-Rot */
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 0 5px;
+    opacity: 0.4;
+    transition: all 0.2s ease;
+}
+
+.delete-btn:hover {
+    opacity: 1;
+    transform: scale(1.2);
+    text-shadow: 0 0 5px rgba(255, 77, 77, 0.6);
+}
+
+/* --- 5. EINGABE BEREICH --- */
+.chat-input-area {
+    padding: 15px;
+    background: #161b22;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    gap: 10px;
+}
+
+#chat-message-input {
+    flex-grow: 1;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    color: white;
+    padding: 12px;
+    border-radius: 6px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+#chat-message-input:focus {
+    border-color: #00d2ff;
+    box-shadow: 0 0 10px rgba(0, 210, 255, 0.1);
+}
+
+#chat-message-submit {
+    background: linear-gradient(135deg, #00d2ff, #0088ff);
+    color: #000;
+    font-weight: bold;
+    border: none;
+    padding: 0 25px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+#chat-message-submit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 15px rgba(0, 210, 255, 0.4);
+}
