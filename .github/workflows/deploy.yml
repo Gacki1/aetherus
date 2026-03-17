@@ -53,4 +53,5 @@ jobs:
             docker compose up -d --force-recreate --remove-orphans
             
             echo "4. Führe Datenbank-Migrationen aus"
-            docker compose exec backend python manage.py migrate
+            docker compose exec -T backend python manage.py makemigrations
+            docker compose exec -T backend python manage.py migrate
