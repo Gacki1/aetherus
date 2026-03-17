@@ -47,7 +47,7 @@ jobs:
             
             echo "2. Erzeuge neues Docker-Image (mit neuem Code)"
             # `--no-cache` ist hier WICHTIG, damit die Umstrukturierung greift!
-            docker compose build --no-cache login-backend
+            docker compose build --no-cache backend
             
             echo "3. Starte alle Container neu"
-            docker compose up -d --force-recreate
+            docker compose up -d --force-recreate --remove-orphans
