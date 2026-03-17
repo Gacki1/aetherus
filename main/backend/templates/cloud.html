@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/cloud.css' %}">
+
+<header class="dashboard-header">
+    <h1>Dein Cloud-Speicher</h1>
+    <p>Lade Dateien hoch, teile sie und verwalte deinen persönlichen Speicherplatz sicher auf unseren Servern.</p>
+</header>
+
+<section class="content-area">
+    
+    <!-- Upload Form -->
+    <div class="card cloud-upload-card">
+        <h2>Datei hochladen</h2>
+        <form action="{% url 'cloud' %}" method="POST" enctype="multipart/form-data" class="cloud-upload-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="upload">
+            
+            <div class="file-input-wrapper">
+                <input type="file" name="file" id="file" required class="file-input">
+                <label for="file" class="file-label">
+                    <span class="icon">📁</span> Datei auswählen
+                </label>
+                <span id="file-name-display" class="file-name-display">Keine Datei ausgewählt</span>
+            </div>
+            
+            <button type="submit" class="upload-btn">Hochladen</button>
+        </form>
+    </div>
+
+    <!-- Feedback messages -->
+    {% if messages %}
+    <div class="messages">
+        {% for message in messages %}
+        <div class="msg {% if message.tags %}{{ message.tags }}{% endif %}">{{ message }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- File List -->
+    <div class="card cloud-files-card">
+        <h2>Deine Dateien</h2>
+        
+        {% if files %}
+        <div class="files-grid">
+            {% for f in files %}
+            <div class="file-item">
+                <div class="file-info">
+                    <div class="file-icon">📄</div>
+                    <div class="file-details">
+                        <span class="filename" title="{{ f.filename }}">{{ f.filename }}</span>
+                        <span class="filesize">{{ f.file_size|filesizeformat }} • {{ f.uploaded_at|date:"d.m.Y" }}</span>
+                    </div>
+                </div>
+                
+                <div class="file-actions">
+                    <a href="{{ f.file.url }}" target="_blank" class="action-btn view-btn" title="Ansehen / Herunterladen">👁️</a>
+                    
+                    <form action="{% url 'cloud' %}" method="POST" class="delete-form" onsubmit="return confirm('Möchtest du diese Datei wirklich löschen?');">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="delete">
+                        <input type="hidden" name="file_id" value="{{ f.id }}">
+                        <button type="submit" class="action-btn delete-btn" title="Löschen">❌</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p>Du hast noch keine Dateien hochgeladen.</p>
+        </div>
+        {% endif %}
+    </div>
+
+</section>
+
+<script>
+    // Simple script to show selected file name
+    document.getElementById('file').addEventListener('change', function(e) {
+        let fileName = e.target.files[0] ? e.target.files[0].name : "Keine Datei ausgewählt";
+        document.getElementById('file-name-display').textContent = fileName;
+    });
+</script>
+
+{% endblock %}
