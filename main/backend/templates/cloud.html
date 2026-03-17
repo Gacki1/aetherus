@@ -10,14 +10,14 @@
 </header>
 
 <section class="content-area">
-    
+
     <!-- Upload Form -->
     <div class="card cloud-upload-card">
         <h2>Datei hochladen</h2>
         <form action="{% url 'cloud' %}" method="POST" enctype="multipart/form-data" class="cloud-upload-form">
             {% csrf_token %}
             <input type="hidden" name="action" value="upload">
-            
+
             <div class="file-input-wrapper">
                 <input type="file" name="file" id="file" required class="file-input">
                 <label for="file" class="file-label">
@@ -25,7 +25,7 @@
                 </label>
                 <span id="file-name-display" class="file-name-display">Keine Datei ausgewählt</span>
             </div>
-            
+
             <button type="submit" class="upload-btn">Hochladen</button>
         </form>
     </div>
@@ -42,7 +42,7 @@
     <!-- File List -->
     <div class="card cloud-files-card">
         <h2>Deine Dateien</h2>
-        
+
         {% if files %}
         <div class="files-grid">
             {% for f in files %}
@@ -51,14 +51,17 @@
                     <div class="file-icon">📄</div>
                     <div class="file-details">
                         <span class="filename" title="{{ f.filename }}">{{ f.filename }}</span>
-                        <span class="filesize">{{ f.file_size|filesizeformat }} • {{ f.uploaded_at|date:"d.m.Y" }}</span>
+                        <span class="filesize">{{ f.file_size|filesizeformat }} • {{ f.uploaded_at|date:"d.m.Y"
+                            }}</span>
                     </div>
                 </div>
-                
+
                 <div class="file-actions">
-                    <a href="{{ f.file.url }}" target="_blank" class="action-btn view-btn" title="Ansehen / Herunterladen">👁️</a>
-                    
-                    <form action="{% url 'cloud' %}" method="POST" class="delete-form" onsubmit="return confirm('Möchtest du diese Datei wirklich löschen?');">
+                    <a href="{{ f.file.url }}" target="_blank" class="action-btn view-btn"
+                        title="Ansehen / Herunterladen">👁️</a>
+
+                    <form action="{% url 'cloud' %}" method="POST" class="delete-form"
+                        onsubmit="return confirm('Möchtest du diese Datei wirklich löschen?');">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="delete">
                         <input type="hidden" name="file_id" value="{{ f.id }}">
@@ -79,7 +82,7 @@
 
 <script>
     // Simple script to show selected file name
-    document.getElementById('file').addEventListener('change', function(e) {
+    document.getElementById('file').addEventListener('change', function (e) {
         let fileName = e.target.files[0] ? e.target.files[0].name : "Keine Datei ausgewählt";
         document.getElementById('file-name-display').textContent = fileName;
     });
