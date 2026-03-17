@@ -51,3 +51,6 @@ jobs:
             
             echo "3. Starte alle Container neu"
             docker compose up -d --force-recreate --remove-orphans
+            
+            echo "4. Führe Datenbank-Migrationen aus"
+            docker compose exec backend python manage.py migrate
