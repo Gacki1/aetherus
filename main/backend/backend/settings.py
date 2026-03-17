@@ -57,7 +57,8 @@ INSTALLED_APPS = [
     "djoser",
     "rest_framework.authtoken",
     "backend",
-    "channels"
+    "channels",
+    "storages",
 ]
 
 from datetime import timedelta
@@ -264,3 +265,29 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
+
+# Media files setup (default local)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# Hetzner Object Storage (S3 Compatible) Configuration
+HETZNER_S3_ACCESS_KEY = os.getenv("HETZNER_S3_ACCESS_KEY")
+HETZNER_S3_SECRET_KEY = os.getenv("HETZNER_S3_SECRET_KEY")
+
+if HETZNER_S3_ACCESS_KEY and HETZNER_S3_SECRET_KEY:
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.s3.S3Storage",
+            "OPTIONS": {
+                "access_key": HETZNER_S3_ACCESS_KEY,
+                "secret_key": HETZNER_S3_SECRET_KEY,
+                "bucket_name": os.getenv("HETZNER_S3_BUCKET_NAME"),
+                "endpoint_url": os.getenv("HETZNER_S3_ENDPOINT_URL", "https://fsn1.your-objectstorage.com"),
+                "region_name": os.getenv("HETZNER_S3_REGION_NAME", "fsn1"),
+                "default_acl": "private",  # adjust based on visibility requirement
+            },
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
