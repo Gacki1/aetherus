@@ -12,18 +12,22 @@
 
 <section class="stats-grid">
     <div class="stat-card">
+        <div class="stat-icon-bg">⚡</div>
         <h3>Status</h3>
         <p class="status-online">● Verbunden</p>
     </div>
     <div class="stat-card">
+        <div class="stat-icon-bg">🕐</div>
         <h3>Letzter Login</h3>
         <p>{{ user.last_login|date:"d.m.Y H:i" }}</p>
     </div>
     <div class="stat-card">
+        <div class="stat-icon-bg">🛡️</div>
         <h3>Berechtigungen</h3>
         <p>{% if user.is_staff %}Administrator{% else %}Benutzer{% endif %}</p>
     </div>
     <div class="stat-card">
+        <div class="stat-icon-bg">☁️</div>
         <h3>Cloud-Speicher</h3>
         <p>{{ cloud_file_count }} Datei{{ cloud_file_count|pluralize:"en" }}</p>
         <div class="progress-bar-track">
@@ -38,20 +42,25 @@
     <!-- Recent Cloud Files -->
     <div class="widget-card">
         <div class="widget-header">
-            <h2>Letzte Dateien</h2>
+            <h2>📂 Letzte Dateien</h2>
             <a href="/cloud" class="widget-action">Alle anzeigen →</a>
         </div>
         <div class="widget-body">
             {% if recent_files %}
                 {% for f in recent_files %}
-                <div class="recent-file-item">
+                <a href="/cloud" class="recent-file-item">
                     <span class="recent-file-icon">{{ f.filename|file_type_icon }}</span>
                     <span class="recent-file-name" title="{{ f.filename }}">{{ f.filename }}</span>
+                    <span class="recent-file-size">{{ f.file_size|filesizeformat }}</span>
                     <span class="recent-file-date">{{ f.uploaded_at|date:"d.m." }}</span>
-                </div>
+                </a>
                 {% endfor %}
             {% else %}
-                <p class="empty-hint">Noch keine Dateien hochgeladen.</p>
+                <div class="empty-hint">
+                    <span class="empty-hint-icon">📁</span>
+                    <p>Noch keine Dateien hochgeladen.</p>
+                    <a href="/cloud" class="empty-hint-link">Jetzt hochladen →</a>
+                </div>
             {% endif %}
         </div>
     </div>
@@ -59,19 +68,20 @@
     <!-- Chat Activity -->
     <div class="widget-card">
         <div class="widget-header">
-            <h2>Chat-Aktivität</h2>
+            <h2>💬 Chat-Aktivität</h2>
             <a href="/chat" class="widget-action">Zum Chat →</a>
         </div>
         <div class="widget-body">
-            <div class="recent-file-item">
-                <span class="recent-file-icon">💬</span>
-                <span class="recent-file-name">Deine Nachrichten</span>
-                <span class="recent-file-date" style="font-size: 1.1rem; font-weight: 600; color: var(--neon-cyan);">{{ user_message_count }}</span>
-            </div>
-            <div class="recent-file-item">
-                <span class="recent-file-icon">🌐</span>
-                <span class="recent-file-name">Nachrichten gesamt</span>
-                <span class="recent-file-date" style="font-size: 1.1rem; font-weight: 600; color: var(--text-white);">{{ total_message_count }}</span>
+            <div class="chat-stats-row">
+                <div class="chat-stat">
+                    <span class="chat-stat-value" style="color: var(--neon-cyan);">{{ user_message_count }}</span>
+                    <span class="chat-stat-label">Deine Nachrichten</span>
+                </div>
+                <div class="chat-stat-divider"></div>
+                <div class="chat-stat">
+                    <span class="chat-stat-value">{{ total_message_count }}</span>
+                    <span class="chat-stat-label">Nachrichten gesamt</span>
+                </div>
             </div>
         </div>
     </div>
@@ -79,17 +89,27 @@
     <!-- Account Info -->
     <div class="widget-card">
         <div class="widget-header">
-            <h2>Dein Account</h2>
+            <h2>🔐 Dein Account</h2>
             <a href="/profile" class="widget-action">Bearbeiten →</a>
         </div>
         <div class="widget-body">
-            <div class="recent-file-item">
-                <span class="recent-file-icon">📧</span>
-                <span class="recent-file-name">{{ user.email }}</span>
+            <div class="account-info-item">
+                <span class="account-info-label">E-Mail</span>
+                <span class="account-info-value">{{ user.email }}</span>
             </div>
-            <div class="recent-file-item">
-                <span class="recent-file-icon">📅</span>
-                <span class="recent-file-name">Mitglied seit {{ user.date_joined|date:"d.m.Y" }}</span>
+            <div class="account-info-item">
+                <span class="account-info-label">Mitglied seit</span>
+                <span class="account-info-value">{{ user.date_joined|date:"d.m.Y" }}</span>
+            </div>
+            <div class="account-info-item">
+                <span class="account-info-label">Rolle</span>
+                <span class="account-info-value">
+                    {% if user.is_staff %}
+                    <span class="role-badge admin">Admin</span>
+                    {% else %}
+                    <span class="role-badge user">Benutzer</span>
+                    {% endif %}
+                </span>
             </div>
         </div>
     </div>

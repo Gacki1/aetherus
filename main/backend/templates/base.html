@@ -7,7 +7,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Aetherus{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=3">
     {% block extra_css %}{% endblock %}
 </head>
 
@@ -40,9 +40,30 @@
             </a>
         </div>
 
-        <div class="nav-user">
-            <span class="nav-username">{{ user.username }}</span>
-            <button onclick="logoutUser()" class="logout-btn">Abmelden</button>
+        <!-- User dropdown -->
+        <div class="nav-user-dropdown" id="user-dropdown">
+            <button class="dropdown-trigger" id="dropdown-trigger">
+                <span class="user-avatar">{{ user.username|make_list|first }}</span>
+                <span class="dropdown-name">{{ user.username }}</span>
+                <span class="dropdown-arrow">▾</span>
+            </button>
+            <div class="dropdown-menu" id="dropdown-menu">
+                <div class="dropdown-header">
+                    <span class="dropdown-user-full">{{ user.username }}</span>
+                    <span class="dropdown-email">{{ user.email }}</span>
+                </div>
+                <div class="dropdown-divider"></div>
+                <a href="/profile" class="dropdown-item">
+                    <span>👤</span> Profil bearbeiten
+                </a>
+                <a href="/cloud" class="dropdown-item">
+                    <span>☁️</span> Cloud-Speicher
+                </a>
+                <div class="dropdown-divider"></div>
+                <button class="dropdown-item dropdown-logout" onclick="logoutUser()">
+                    <span>🚪</span> Abmelden
+                </button>
+            </div>
         </div>
     </nav>
 
@@ -107,6 +128,28 @@
                 showToast('Abmeldung fehlgeschlagen.', 'error');
             }
         }
+
+        // ====== User Dropdown ======
+        const dropdownTrigger = document.getElementById('dropdown-trigger');
+        const dropdownMenu = document.getElementById('dropdown-menu');
+        const userDropdown = document.getElementById('user-dropdown');
+
+        dropdownTrigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('open');
+        });
+
+        // Close on outside click
+        document.addEventListener('click', (e) => {
+            if (!userDropdown.contains(e.target)) {
+                userDropdown.classList.remove('open');
+            }
+        });
+
+        // Close on Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') userDropdown.classList.remove('open');
+        });
 
         // ====== Hamburger Menu ======
         const hamburger = document.getElementById('hamburger-btn');
