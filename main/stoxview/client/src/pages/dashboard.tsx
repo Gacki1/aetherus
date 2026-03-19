@@ -6,7 +6,7 @@ import { MarketOverview } from "@/components/market-overview";
 import { StockCard } from "@/components/stock-card";
 import { StockDetail } from "@/components/stock-detail";
 import { DisclaimerBanner } from "@/components/disclaimer-banner";
-import { PerplexityAttribution } from "@/components/PerplexityAttribution";
+// PerplexityAttribution removed — doesn't fit inside Aetherus embed
 import { useI18n } from "@/lib/i18n";
 import {
   Activity,
@@ -946,7 +946,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        <PerplexityAttribution />
       </main>
     </div>
   );
