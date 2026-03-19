@@ -467,7 +467,7 @@ def remove_received_share_view(request, share_id):
 
 @login_required(login_url='/login')
 def cloud_delete_file_view(request, file_id):
-    """AJAX endpoint to delete a personal cloud file. Returns JSON {success: true}."""
+    """AJAX endpoint to delete a personal cloud file. Returns JSON with updated storage info."""
     if request.method != 'POST':
         return JsonResponse({'error': 'POST required'}, status=405)
 
@@ -476,7 +476,18 @@ def cloud_delete_file_view(request, file_id):
     cloud_file.file.delete(save=False)
     cloud_file.delete()
 
-    return JsonResponse({'success': True, 'message': f'Datei "{filename}" wurde gelöscht.'})
+    # Return updated storage info for real-time UI update
+    storage_limit = settings.MAX_CLOUD_STORAGE_PER_USER
+    total_storage = CloudFile.objects.filter(user=request.user).aggregate(total=Sum('file_size'))['total'] or 0
+    storage_percent = round((total_storage / storage_limit) * 100, 1) if storage_limit > 0 else 0
+
+    return JsonResponse({
+        'success': True,
+        'message': f'Datei "{filename}" wurde gelöscht.',
+        'storage_used': total_storage,
+        'storage_limit': storage_limit,
+        'storage_percent': min(storage_percent, 100),
+    })
 
 
 def shared_download_view(request, token):

@@ -327,6 +327,42 @@
         });
     }
 
+    // ====== Storage Quota Update ======
+
+    /**
+     * Updates the storage quota bar, percentage, and text in real time.
+     * @param {number} usedBytes - total bytes used
+     * @param {number} limitBytes - storage limit in bytes
+     * @param {number} percent - usage percentage (0-100)
+     */
+    function updateStorageQuota(usedBytes, limitBytes, percent) {
+        // Format bytes like Django's filesizeformat
+        function filesizeformat(bytes) {
+            if (bytes === 0) return '0\u00a0Bytes';
+            const units = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            let i = 0;
+            let val = bytes;
+            while (val >= 1024 && i < units.length - 1) { val /= 1024; i++; }
+            return (i === 0 ? val : val.toFixed(1)) + '\u00a0' + units[i];
+        }
+
+        const quotaInfo = document.querySelector('.quota-info');
+        if (quotaInfo) {
+            const span = quotaInfo.querySelector('span:first-child');
+            if (span) span.textContent = `Speicherplatz: ${filesizeformat(usedBytes)} / ${filesizeformat(limitBytes)}`;
+            const pctSpan = quotaInfo.querySelector('.quota-percent');
+            if (pctSpan) pctSpan.textContent = `${percent}%`;
+        }
+
+        const bar = document.querySelector('.progress-bar-fill');
+        if (bar) {
+            bar.style.width = `${percent}%`;
+            bar.classList.remove('danger', 'warning');
+            if (percent > 80) bar.classList.add('danger');
+            else if (percent > 60) bar.classList.add('warning');
+        }
+    }
+
     // ====== Count Helpers ======
 
     /**
@@ -703,6 +739,11 @@
 
                 // Update personal tab counts
                 updatePersonalTabCounts();
+
+                // Update storage quota bar in real time
+                if (data.storage_used !== undefined) {
+                    updateStorageQuota(data.storage_used, data.storage_limit, data.storage_percent);
+                }
             } else {
                 showToast(data.error || 'Fehler beim Löschen.', 'error');
             }
