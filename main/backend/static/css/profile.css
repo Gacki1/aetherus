@@ -10,13 +10,13 @@
 .profile-card {
     background: var(--card-bg);
     border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 12px;
+    border-radius: 14px;
     overflow: hidden;
 }
 
 .profile-card-header {
     padding: 1.2rem 1.5rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .profile-card-header h2 {
@@ -29,7 +29,146 @@
     padding: 1.5rem;
 }
 
-/* Account info fields */
+/* =========================================
+   AVATAR SECTION
+   ========================================= */
+.avatar-section {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding-bottom: 1.5rem;
+}
+
+.avatar-wrapper {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.avatar-placeholder {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, var(--accent-blue), var(--neon-cyan));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: #000;
+    text-transform: uppercase;
+}
+
+.avatar-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    cursor: pointer;
+}
+
+.avatar-wrapper:hover .avatar-overlay {
+    opacity: 1;
+}
+
+.avatar-overlay-icon {
+    font-size: 1.3rem;
+}
+
+.avatar-overlay-text {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+    color: var(--text-white);
+}
+
+.avatar-file-input {
+    display: none;
+}
+
+.avatar-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow: hidden;
+}
+
+.avatar-username {
+    font-size: 1.3rem;
+    font-weight: 700;
+}
+
+.avatar-email {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.avatar-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.avatar-btn {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 600;
+    font-family: inherit;
+    transition: all 0.2s ease;
+}
+
+.avatar-btn.upload {
+    background: rgba(0, 136, 255, 0.12);
+    color: var(--accent-blue);
+    border: 1px solid rgba(0, 136, 255, 0.2);
+}
+
+.avatar-btn.upload:hover {
+    background: rgba(0, 136, 255, 0.2);
+}
+
+.avatar-btn.remove {
+    background: rgba(255, 77, 77, 0.08);
+    color: var(--danger-red);
+    border: 1px solid rgba(255, 77, 77, 0.15);
+}
+
+.avatar-btn.remove:hover {
+    background: rgba(255, 77, 77, 0.15);
+}
+
+.profile-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.04);
+    margin-bottom: 1rem;
+}
+
+/* =========================================
+   ACCOUNT INFO FIELDS
+   ========================================= */
 .profile-field {
     display: flex;
     justify-content: space-between;
@@ -43,7 +182,7 @@
 }
 
 .profile-field label {
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -52,28 +191,31 @@
 .profile-value {
     color: var(--text-white);
     font-weight: 500;
+    font-size: 0.92rem;
 }
 
 .role-badge {
     padding: 4px 12px;
     border-radius: 20px;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     font-weight: 600;
 }
 
 .role-badge.admin {
-    background: rgba(255, 77, 77, 0.15);
+    background: rgba(255, 77, 77, 0.12);
     color: #ff4d4d;
-    border: 1px solid rgba(255, 77, 77, 0.3);
+    border: 1px solid rgba(255, 77, 77, 0.2);
 }
 
 .role-badge.user {
-    background: rgba(0, 210, 255, 0.15);
+    background: rgba(0, 210, 255, 0.08);
     color: var(--neon-cyan);
-    border: 1px solid rgba(0, 210, 255, 0.3);
+    border: 1px solid rgba(0, 210, 255, 0.15);
 }
 
-/* Password form */
+/* =========================================
+   PASSWORD FORM
+   ========================================= */
 .profile-form {
     display: flex;
     flex-direction: column;
@@ -87,8 +229,8 @@
 }
 
 .form-group label {
-    font-size: 0.85rem;
-    color: var(--accent-blue);
+    font-size: 0.8rem;
+    color: var(--text-muted);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -96,43 +238,54 @@
 
 .form-group input {
     padding: 12px;
-    background: #0d1117;
-    border: 1px solid #30363d;
-    border-radius: 6px;
-    color: #c9d1d9;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    color: var(--text-white);
     font-size: 0.95rem;
+    font-family: inherit;
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .form-group input:focus {
     outline: none;
-    border-color: var(--neon-cyan);
-    box-shadow: 0 0 0 3px rgba(0, 210, 255, 0.15);
+    border-color: rgba(0, 210, 255, 0.4);
+    box-shadow: 0 0 0 3px rgba(0, 210, 255, 0.08);
 }
 
 .profile-btn {
     padding: 12px 24px;
-    background: linear-gradient(135deg, #0055aa 0%, #0088ff 100%);
-    color: white;
+    background: linear-gradient(135deg, var(--accent-blue), var(--neon-cyan));
+    color: #000;
     border: none;
     border-radius: 8px;
-    font-size: 1rem;
+    font-size: 0.9rem;
     font-weight: 700;
     cursor: pointer;
-    text-transform: uppercase;
-    letter-spacing: 1px;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(0, 85, 170, 0.4);
     margin-top: 8px;
+    font-family: inherit;
 }
 
 .profile-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 0 20px rgba(0, 136, 255, 0.6);
+    box-shadow: 0 0 20px rgba(0, 210, 255, 0.3);
 }
 
+/* =========================================
+   RESPONSIVE
+   ========================================= */
 @media (max-width: 768px) {
     .profile-grid {
         grid-template-columns: 1fr;
+    }
+
+    .avatar-section {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .avatar-info {
+        align-items: center;
     }
 }

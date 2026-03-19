@@ -8,7 +8,7 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.core.files.base import ContentFile
 from django.contrib.auth.models import User
-from ..models import CloudFile, ChatMessage, FileShare
+from ..models import CloudFile, ChatMessage, FileShare, UserProfile
 import logging
 import json
 import uuid
@@ -167,7 +167,8 @@ def cloud_page_view(request):
 
 @login_required(login_url='/login')
 def profile_page_view(request):
-    return render(request, "profile.html")
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    return render(request, "profile.html", {"profile": profile})
 
 
 def password_reset_page_view(request):
@@ -391,6 +392,60 @@ def shared_download_view(request, token):
         "share": share,
         "cloud_file": cloud_file,
     })
+
+
+# ====== Profile Avatar ======
+
+@login_required(login_url='/login')
+def avatar_upload_view(request):
+    """Upload or replace profile avatar."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    avatar_file = request.FILES.get('avatar')
+    if not avatar_file:
+        return JsonResponse({'error': 'Keine Datei ausgewählt.'}, status=400)
+
+    # Validate: must be an image, max 5 MB
+    if not avatar_file.content_type.startswith('image/'):
+        return JsonResponse({'error': 'Nur Bilder erlaubt.'}, status=400)
+    if avatar_file.size > 5 * 1024 * 1024:
+        return JsonResponse({'error': 'Maximum 5 MB.'}, status=400)
+
+    try:
+        profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        # Delete old avatar if exists
+        if profile.avatar:
+            profile.avatar.delete(save=False)
+        profile.avatar = avatar_file
+        profile.save()
+
+        return JsonResponse({
+            'success': True,
+            'avatar_url': profile.avatar.url,
+            'message': 'Profilbild aktualisiert.'
+        })
+    except Exception as e:
+        logger.error(f"Avatar upload failed: {e}")
+        return JsonResponse({'error': 'Upload fehlgeschlagen.'}, status=500)
+
+
+@login_required(login_url='/login')
+def avatar_delete_view(request):
+    """Remove profile avatar."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    try:
+        profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        if profile.avatar:
+            profile.avatar.delete(save=False)
+            profile.avatar = None
+            profile.save()
+        return JsonResponse({'success': True, 'message': 'Profilbild entfernt.'})
+    except Exception as e:
+        logger.error(f"Avatar delete failed: {e}")
+        return JsonResponse({'error': 'Löschen fehlgeschlagen.'}, status=500)
 
 
 def custom_404(request, exception):

@@ -4,7 +4,7 @@
 {% block title %}Aetherus - Profil{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/profile.css' %}">
+<link rel="stylesheet" href="{% static 'css/profile.css' %}?v=2">
 {% endblock %}
 
 {% block content %}
@@ -14,12 +14,44 @@
 </header>
 
 <section class="profile-grid">
-    <!-- Account Info -->
+    <!-- Profile Picture + Account Info -->
     <div class="profile-card">
         <div class="profile-card-header">
-            <h2>Account-Informationen</h2>
+            <h2>Profil</h2>
         </div>
         <div class="profile-card-body">
+
+            <!-- Avatar Section -->
+            <div class="avatar-section">
+                <div class="avatar-wrapper" id="avatar-wrapper">
+                    {% if profile.avatar %}
+                    <img src="{{ profile.avatar.url }}" alt="Avatar" class="avatar-img" id="avatar-img">
+                    {% else %}
+                    <div class="avatar-placeholder" id="avatar-placeholder">
+                        {{ user.username|make_list|first|upper }}
+                    </div>
+                    {% endif %}
+                    <label class="avatar-overlay" for="avatar-input">
+                        <span class="avatar-overlay-icon">📷</span>
+                        <span class="avatar-overlay-text">Ändern</span>
+                    </label>
+                    <input type="file" id="avatar-input" accept="image/*" class="avatar-file-input">
+                </div>
+                <div class="avatar-info">
+                    <span class="avatar-username">{{ user.username }}</span>
+                    <span class="avatar-email">{{ user.email }}</span>
+                    <div class="avatar-actions">
+                        <button class="avatar-btn upload" onclick="document.getElementById('avatar-input').click()">Bild ändern</button>
+                        {% if profile.avatar %}
+                        <button class="avatar-btn remove" id="avatar-remove-btn" onclick="removeAvatar()">Entfernen</button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="profile-divider"></div>
+
+            <!-- Account Info -->
             <div class="profile-field">
                 <label>Benutzername</label>
                 <span class="profile-value">{{ user.username }}</span>
@@ -77,6 +109,123 @@
 
 {% block extra_js %}
 <script>
+// ====== Avatar Upload ======
+const avatarInput = document.getElementById('avatar-input');
+const avatarWrapper = document.getElementById('avatar-wrapper');
+
+avatarInput.addEventListener('change', async function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+        showToast('Nur Bilder erlaubt.', 'error');
+        return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+        showToast('Maximum 5 MB.', 'error');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    try {
+        const res = await fetch('/profile/avatar/upload/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCsrfToken() },
+            body: formData
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            showToast(data.message, 'success');
+            // Update avatar display
+            const existing = avatarWrapper.querySelector('.avatar-img, .avatar-placeholder');
+            if (existing) existing.remove();
+
+            const img = document.createElement('img');
+            img.src = data.avatar_url;
+            img.alt = 'Avatar';
+            img.className = 'avatar-img';
+            img.id = 'avatar-img';
+            avatarWrapper.insertBefore(img, avatarWrapper.firstChild);
+
+            // Update navbar avatar too
+            updateNavAvatar(data.avatar_url);
+
+            // Show remove button if hidden
+            if (!document.getElementById('avatar-remove-btn')) {
+                const actions = document.querySelector('.avatar-actions');
+                const btn = document.createElement('button');
+                btn.className = 'avatar-btn remove';
+                btn.id = 'avatar-remove-btn';
+                btn.onclick = removeAvatar;
+                btn.textContent = 'Entfernen';
+                actions.appendChild(btn);
+            }
+        } else {
+            showToast(data.error || 'Fehler beim Hochladen.', 'error');
+        }
+    } catch (err) {
+        showToast('Netzwerkfehler.', 'error');
+    }
+
+    avatarInput.value = '';
+});
+
+async function removeAvatar() {
+    if (!confirm('Profilbild wirklich entfernen?')) return;
+
+    try {
+        const res = await fetch('/profile/avatar/delete/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            }
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            showToast(data.message, 'success');
+            // Replace img with placeholder
+            const existing = avatarWrapper.querySelector('.avatar-img');
+            if (existing) existing.remove();
+
+            // Only add placeholder if there isn't already one
+            if (!avatarWrapper.querySelector('.avatar-placeholder')) {
+                const placeholder = document.createElement('div');
+                placeholder.className = 'avatar-placeholder';
+                placeholder.id = 'avatar-placeholder';
+                placeholder.textContent = '{{ user.username|make_list|first|upper }}';
+                avatarWrapper.insertBefore(placeholder, avatarWrapper.firstChild);
+            }
+
+            // Update navbar avatar
+            updateNavAvatar(null);
+
+            // Remove the remove button
+            const btn = document.getElementById('avatar-remove-btn');
+            if (btn) btn.remove();
+        } else {
+            showToast(data.error || 'Fehler.', 'error');
+        }
+    } catch (err) {
+        showToast('Netzwerkfehler.', 'error');
+    }
+}
+
+function updateNavAvatar(url) {
+    const navAvatar = document.querySelector('.user-avatar');
+    if (!navAvatar) return;
+    if (url) {
+        navAvatar.innerHTML = `<img src="${url}" alt="Avatar" class="nav-avatar-img">`;
+    } else {
+        navAvatar.innerHTML = '{{ user.username|make_list|first|upper }}';
+    }
+}
+
+// ====== Password Change ======
 document.getElementById('change-password-form').addEventListener('submit', async function(e) {
     e.preventDefault();
 

@@ -7,7 +7,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Aetherus{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=3">
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=4">
     {% block extra_css %}{% endblock %}
 </head>
 
@@ -15,42 +15,55 @@
     <nav class="navbar">
         <a href="/main" class="nav-logo">AETHERUS</a>
 
-        <!-- Hamburger toggle for mobile -->
-        <button class="hamburger" id="hamburger-btn" aria-label="Menü öffnen">
-            <span></span>
-            <span></span>
-            <span></span>
-        </button>
-
-        <div class="nav-center" id="nav-center">
-            <a href="/main" class="nav-pill {% if '/main' in request.path %}active{% endif %}">
-                <span class="icon">🏠</span> <span class="nav-label">Dashboard</span>
-            </a>
-
-            <a href="/chat" class="nav-pill {% if '/chat' in request.path %}active{% endif %}">
-                <span class="icon">💬</span> <span class="nav-label">Chat</span>
-            </a>
-
-            <a href="/cloud" class="nav-pill {% if '/cloud' in request.path %}active{% endif %}">
-                <span class="icon">☁️</span> <span class="nav-label">Cloud</span>
-            </a>
-
-            <a href="/profile" class="nav-pill {% if '/profile' in request.path %}active{% endif %}">
-                <span class="icon">👤</span> <span class="nav-label">Profil</span>
-            </a>
+        <!-- Navigation Dropdown (replaces static pills) -->
+        <div class="nav-dropdown" id="nav-dropdown">
+            <button class="nav-dropdown-trigger" id="nav-dropdown-trigger">
+                <span class="nav-dropdown-icon">☰</span>
+                <span class="nav-dropdown-label">Menü</span>
+                <span class="nav-dropdown-arrow">▾</span>
+            </button>
+            <div class="nav-dropdown-menu" id="nav-dropdown-menu">
+                <a href="/main" class="nav-dropdown-item {% if '/main' in request.path %}active{% endif %}">
+                    <span>🏠</span> Dashboard
+                </a>
+                <a href="/chat" class="nav-dropdown-item {% if '/chat' in request.path %}active{% endif %}">
+                    <span>💬</span> Chat
+                </a>
+                <a href="/cloud" class="nav-dropdown-item {% if '/cloud' in request.path %}active{% endif %}">
+                    <span>☁️</span> Cloud
+                </a>
+                <a href="/profile" class="nav-dropdown-item {% if '/profile' in request.path %}active{% endif %}">
+                    <span>👤</span> Profil
+                </a>
+            </div>
         </div>
 
         <!-- User dropdown -->
         <div class="nav-user-dropdown" id="user-dropdown">
             <button class="dropdown-trigger" id="dropdown-trigger">
-                <span class="user-avatar">{{ user.username|make_list|first }}</span>
+                <span class="user-avatar">
+                    {% if user_profile and user_profile.avatar %}
+                    <img src="{{ user_profile.avatar.url }}" alt="Avatar" class="nav-avatar-img">
+                    {% else %}
+                    {{ user.username|make_list|first|upper }}
+                    {% endif %}
+                </span>
                 <span class="dropdown-name">{{ user.username }}</span>
                 <span class="dropdown-arrow">▾</span>
             </button>
             <div class="dropdown-menu" id="dropdown-menu">
                 <div class="dropdown-header">
-                    <span class="dropdown-user-full">{{ user.username }}</span>
-                    <span class="dropdown-email">{{ user.email }}</span>
+                    <div class="dropdown-header-avatar">
+                        {% if user_profile and user_profile.avatar %}
+                        <img src="{{ user_profile.avatar.url }}" alt="Avatar" class="dropdown-avatar-img">
+                        {% else %}
+                        <div class="dropdown-avatar-placeholder">{{ user.username|make_list|first|upper }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="dropdown-header-info">
+                        <span class="dropdown-user-full">{{ user.username }}</span>
+                        <span class="dropdown-email">{{ user.email }}</span>
+                    </div>
                 </div>
                 <div class="dropdown-divider"></div>
                 <a href="/profile" class="dropdown-item">
@@ -66,9 +79,6 @@
             </div>
         </div>
     </nav>
-
-    <!-- Mobile nav overlay -->
-    <div class="nav-overlay" id="nav-overlay"></div>
 
     <!-- Toast notification container -->
     <div id="toast-container" class="toast-container"></div>
@@ -93,11 +103,8 @@
             `;
 
             container.appendChild(toast);
-
-            // Trigger animation
             requestAnimationFrame(() => toast.classList.add('toast-visible'));
 
-            // Auto-dismiss
             setTimeout(() => {
                 toast.classList.remove('toast-visible');
                 toast.classList.add('toast-hiding');
@@ -129,55 +136,39 @@
             }
         }
 
-        // ====== User Dropdown ======
-        const dropdownTrigger = document.getElementById('dropdown-trigger');
-        const dropdownMenu = document.getElementById('dropdown-menu');
-        const userDropdown = document.getElementById('user-dropdown');
+        // ====== Dropdowns ======
+        function setupDropdown(triggerId, containerId) {
+            const trigger = document.getElementById(triggerId);
+            const container = document.getElementById(containerId);
+            if (!trigger || !container) return;
 
-        dropdownTrigger.addEventListener('click', (e) => {
-            e.stopPropagation();
-            userDropdown.classList.toggle('open');
-        });
+            trigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // Close other dropdowns first
+                document.querySelectorAll('.nav-dropdown.open, .nav-user-dropdown.open').forEach(el => {
+                    if (el !== container) el.classList.remove('open');
+                });
+                container.classList.toggle('open');
+            });
+        }
 
-        // Close on outside click
+        setupDropdown('nav-dropdown-trigger', 'nav-dropdown');
+        setupDropdown('dropdown-trigger', 'user-dropdown');
+
+        // Close all dropdowns on outside click
         document.addEventListener('click', (e) => {
-            if (!userDropdown.contains(e.target)) {
-                userDropdown.classList.remove('open');
-            }
+            document.querySelectorAll('.nav-dropdown.open, .nav-user-dropdown.open').forEach(el => {
+                if (!el.contains(e.target)) el.classList.remove('open');
+            });
         });
 
         // Close on Escape
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') userDropdown.classList.remove('open');
-        });
-
-        // ====== Hamburger Menu ======
-        const hamburger = document.getElementById('hamburger-btn');
-        const navCenter = document.getElementById('nav-center');
-        const navOverlay = document.getElementById('nav-overlay');
-
-        hamburger.addEventListener('click', () => {
-            hamburger.classList.toggle('active');
-            navCenter.classList.toggle('mobile-open');
-            navOverlay.classList.toggle('active');
-            document.body.classList.toggle('nav-open');
-        });
-
-        navOverlay.addEventListener('click', () => {
-            hamburger.classList.remove('active');
-            navCenter.classList.remove('mobile-open');
-            navOverlay.classList.remove('active');
-            document.body.classList.remove('nav-open');
-        });
-
-        // Close menu on nav link click (mobile)
-        document.querySelectorAll('.nav-pill').forEach(link => {
-            link.addEventListener('click', () => {
-                hamburger.classList.remove('active');
-                navCenter.classList.remove('mobile-open');
-                navOverlay.classList.remove('active');
-                document.body.classList.remove('nav-open');
-            });
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.nav-dropdown.open, .nav-user-dropdown.open').forEach(el => {
+                    el.classList.remove('open');
+                });
+            }
         });
 
         // ====== CSRF Helper ======

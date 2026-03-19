@@ -26,6 +26,8 @@ urlpatterns = [
     path("login", pages.login_page_view, name="login_page"),
     path("register", pages.register_page_view, name="register_page"),
     path("profile", pages.profile_page_view, name="profile"),
+    path("profile/avatar/upload/", pages.avatar_upload_view, name="avatar_upload"),
+    path("profile/avatar/delete/", pages.avatar_delete_view, name="avatar_delete"),
     path("password-reset", pages.password_reset_page_view, name="password_reset_page"),
 
     # 4. API Authentication
