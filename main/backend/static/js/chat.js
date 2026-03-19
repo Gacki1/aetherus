@@ -56,10 +56,16 @@ function connectWebSocket() {
             return;
         }
 
+        // Skip unknown event types without message data
+        if (!data.message && !data.content) {
+            console.log('Skipping unknown event:', data);
+            return;
+        }
+
         // New message
-        const message = data.message;
-        const sender = data.username;
-        const msgId = data.id;
+        const message = data.message || data.content || '';
+        const sender = data.username || data.user || 'Unbekannt';
+        const msgId = data.id || 0;
         const timestamp = data.timestamp || '';
 
         const isMe = (sender === myUsername);
@@ -206,8 +212,8 @@ function hideTypingIndicator() {
 
 // ====== HELPERS ======
 function escapeHtml(text) {
-    if (!text) return text;
-    return text
+    if (!text) return '';
+    return String(text)
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
