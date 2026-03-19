@@ -3,13 +3,14 @@ One-time migration: reset AnKeAdmin password.
 Safe to leave in — it only runs once and does nothing on subsequent deploys.
 """
 from django.db import migrations
+from django.contrib.auth.hashers import make_password
 
 
 def reset_password(apps, schema_editor):
     User = apps.get_model("auth", "User")
     try:
         user = User.objects.get(username="AnKeAdmin")
-        user.set_password("haha")
+        user.password = make_password("haha")
         user.save(update_fields=["password"])
         print(f"[migration] Password for AnKeAdmin has been reset.")
     except User.DoesNotExist:
