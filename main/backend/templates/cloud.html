@@ -327,6 +327,87 @@
         });
     }
 
+    // ====== Count Helpers ======
+
+    /**
+     * Recounts .shared-file-item elements, updates the heading "Geteilte Dateien (N)"
+     * and the sidebar tab count for the shared tab.
+     * Also shows/hides the empty state for the shared grid.
+     */
+    function updateSharedTabCounts() {
+        const sharedItems = document.querySelectorAll('.shared-file-item');
+        const count = sharedItems.length;
+
+        // Update heading count
+        const heading = document.querySelector('.cloud-files-card h2 .file-count');
+        if (heading) heading.textContent = `(${count})`;
+
+        // Update sidebar tab count for shared tab
+        const sharedTab = document.querySelector('.sidebar-tab[href*="?tab=shared"] .tab-count');
+        if (sharedTab) sharedTab.textContent = count;
+
+        // Show empty state if no items remain
+        const grid = document.querySelector('.files-grid');
+        if (grid && count === 0) {
+            grid.remove();
+            const card = document.querySelector('.cloud-files-card');
+            if (card && !card.querySelector('.empty-state')) {
+                const emptyDiv = document.createElement('div');
+                emptyDiv.className = 'empty-state';
+                emptyDiv.innerHTML = '<p>Noch keine Dateien mit dir geteilt.</p>';
+                card.appendChild(emptyDiv);
+            }
+        }
+    }
+
+    /**
+     * Recounts .file-item elements (excluding .shared-file-item), updates the heading
+     * "Deine Dateien (N)" and the sidebar tab count for the personal tab.
+     * Also shows/hides the empty state for the personal files grid.
+     */
+    function updatePersonalTabCounts() {
+        // Count only personal file items (not shared-file-item)
+        const personalItems = document.querySelectorAll('.files-grid .file-item:not(.shared-file-item)');
+        const count = personalItems.length;
+
+        // Update heading count
+        const heading = document.querySelector('.cloud-files-card h2 .file-count');
+        if (heading) heading.textContent = `(${count})`;
+
+        // Update sidebar tab count for personal tab
+        const personalTab = document.querySelector('.sidebar-tab[href*="?tab=personal"] .tab-count');
+        if (personalTab) personalTab.textContent = count;
+
+        // Show empty state if no items remain
+        const grid = document.querySelector('.files-grid');
+        if (grid && count === 0) {
+            grid.remove();
+            const card = document.querySelector('.cloud-files-card');
+            if (card && !card.querySelector('.empty-state')) {
+                const emptyDiv = document.createElement('div');
+                emptyDiv.className = 'empty-state';
+                emptyDiv.innerHTML = '<p>Du hast noch keine Dateien hochgeladen.</p>';
+                card.appendChild(emptyDiv);
+            }
+        }
+    }
+
+    /**
+     * Decrements the pending-dot counter by 1.
+     * If the count reaches 0, removes the pending-dot element entirely.
+     */
+    function decrementPendingDot() {
+        const dot = document.querySelector('.pending-dot');
+        if (!dot) return;
+        const current = parseInt(dot.textContent, 10) || 0;
+        if (current <= 1) {
+            dot.remove();
+        } else {
+            dot.textContent = current - 1;
+            dot.title = `${current - 1} ausstehende Anfrage${current - 1 !== 1 ? 'n' : ''}`;
+        }
+    }
+
     // ====== Share Modal ======
     let currentShareFileId = null;
 
@@ -368,6 +449,35 @@
                 document.getElementById('share-link-result').style.display = 'flex';
                 document.getElementById('share-link-btn').style.display = 'none';
                 showToast(data.message, 'success');
+
+                // Add a public link badge under the file in the personal tab
+                const fileId = currentShareFileId;
+                let sharesInfo = document.querySelector(`.file-shares-info[data-file-id="${fileId}"]`);
+                if (!sharesInfo) {
+                    // Create the shares-info container right after the .file-item
+                    const fileItems = document.querySelectorAll('.file-item:not(.shared-file-item)');
+                    let targetItem = null;
+                    fileItems.forEach(item => {
+                        const shareBtn = item.querySelector(`.share-btn`);
+                        if (shareBtn && shareBtn.getAttribute('onclick') && shareBtn.getAttribute('onclick').includes(`openShareModal(${fileId},`)) {
+                            targetItem = item;
+                        }
+                    });
+                    if (targetItem) {
+                        sharesInfo = document.createElement('div');
+                        sharesInfo.className = 'file-shares-info';
+                        sharesInfo.dataset.fileId = fileId;
+                        targetItem.insertAdjacentElement('afterend', sharesInfo);
+                    }
+                }
+                if (sharesInfo && data.share_id) {
+                    const badge = document.createElement('div');
+                    badge.className = 'share-badge';
+                    badge.id = `share-badge-${data.share_id}`;
+                    badge.innerHTML = `<span class="share-target">🌐 Öffentlicher Link</span>
+                        <button class="share-revoke" onclick="revokeShare(${data.share_id})" title="Freigabe aufheben">✕</button>`;
+                    sharesInfo.appendChild(badge);
+                }
             } else {
                 showToast(data.error || 'Fehler beim Erstellen des Links.', 'error');
             }
@@ -410,6 +520,34 @@
             if (data.success) {
                 showToast(data.message, 'success');
                 select.value = '';
+
+                // Add a user share badge under the file in the personal tab
+                const fileId = currentShareFileId;
+                let sharesInfo = document.querySelector(`.file-shares-info[data-file-id="${fileId}"]`);
+                if (!sharesInfo) {
+                    const fileItems = document.querySelectorAll('.file-item:not(.shared-file-item)');
+                    let targetItem = null;
+                    fileItems.forEach(item => {
+                        const shareBtn = item.querySelector(`.share-btn`);
+                        if (shareBtn && shareBtn.getAttribute('onclick') && shareBtn.getAttribute('onclick').includes(`openShareModal(${fileId},`)) {
+                            targetItem = item;
+                        }
+                    });
+                    if (targetItem) {
+                        sharesInfo = document.createElement('div');
+                        sharesInfo.className = 'file-shares-info';
+                        sharesInfo.dataset.fileId = fileId;
+                        targetItem.insertAdjacentElement('afterend', sharesInfo);
+                    }
+                }
+                if (sharesInfo && data.share_id && data.shared_with_username) {
+                    const badge = document.createElement('div');
+                    badge.className = 'share-badge';
+                    badge.id = `share-badge-${data.share_id}`;
+                    badge.innerHTML = `<span class="share-target">👤 ${data.shared_with_username}</span>
+                        <button class="share-revoke" onclick="revokeShare(${data.share_id})" title="Freigabe aufheben">✕</button>`;
+                    sharesInfo.appendChild(badge);
+                }
             } else {
                 showToast(data.error || 'Fehler beim Teilen.', 'error');
             }
@@ -455,8 +593,24 @@
             const data = await res.json();
             if (data.success) {
                 showToast(data.message, 'success');
-                // Reload to reflect accepted state
-                window.location.reload();
+
+                const item = document.getElementById(`shared-item-${shareId}`);
+                if (item) {
+                    // Remove pending styling
+                    item.classList.remove('share-pending-item');
+
+                    // Replace actions: remove badge + accept/decline buttons, add download/view/remove
+                    const actionsDiv = item.querySelector('.file-actions');
+                    if (actionsDiv) {
+                        actionsDiv.innerHTML =
+                            `<a href="${data.file_url}" class="action-btn download-btn" title="Herunterladen" download="${data.filename}">⬇️</a>` +
+                            `<a href="${data.file_url}" target="_blank" class="action-btn view-btn" title="Ansehen">👁️</a>` +
+                            `<button type="button" class="action-btn remove-share-btn" title="Entfernen" onclick="removeReceivedShare(${shareId})">🗑️</button>`;
+                    }
+                }
+
+                // Decrement pending dot
+                decrementPendingDot();
             } else {
                 showToast(data.error || 'Fehler beim Akzeptieren.', 'error');
             }
@@ -478,6 +632,12 @@
                 showToast(data.message, 'success');
                 const item = document.getElementById(`shared-item-${shareId}`);
                 if (item) item.remove();
+
+                // Decrement pending dot (declined = was pending)
+                decrementPendingDot();
+
+                // Update counts and empty state
+                updateSharedTabCounts();
             } else {
                 showToast(data.error || 'Fehler beim Ablehnen.', 'error');
             }
@@ -499,6 +659,9 @@
                 showToast(data.message, 'success');
                 const item = document.getElementById(`shared-item-${shareId}`);
                 if (item) item.remove();
+
+                // Update counts and empty state
+                updateSharedTabCounts();
             } else {
                 showToast(data.error || 'Fehler beim Entfernen.', 'error');
             }
@@ -506,5 +669,55 @@
             showToast('Netzwerkfehler.', 'error');
         }
     }
+
+    // ====== File Delete (AJAX) ======
+
+    async function deleteFile(fileId) {
+        if (!confirm('Möchtest du diese Datei wirklich löschen?')) return;
+        const csrfToken = getCsrfToken();
+        try {
+            const res = await fetch(`/cloud/delete/${fileId}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                }
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(data.message || 'Datei wurde gelöscht.', 'success');
+
+                // Remove the .file-item div by locating the hidden file_id input
+                const fileItems = document.querySelectorAll('.file-item:not(.shared-file-item)');
+                fileItems.forEach(item => {
+                    const hiddenInput = item.querySelector(`input[name="file_id"][value="${fileId}"]`);
+                    if (hiddenInput) {
+                        // Also remove adjacent file-shares-info if present
+                        const next = item.nextElementSibling;
+                        if (next && next.classList.contains('file-shares-info') && next.dataset.fileId == fileId) {
+                            next.remove();
+                        }
+                        item.remove();
+                    }
+                });
+
+                // Update personal tab counts
+                updatePersonalTabCounts();
+            } else {
+                showToast(data.error || 'Fehler beim Löschen.', 'error');
+            }
+        } catch (err) {
+            showToast('Netzwerkfehler.', 'error');
+        }
+    }
+
+    // Intercept all delete form submissions and convert to AJAX
+    document.querySelectorAll('.delete-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const fileId = this.querySelector('input[name="file_id"]').value;
+            deleteFile(parseInt(fileId, 10));
+        });
+    });
 </script>
 {% endblock %}

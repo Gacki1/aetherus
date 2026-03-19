@@ -345,7 +345,8 @@ class GroupChatConsumer(AsyncWebsocketConsumer):
     def check_membership(self):
         return ChatGroupMembership.objects.filter(
             user__username=self.username,
-            group_id=self.group_id
+            group_id=self.group_id,
+            status='accepted'
         ).exists()
 
     @database_sync_to_async
@@ -353,7 +354,7 @@ class GroupChatConsumer(AsyncWebsocketConsumer):
         return ChatGroupMembership.objects.filter(
             user__username=self.username,
             group_id=self.group_id,
-            role='admin'
+            role__in=['admin', 'owner']
         ).exists()
 
     @database_sync_to_async

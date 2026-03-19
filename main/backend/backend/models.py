@@ -76,17 +76,20 @@ class ChatGroup(models.Model):
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_groups')
     members = models.ManyToManyField(User, through='ChatGroupMembership', related_name='chat_groups')
     created_at = models.DateTimeField(auto_now_add=True)
+    icon = models.ImageField(upload_to='group_icons/', null=True, blank=True)
 
     def __str__(self):
         return self.name
 
 
 class ChatGroupMembership(models.Model):
-    """Membership of a user in a chat group, with role."""
-    ROLE_CHOICES = [('admin', 'Admin'), ('member', 'Mitglied')]
+    """Membership of a user in a chat group, with role and invite status."""
+    STATUS_CHOICES = [('pending', 'Ausstehend'), ('accepted', 'Akzeptiert'), ('declined', 'Abgelehnt')]
+    ROLE_CHOICES = [('owner', 'Eigentümer'), ('admin', 'Admin'), ('member', 'Mitglied')]
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     group = models.ForeignKey(ChatGroup, on_delete=models.CASCADE)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='member')
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='accepted')
     joined_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -1,4 +1,4 @@
-/* backend/static/css/chat.css — v5 */
+/* backend/static/css/chat.css — v6 */
 
 /* ======================================================
    1. LAYOUT — chat layout with sidebar
@@ -471,6 +471,64 @@
 }
 
 /* ======================================================
+   Pending invite items in sidebar
+   ====================================================== */
+
+.room-invite-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 16px;
+    border-radius: 0;
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 0.9rem;
+    user-select: none;
+    border-left: 3px solid #e6a817;
+    background: rgba(255, 170, 0, 0.05);
+}
+
+.room-invite-item:hover {
+    background: rgba(255, 170, 0, 0.1);
+    color: #e6edf3;
+}
+
+.invite-actions {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+}
+
+.invite-accept-btn,
+.invite-decline-btn {
+    background: transparent;
+    border: 1px solid;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    line-height: 1;
+    transition: all 0.2s;
+}
+
+.invite-accept-btn {
+    color: #00ffaa;
+    border-color: rgba(0, 255, 170, 0.3);
+}
+
+.invite-accept-btn:hover {
+    background: rgba(0, 255, 170, 0.1);
+}
+
+.invite-decline-btn {
+    color: #ff4d4d;
+    border-color: rgba(255, 77, 77, 0.3);
+}
+
+.invite-decline-btn:hover {
+    background: rgba(255, 77, 77, 0.1);
+}
+
+/* ======================================================
    10. TYPING INDICATOR
    ====================================================== */
 
@@ -710,4 +768,224 @@
     .sidebar-close-btn {
         display: none;
     }
+}
+
+/* ======================================================
+   Group Icon Styles
+   ====================================================== */
+
+/* Group icon in sidebar */
+.group-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+/* Group icon upload button */
+.group-icon-btn {
+    background: transparent;
+    border: 1px solid rgba(0, 210, 255, 0.4);
+    color: #00d2ff;
+    padding: 3px 8px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    margin-left: 8px;
+    transition: all 0.2s;
+}
+
+.group-icon-btn:hover {
+    background: rgba(0, 210, 255, 0.12);
+    border-color: #00d2ff;
+}
+
+/* Header group icon */
+.header-group-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    vertical-align: middle;
+    margin-right: 8px;
+}
+
+/* ======================================================
+   WIDER MODAL (member list)
+   ====================================================== */
+
+.modal-box--wide {
+    max-width: 520px;
+}
+
+/* ======================================================
+   MEMBER LIST
+   ====================================================== */
+
+.members-loading {
+    text-align: center;
+    color: rgba(255,255,255,0.4);
+    padding: 20px 0;
+    font-size: 0.9rem;
+}
+
+.member-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.member-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    transition: background 0.15s;
+}
+
+.member-item:hover {
+    background: rgba(255,255,255,0.04);
+}
+
+.member-avatar {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.member-avatar-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #00d2ff, #0088ff);
+    color: #000;
+    font-weight: 700;
+    font-size: 0.85rem;
+}
+
+.member-info {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.member-name {
+    font-size: 0.95rem;
+    color: #e6edf3;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.member-joined {
+    font-size: 0.75rem;
+    color: rgba(255,255,255,0.3);
+    margin-top: 2px;
+}
+
+/* Role badges */
+.role-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+}
+
+.role-badge--owner {
+    background: rgba(255, 215, 0, 0.15);
+    color: #ffd700;
+    border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.role-badge--admin {
+    background: rgba(0, 210, 255, 0.12);
+    color: #00d2ff;
+    border: 1px solid rgba(0, 210, 255, 0.3);
+}
+
+.role-badge--member {
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.45);
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* Sidebar role badge (compact) */
+.sidebar-role-badge {
+    font-size: 0.55rem;
+    font-weight: 700;
+    padding: 1px 4px;
+    border-radius: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.sidebar-role-badge--owner {
+    color: #ffd700;
+    background: rgba(255, 215, 0, 0.12);
+}
+
+.sidebar-role-badge--admin {
+    color: #00d2ff;
+    background: rgba(0, 210, 255, 0.1);
+}
+
+/* Member action buttons */
+.member-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.member-action-btn {
+    background: transparent;
+    border: 1px solid;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 3px 8px;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.member-action-btn--promote {
+    color: #00d2ff;
+    border-color: rgba(0, 210, 255, 0.3);
+}
+
+.member-action-btn--promote:hover {
+    background: rgba(0, 210, 255, 0.1);
+    border-color: #00d2ff;
+}
+
+.member-action-btn--demote {
+    color: #e6a817;
+    border-color: rgba(230, 168, 23, 0.3);
+}
+
+.member-action-btn--demote:hover {
+    background: rgba(230, 168, 23, 0.1);
+    border-color: #e6a817;
+}
+
+.member-action-btn--kick {
+    color: #ff4d4d;
+    border-color: rgba(255, 77, 77, 0.3);
+}
+
+.member-action-btn--kick:hover {
+    background: rgba(255, 77, 77, 0.1);
+    border-color: #ff4d4d;
 }

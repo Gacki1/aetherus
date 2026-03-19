@@ -4,7 +4,7 @@
 {% block title %}Aetherus - Chat{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/chat.css' %}?v=5">
+<link rel="stylesheet" href="{% static 'css/chat.css' %}?v=6">
 {% endblock %}
 
 {% block content %}
@@ -20,9 +20,14 @@
             <span id="online-count">0</span> online
         </span>
         <span id="group-invite-btn-wrap" style="display:none;">
-            <button class="group-action-btn" id="invite-btn" title="Nutzer einladen">+ Einladen</button>
+            <button class="group-action-btn" id="invite-btn" title="Nutzer einladen" style="display:none;">+ Einladen</button>
+            <button class="group-action-btn" id="icon-upload-btn" title="Gruppenicon ändern" style="display:none;">&#128247;</button>
+            <button class="group-action-btn" id="members-btn" title="Mitglieder verwalten">Mitglieder</button>
+            <button class="group-action-btn" id="rename-btn" title="Gruppe umbenennen" style="display:none;">Umbenennen</button>
             <button class="group-action-btn group-action-btn--danger" id="leave-btn" title="Gruppe verlassen">Verlassen</button>
+            <button class="group-action-btn group-action-btn--danger" id="delete-group-btn" title="Gruppe löschen" style="display:none;">Löschen</button>
         </span>
+        <input type="file" id="group-icon-input" accept="image/*" style="display:none;">
     </p>
 </header>
 
@@ -117,11 +122,45 @@
     </div>
 </div>
 
+<!-- ===== MODAL: MITGLIEDER VERWALTEN ===== -->
+<div class="modal-overlay" id="members-modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="modal-members-title">
+    <div class="modal-box modal-box--wide">
+        <div class="modal-header">
+            <h3 id="modal-members-title">Mitglieder</h3>
+            <button class="modal-close-btn" id="members-modal-close">✕</button>
+        </div>
+        <div class="modal-body" id="members-modal-body">
+            <div class="members-loading">Lade Mitglieder...</div>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-btn modal-btn--cancel" id="members-modal-cancel">Schließen</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== MODAL: GRUPPE UMBENENNEN ===== -->
+<div class="modal-overlay" id="rename-modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="modal-rename-title">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3 id="modal-rename-title">Gruppe umbenennen</h3>
+            <button class="modal-close-btn" id="rename-modal-close">✕</button>
+        </div>
+        <div class="modal-body">
+            <label for="rename-input">Neuer Gruppenname</label>
+            <input type="text" id="rename-input" placeholder="Neuer Name" maxlength="100" autocomplete="off">
+        </div>
+        <div class="modal-footer">
+            <button class="modal-btn modal-btn--cancel" id="rename-modal-cancel">Abbrechen</button>
+            <button class="modal-btn modal-btn--primary" id="rename-modal-confirm">Umbenennen</button>
+        </div>
+    </div>
+</div>
+
 {{ user.username|json_script:"user_username" }}
 {{ user.is_staff|json_script:"user_is_admin" }}
 {{ user_groups|safe|json_script:"user_groups_data" }}
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/chat.js' %}?v=4"></script>
+<script src="{% static 'js/chat.js' %}?v=5"></script>
 {% endblock %}

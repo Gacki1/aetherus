@@ -26,6 +26,7 @@ urlpatterns = [
     path("cloud/share/accept/<int:share_id>/", pages.accept_share_view, name="cloud_share_accept"),
     path("cloud/share/decline/<int:share_id>/", pages.decline_share_view, name="cloud_share_decline"),
     path("cloud/share/remove/<int:share_id>/", pages.remove_received_share_view, name="cloud_share_remove"),
+    path("cloud/delete/<int:file_id>/", pages.cloud_delete_file_view, name="cloud_delete_file"),
     path("share/<uuid:token>/", pages.shared_download_view, name="shared_download"),
     path("login", pages.login_page_view, name="login_page"),
     path("register", pages.register_page_view, name="register_page"),
@@ -52,8 +53,16 @@ urlpatterns = [
     path("api/chat/groups/", pages.chat_groups_list_view, name="chat_groups_list"),
     path("api/chat/groups/create/", pages.chat_group_create_view, name="chat_group_create"),
     path("api/chat/groups/<int:group_id>/invite/", pages.chat_group_invite_view, name="chat_group_invite"),
+    path("api/chat/groups/<int:group_id>/accept/", pages.chat_group_accept_invite_view, name="chat_group_accept"),
+    path("api/chat/groups/<int:group_id>/decline/", pages.chat_group_decline_invite_view, name="chat_group_decline"),
     path("api/chat/groups/<int:group_id>/leave/", pages.chat_group_leave_view, name="chat_group_leave"),
     path("api/chat/groups/<int:group_id>/delete/", pages.chat_group_delete_view, name="chat_group_delete"),
+    path("api/chat/groups/<int:group_id>/icon/upload/", pages.chat_group_icon_upload_view, name="chat_group_icon_upload"),
+    path("api/chat/groups/<int:group_id>/icon/delete/", pages.chat_group_icon_delete_view, name="chat_group_icon_delete"),
+    path("api/chat/groups/<int:group_id>/members/", pages.chat_group_members_view, name="chat_group_members"),
+    path("api/chat/groups/<int:group_id>/role/", pages.chat_group_change_role_view, name="chat_group_change_role"),
+    path("api/chat/groups/<int:group_id>/kick/", pages.chat_group_kick_view, name="chat_group_kick"),
+    path("api/chat/groups/<int:group_id>/rename/", pages.chat_group_rename_view, name="chat_group_rename"),
 ]
 
 # Custom error handlers

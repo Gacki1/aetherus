@@ -11,7 +11,8 @@ const MAX_RECONNECT = 5;
 let reconnectTimer = null;
 let currentRoom = 'global';   // 'global' or group id (number)
 let currentGroupId = null;    // null for global, int for groups
-let currentGroupRole = null;  // 'admin' | 'member' | null
+let currentGroupRole = null;  // 'owner' | 'admin' | 'member' | null
+const groupIconMap = {};      // groupId -> icon_url (or null)
 
 // Typing state
 let typingTimeout = null;
@@ -123,9 +124,9 @@ function appendMessage(data) {
     const messageClass = isMe ? 'sent' : 'received';
     const senderDisplay = isMe ? 'Ich' : sender;
 
-    // Delete button: admins always, group admins in group rooms
+    // Delete button: site admins always, group owner/admin in group rooms
     let deleteHtml = '';
-    const canDelete = isAdmin || (currentGroupId && currentGroupRole === 'admin');
+    const canDelete = isAdmin || (currentGroupId && (currentGroupRole === 'admin' || currentGroupRole === 'owner'));
     if (canDelete) {
         deleteHtml = `<button class="delete-btn" title="Nachricht löschen" onclick="deleteMessage(${msgId})">🗑️</button>`;
     }
@@ -173,14 +174,42 @@ function switchRoom(room, groupId, groupName, groupRole) {
 
     // Update header
     const title = document.getElementById('chat-room-title');
-    title.textContent = room === 'global' ? 'Globaler Chat' : groupName;
+    if (room === 'global') {
+        title.textContent = 'Globaler Chat';
+    } else {
+        const iconUrl = groupIconMap[groupId] || null;
+        if (iconUrl) {
+            title.innerHTML = `<img class="header-group-icon" src="${escapeHtml(iconUrl)}" alt="">${escapeHtml(groupName)}`;
+        } else {
+            title.textContent = groupName;
+        }
+    }
 
-    // Show/hide group action buttons
+    // Show/hide group action buttons based on role
     const inviteWrap = document.getElementById('group-invite-btn-wrap');
+    const iconUploadBtn = document.getElementById('icon-upload-btn');
+    const inviteBtnEl = document.getElementById('invite-btn');
+    const renameBtnEl = document.getElementById('rename-btn');
+    const deleteGroupBtnEl = document.getElementById('delete-group-btn');
+    const membersBtnEl = document.getElementById('members-btn');
+
     if (room !== 'global') {
+        const isPrivileged = (groupRole === 'owner' || groupRole === 'admin');
+        const isOwner = (groupRole === 'owner');
+
         inviteWrap.style.display = 'inline-flex';
+        if (inviteBtnEl) inviteBtnEl.style.display = isPrivileged ? 'inline-flex' : 'none';
+        if (iconUploadBtn) iconUploadBtn.style.display = isPrivileged ? 'inline-flex' : 'none';
+        if (renameBtnEl) renameBtnEl.style.display = isPrivileged ? 'inline-flex' : 'none';
+        if (deleteGroupBtnEl) deleteGroupBtnEl.style.display = isOwner ? 'inline-flex' : 'none';
+        if (membersBtnEl) membersBtnEl.style.display = 'inline-flex';
     } else {
         inviteWrap.style.display = 'none';
+        if (iconUploadBtn) iconUploadBtn.style.display = 'none';
+        if (inviteBtnEl) inviteBtnEl.style.display = 'none';
+        if (renameBtnEl) renameBtnEl.style.display = 'none';
+        if (deleteGroupBtnEl) deleteGroupBtnEl.style.display = 'none';
+        if (membersBtnEl) membersBtnEl.style.display = 'none';
     }
 
     // Update online count visibility (only global shows it)
@@ -210,20 +239,24 @@ function loadGroupList() {
     })
     .then(r => r.json())
     .then(data => {
-        renderGroupList(data.groups || []);
+        renderGroupList(data.groups || [], data.pending_invites || []);
     })
     .catch(err => {
         console.error('Fehler beim Laden der Gruppen:', err);
     });
 }
 
-function renderGroupList(groups) {
+function renderGroupList(groups, pendingInvites) {
     const roomList = document.getElementById('room-list');
 
-    // Remove old group items (keep only global)
-    roomList.querySelectorAll('.room-item[data-room="group"]').forEach(el => el.remove());
+    // Remove old group items and invite items (keep only global)
+    roomList.querySelectorAll('.room-item[data-room="group"], .room-invite-item').forEach(el => el.remove());
 
+    // Render accepted groups
     groups.forEach(group => {
+        // Store icon URL for later use
+        groupIconMap[group.id] = group.icon_url || null;
+
         const li = document.createElement('li');
         li.className = 'room-item';
         li.id = 'room-group-' + group.id;
@@ -232,10 +265,21 @@ function renderGroupList(groups) {
         li.dataset.groupName = group.name;
         li.dataset.groupRole = group.role;
 
-        const icon = group.role === 'admin' ? '👑' : '💬';
+        const iconHtml = group.icon_url
+            ? `<img class="group-icon" src="${escapeHtml(group.icon_url)}" alt="">`
+            : `<span class="room-icon">${(group.role === 'owner' || group.role === 'admin') ? '👑' : '💬'}</span>`;
+
+        let roleBadgeHtml = '';
+        if (group.role === 'owner') {
+            roleBadgeHtml = '<span class="sidebar-role-badge sidebar-role-badge--owner">Owner</span>';
+        } else if (group.role === 'admin') {
+            roleBadgeHtml = '<span class="sidebar-role-badge sidebar-role-badge--admin">Admin</span>';
+        }
+
         li.innerHTML = `
-            <span class="room-icon">${icon}</span>
+            ${iconHtml}
             <span class="room-name">${escapeHtml(group.name)}</span>
+            ${roleBadgeHtml}
         `;
 
         li.addEventListener('click', function() {
@@ -244,6 +288,74 @@ function renderGroupList(groups) {
         });
 
         roomList.appendChild(li);
+    });
+
+    // Render pending invites
+    if (pendingInvites && pendingInvites.length > 0) {
+        pendingInvites.forEach(group => {
+            const li = document.createElement('li');
+            li.className = 'room-invite-item';
+            li.id = 'room-invite-' + group.id;
+            li.title = `Einladung von ${escapeHtml(group.invited_by || '')}`;
+            li.innerHTML = `
+                <span class="room-icon">📩</span>
+                <span class="room-name">${escapeHtml(group.name)}</span>
+                <span class="invite-actions">
+                    <button class="invite-accept-btn" title="Akzeptieren" onclick="acceptGroupInvite(${group.id}, event)">✓</button>
+                    <button class="invite-decline-btn" title="Ablehnen" onclick="declineGroupInvite(${group.id}, event)">✕</button>
+                </span>
+            `;
+            roomList.appendChild(li);
+        });
+    }
+}
+
+function acceptGroupInvite(groupId, event) {
+    if (event) event.stopPropagation();
+
+    fetch(`/api/chat/groups/${groupId}/accept/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCsrfToken() },
+        credentials: 'same-origin',
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            if (typeof showToast === 'function') showToast(data.message, 'success');
+            loadGroupList();
+            // Switch to the newly joined group
+            setTimeout(() => {
+                switchRoom('group', data.group.id, data.group.name, data.group.role);
+            }, 300);
+        } else {
+            if (typeof showToast === 'function') showToast(data.error || 'Fehler beim Akzeptieren.', 'error');
+        }
+    })
+    .catch(() => {
+        if (typeof showToast === 'function') showToast('Netzwerkfehler.', 'error');
+    });
+}
+
+function declineGroupInvite(groupId, event) {
+    if (event) event.stopPropagation();
+
+    fetch(`/api/chat/groups/${groupId}/decline/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCsrfToken() },
+        credentials: 'same-origin',
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            if (typeof showToast === 'function') showToast(data.message, 'success');
+            const el = document.getElementById('room-invite-' + groupId);
+            if (el) el.remove();
+        } else {
+            if (typeof showToast === 'function') showToast(data.error || 'Fehler beim Ablehnen.', 'error');
+        }
+    })
+    .catch(() => {
+        if (typeof showToast === 'function') showToast('Netzwerkfehler.', 'error');
     });
 }
 
@@ -415,7 +527,7 @@ createModalConfirm.addEventListener('click', function() {
             loadGroupList();
             // Switch to the newly created group
             setTimeout(() => {
-                switchRoom('group', data.group.id, data.group.name, 'admin');
+                switchRoom('group', data.group.id, data.group.name, 'owner');
             }, 300);
         } else {
             if (typeof showToast === 'function') showToast(data.error || 'Fehler beim Erstellen.', 'error');
@@ -523,6 +635,354 @@ document.getElementById('leave-btn').addEventListener('click', function() {
     })
     .catch(() => {
         if (typeof showToast === 'function') showToast('Netzwerkfehler.', 'error');
+    });
+});
+
+// ====== GROUP ICON UPLOAD ======
+
+const groupIconInput = document.getElementById('group-icon-input');
+const iconUploadBtnEl = document.getElementById('icon-upload-btn');
+
+if (iconUploadBtnEl) {
+    iconUploadBtnEl.addEventListener('click', function() {
+        if (!currentGroupId) return;
+        if (groupIconInput) groupIconInput.click();
+    });
+}
+
+if (groupIconInput) {
+    groupIconInput.addEventListener('change', function() {
+        const file = groupIconInput.files[0];
+        if (!file || !currentGroupId) return;
+        uploadGroupIcon(currentGroupId, file);
+        // Reset input so the same file can be re-selected
+        groupIconInput.value = '';
+    });
+}
+
+function uploadGroupIcon(groupId, file) {
+    const formData = new FormData();
+    formData.append('icon', file);
+
+    if (iconUploadBtnEl) {
+        iconUploadBtnEl.disabled = true;
+        iconUploadBtnEl.textContent = '⏳';
+    }
+
+    fetch(`/api/chat/groups/${groupId}/icon/upload/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCsrfToken() },
+        body: formData,
+        credentials: 'same-origin',
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            // Update stored icon URL
+            groupIconMap[groupId] = data.icon_url;
+
+            // Update sidebar icon
+            const sidebarItem = document.getElementById('room-group-' + groupId);
+            if (sidebarItem) {
+                const oldIcon = sidebarItem.querySelector('.room-icon, .group-icon');
+                if (oldIcon) oldIcon.remove();
+                const img = document.createElement('img');
+                img.className = 'group-icon';
+                img.src = data.icon_url;
+                img.alt = '';
+                sidebarItem.insertBefore(img, sidebarItem.firstChild);
+            }
+
+            // Update header title
+            const title = document.getElementById('chat-room-title');
+            const groupName = document.getElementById('room-group-' + groupId)
+                ? document.getElementById('room-group-' + groupId).querySelector('.room-name').textContent
+                : title.textContent;
+            title.innerHTML = `<img class="header-group-icon" src="${escapeHtml(data.icon_url)}" alt="">${escapeHtml(groupName)}`;
+
+            if (typeof showToast === 'function') showToast(data.message, 'success');
+        } else {
+            if (typeof showToast === 'function') showToast(data.error || 'Upload fehlgeschlagen.', 'error');
+        }
+    })
+    .catch(() => {
+        if (typeof showToast === 'function') showToast('Netzwerkfehler beim Icon-Upload.', 'error');
+    })
+    .finally(() => {
+        if (iconUploadBtnEl) {
+            iconUploadBtnEl.disabled = false;
+            iconUploadBtnEl.textContent = '📷';
+        }
+    });
+}
+
+// ====== DELETE GROUP ======
+
+document.getElementById('delete-group-btn').addEventListener('click', function() {
+    if (!currentGroupId) return;
+    const groupName = document.getElementById('chat-room-title').textContent;
+    if (!confirm(`Möchtest du die Gruppe "${groupName}" wirklich LÖSCHEN? Alle Nachrichten gehen verloren.`)) return;
+
+    fetch(`/api/chat/groups/${currentGroupId}/delete/`, {
+        method: 'DELETE',
+        headers: { 'X-CSRFToken': getCsrfToken() },
+        credentials: 'same-origin',
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            if (typeof showToast === 'function') showToast(data.message, 'success');
+            const el = document.getElementById('room-group-' + currentGroupId);
+            if (el) el.remove();
+            switchRoom('global', null, 'Globaler Chat', null);
+        } else {
+            if (typeof showToast === 'function') showToast(data.error || 'Fehler beim Löschen.', 'error');
+        }
+    })
+    .catch(() => {
+        if (typeof showToast === 'function') showToast('Netzwerkfehler.', 'error');
+    });
+});
+
+// ====== MEMBER MANAGEMENT MODAL ======
+
+const membersModal = document.getElementById('members-modal');
+const membersModalClose = document.getElementById('members-modal-close');
+const membersModalCancel = document.getElementById('members-modal-cancel');
+const membersModalBody = document.getElementById('members-modal-body');
+
+document.getElementById('members-btn').addEventListener('click', function() {
+    if (!currentGroupId) return;
+    membersModalBody.innerHTML = '<div class="members-loading">Lade Mitglieder...</div>';
+    membersModal.style.display = 'flex';
+    loadMembers();
+});
+
+function closeMembersModal() {
+    membersModal.style.display = 'none';
+}
+
+membersModalClose.addEventListener('click', closeMembersModal);
+membersModalCancel.addEventListener('click', closeMembersModal);
+membersModal.addEventListener('click', function(e) {
+    if (e.target === membersModal) closeMembersModal();
+});
+
+function loadMembers() {
+    fetch(`/api/chat/groups/${currentGroupId}/members/`, {
+        credentials: 'same-origin',
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.members) {
+            renderMembers(data.members);
+        } else {
+            membersModalBody.innerHTML = '<div class="members-loading">Fehler beim Laden.</div>';
+        }
+    })
+    .catch(() => {
+        membersModalBody.innerHTML = '<div class="members-loading">Netzwerkfehler.</div>';
+    });
+}
+
+function renderMembers(members) {
+    if (members.length === 0) {
+        membersModalBody.innerHTML = '<div class="members-loading">Keine Mitglieder.</div>';
+        return;
+    }
+
+    let html = '<ul class="member-list">';
+    members.forEach(m => {
+        const initial = m.username.charAt(0).toUpperCase();
+        const avatarHtml = m.avatar_url
+            ? `<img class="member-avatar" src="${escapeHtml(m.avatar_url)}" alt="${escapeHtml(m.username)}">`
+            : `<span class="member-avatar member-avatar-fallback">${escapeHtml(initial)}</span>`;
+
+        let roleBadgeClass = 'role-badge--member';
+        let roleLabel = 'Mitglied';
+        if (m.role === 'owner') { roleBadgeClass = 'role-badge--owner'; roleLabel = 'Eigentümer'; }
+        else if (m.role === 'admin') { roleBadgeClass = 'role-badge--admin'; roleLabel = 'Admin'; }
+
+        const joinedDate = new Date(m.joined_at);
+        const joinedStr = joinedDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+        // Action buttons based on viewer's role
+        let actionsHtml = '';
+        const isViewerOwner = (currentGroupRole === 'owner');
+        const isViewerAdmin = (currentGroupRole === 'admin');
+        const isMe = (m.username === myUsername);
+
+        if (!isMe) {
+            if (isViewerOwner) {
+                // Owner can promote/demote and kick anyone except themselves
+                if (m.role === 'member') {
+                    actionsHtml += `<button class="member-action-btn member-action-btn--promote" onclick="changeRole(${m.user_id}, 'admin')">Befördern</button>`;
+                } else if (m.role === 'admin') {
+                    actionsHtml += `<button class="member-action-btn member-action-btn--demote" onclick="changeRole(${m.user_id}, 'member')">Degradieren</button>`;
+                }
+                if (m.role !== 'owner') {
+                    actionsHtml += `<button class="member-action-btn member-action-btn--kick" onclick="kickMember(${m.user_id}, '${escapeHtml(m.username)}')">Entfernen</button>`;
+                }
+            } else if (isViewerAdmin) {
+                // Admin can kick members only (not owner/other admins)
+                if (m.role === 'member') {
+                    actionsHtml += `<button class="member-action-btn member-action-btn--kick" onclick="kickMember(${m.user_id}, '${escapeHtml(m.username)}')">Entfernen</button>`;
+                }
+            }
+        }
+
+        html += `
+            <li class="member-item">
+                ${avatarHtml}
+                <div class="member-info">
+                    <div class="member-name">
+                        ${escapeHtml(m.username)}${isMe ? ' (Du)' : ''}
+                        <span class="role-badge ${roleBadgeClass}">${roleLabel}</span>
+                    </div>
+                    <div class="member-joined">Beigetreten: ${joinedStr}</div>
+                </div>
+                ${actionsHtml ? `<div class="member-actions">${actionsHtml}</div>` : ''}
+            </li>
+        `;
+    });
+    html += '</ul>';
+    membersModalBody.innerHTML = html;
+}
+
+function changeRole(userId, newRole) {
+    fetch(`/api/chat/groups/${currentGroupId}/role/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken(),
+        },
+        body: JSON.stringify({ user_id: userId, role: newRole }),
+        credentials: 'same-origin',
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            if (typeof showToast === 'function') showToast(data.message, 'success');
+            loadMembers(); // Refresh list
+        } else {
+            if (typeof showToast === 'function') showToast(data.error || 'Fehler.', 'error');
+        }
+    })
+    .catch(() => {
+        if (typeof showToast === 'function') showToast('Netzwerkfehler.', 'error');
+    });
+}
+
+function kickMember(userId, username) {
+    if (!confirm(`"${username}" wirklich aus der Gruppe entfernen?`)) return;
+
+    fetch(`/api/chat/groups/${currentGroupId}/kick/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken(),
+        },
+        body: JSON.stringify({ user_id: userId }),
+        credentials: 'same-origin',
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            if (typeof showToast === 'function') showToast(data.message, 'success');
+            loadMembers(); // Refresh list
+        } else {
+            if (typeof showToast === 'function') showToast(data.error || 'Fehler.', 'error');
+        }
+    })
+    .catch(() => {
+        if (typeof showToast === 'function') showToast('Netzwerkfehler.', 'error');
+    });
+}
+
+// ====== RENAME GROUP MODAL ======
+
+const renameModal = document.getElementById('rename-modal');
+const renameModalClose = document.getElementById('rename-modal-close');
+const renameModalCancel = document.getElementById('rename-modal-cancel');
+const renameModalConfirm = document.getElementById('rename-modal-confirm');
+const renameInput = document.getElementById('rename-input');
+
+document.getElementById('rename-btn').addEventListener('click', function() {
+    if (!currentGroupId) return;
+    // Pre-fill with current group name
+    const sidebarItem = document.getElementById('room-group-' + currentGroupId);
+    const currentName = sidebarItem ? sidebarItem.querySelector('.room-name').textContent : '';
+    renameInput.value = currentName;
+    renameModal.style.display = 'flex';
+    setTimeout(() => renameInput.focus(), 100);
+});
+
+function closeRenameModal() {
+    renameModal.style.display = 'none';
+}
+
+renameModalClose.addEventListener('click', closeRenameModal);
+renameModalCancel.addEventListener('click', closeRenameModal);
+renameModal.addEventListener('click', function(e) {
+    if (e.target === renameModal) closeRenameModal();
+});
+
+renameInput.addEventListener('keyup', function(e) {
+    if (e.key === 'Enter') renameModalConfirm.click();
+});
+
+renameModalConfirm.addEventListener('click', function() {
+    const newName = renameInput.value.trim();
+    if (!newName) {
+        if (typeof showToast === 'function') showToast('Bitte einen Namen eingeben.', 'warning');
+        return;
+    }
+    if (!currentGroupId) return;
+
+    renameModalConfirm.disabled = true;
+    renameModalConfirm.textContent = 'Speichere...';
+
+    fetch(`/api/chat/groups/${currentGroupId}/rename/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken(),
+        },
+        body: JSON.stringify({ name: newName }),
+        credentials: 'same-origin',
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            closeRenameModal();
+            if (typeof showToast === 'function') showToast(data.message, 'success');
+
+            // Update sidebar
+            const sidebarItem = document.getElementById('room-group-' + currentGroupId);
+            if (sidebarItem) {
+                const nameEl = sidebarItem.querySelector('.room-name');
+                if (nameEl) nameEl.textContent = data.name;
+                sidebarItem.dataset.groupName = data.name;
+            }
+
+            // Update header
+            const title = document.getElementById('chat-room-title');
+            const iconUrl = groupIconMap[currentGroupId] || null;
+            if (iconUrl) {
+                title.innerHTML = `<img class="header-group-icon" src="${escapeHtml(iconUrl)}" alt="">${escapeHtml(data.name)}`;
+            } else {
+                title.textContent = data.name;
+            }
+        } else {
+            if (typeof showToast === 'function') showToast(data.error || 'Fehler beim Umbenennen.', 'error');
+        }
+    })
+    .catch(() => {
+        if (typeof showToast === 'function') showToast('Netzwerkfehler.', 'error');
+    })
+    .finally(() => {
+        renameModalConfirm.disabled = false;
+        renameModalConfirm.textContent = 'Umbenennen';
     });
 });
 
