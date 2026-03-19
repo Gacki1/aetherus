@@ -19,7 +19,7 @@ interface StockCardProps {
   onClick: () => void;
 }
 
-function SignalBadge({ signal, confidence }: { signal: string; confidence: number }) {
+function SignalBadge({ signal, confidence, estimatedMove }: { signal: string; confidence: number; estimatedMove?: number }) {
   const config = {
     bullish: { bg: "bg-emerald-500/15", text: "text-emerald-400", icon: TrendingUp, label: "Bull" },
     bearish: { bg: "bg-red-500/15", text: "text-red-400", icon: TrendingDown, label: "Bear" },
@@ -27,11 +27,15 @@ function SignalBadge({ signal, confidence }: { signal: string; confidence: numbe
   }[signal] || { bg: "bg-zinc-500/15", text: "text-zinc-400", icon: Minus, label: "Hold" };
 
   const Icon = config.icon;
+  const hasMove = estimatedMove !== undefined && estimatedMove !== null && estimatedMove !== 0;
+  const moveStr = hasMove
+    ? `${estimatedMove > 0 ? "+" : ""}${estimatedMove.toFixed(1)}%`
+    : signal === "neutral" ? "~0%" : `${signal === "bearish" ? "-" : "+"}${confidence}%`;
 
   return (
     <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium ${config.bg} ${config.text}`}>
       <Icon className="w-2.5 h-2.5" />
-      {signal === "bearish" ? `-${confidence}%` : signal === "bullish" ? `+${confidence}%` : "~0%"}
+      {moveStr}
     </span>
   );
 }
@@ -61,7 +65,7 @@ function TimeframeRow({ tf }: { tf: TimeframePrediction }) {
   return (
     <div className="flex items-center justify-between">
       <span className="text-[11px] text-muted-foreground">{tf.label}</span>
-      <SignalBadge signal={tf.signal} confidence={tf.confidence} />
+      <SignalBadge signal={tf.signal} confidence={tf.confidence} estimatedMove={tf.estimatedMove} />
     </div>
   );
 }

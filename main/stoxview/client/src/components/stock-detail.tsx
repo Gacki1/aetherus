@@ -126,6 +126,11 @@ function TimeframeDetail({ tf }: { tf: TimeframePrediction }) {
   }[tf.signal];
 
   const Icon = config.icon;
+  const move = tf.estimatedMove;
+  const hasMove = move !== undefined && move !== null && move !== 0;
+  const moveStr = hasMove
+    ? `${move > 0 ? "+" : ""}${move.toFixed(1)}%`
+    : tf.signal === "neutral" ? "~0%" : null;
 
   return (
     <div className={`flex items-center justify-between px-3 py-2 rounded-md ${config.bg}`}>
@@ -136,9 +141,14 @@ function TimeframeDetail({ tf }: { tf: TimeframePrediction }) {
           <span className="text-[10px] text-muted-foreground ml-1.5">{tf.range}</span>
         </div>
       </div>
-      <span className={`text-sm font-semibold tabular-nums ${config.text}`}>
-        {tf.signal === "bearish" ? `-${tf.confidence}%` : tf.signal === "bullish" ? `+${tf.confidence}%` : "~0%"}
-      </span>
+      <div className="flex flex-col items-end">
+        <span className={`text-sm font-semibold tabular-nums ${config.text}`}>
+          {moveStr ?? (tf.signal === "bearish" ? `-${tf.confidence}%` : `+${tf.confidence}%`)}
+        </span>
+        <span className="text-[10px] text-muted-foreground tabular-nums">
+          {t("detail.confidence")}: {tf.confidence}%
+        </span>
+      </div>
     </div>
   );
 }

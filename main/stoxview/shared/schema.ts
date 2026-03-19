@@ -18,6 +18,7 @@ export type NewsSource = z.infer<typeof newsSourceSchema>;
 export const timeframePredictionSchema = z.object({
   signal: z.enum(["bullish", "bearish", "neutral"]),
   confidence: z.number().min(0).max(100),
+  estimatedMove: z.number().optional(), // Estimated price change in % (e.g., +3.2 or -1.5)
   label: z.string(),
   range: z.string(),
 });

@@ -114,6 +114,7 @@ const translations = {
   "detail.riskLevel.medium": { en: "Medium Risk", de: "Mittleres Risiko" },
   "detail.riskLevel.low": { en: "Low Risk", de: "Niedriges Risiko" },
   "detail.predictionSignals": { en: "Prediction Signals", de: "Vorhersage-Signale" },
+  "detail.confidence": { en: "Confidence", de: "Konfidenz" },
   "detail.confidenceComparison": { en: "Confidence Comparison", de: "Konfidenzvergleich" },
   "detail.investmentTiming": { en: "Investment Timing", de: "Einstiegszeitpunkt" },
   "detail.aggregatedSentiment": { en: "Aggregated Sentiment", de: "Gesamtstimmung" },

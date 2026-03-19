@@ -981,6 +981,19 @@ function generatePrediction(
   const riskBase = volatility * 14 + sentimentSpread * 28 + Math.abs(priceChangePercent) * 4 - diversityBonus;
   const riskLevel = clamp(Math.round(riskBase), 8, 95);
 
+  // ── Estimated price move (%) per timeframe ──
+  // Based on signal strength × volatility × timeframe multiplier
+  // dailyVol approximates average daily % move; scale by sqrt(trading days) for each horizon
+  const dailyVol = volatility > 0 ? volatility : 1.5; // fallback ~1.5% daily range
+  // Short: ~5 trading days, Medium: ~15 trading days, Long: ~65 trading days
+  const stMove = round2(stRaw * dailyVol * Math.sqrt(5) * 1.2);   // amplify slightly — short is momentum-driven
+  const mtMove = round2(mtRaw * dailyVol * Math.sqrt(15) * 0.9);  // temper slightly — mean reversion
+  const ltMove = round2(ltRaw * dailyVol * Math.sqrt(65) * 0.6);  // conservative — long-term is harder to predict
+  // Clamp to reasonable ranges: short ±15%, medium ±25%, long ±40%
+  const stEstimate = clamp(stMove, -15, 15);
+  const mtEstimate = clamp(mtMove, -25, 25);
+  const ltEstimate = clamp(ltMove, -40, 40);
+
   // Currency — always EUR for display
   const exchange = quote.fullExchangeName || quote.exchange || "";
   const country = (exchange.toLowerCase().includes("xetra") || exchange.toLowerCase().includes("frank") || symbol.endsWith(".DE") || symbol.endsWith(".F")) ? "DE" : "US";
@@ -1000,9 +1013,9 @@ function generatePrediction(
     priceChange: round2(priceChange),
     priceChangePercent: round2(priceChangePercent),
     currency: "EUR",
-    shortTerm: { signal: stSignal, confidence: stConf, label: "Short-term", range: "1-7 days" },
-    mediumTerm: { signal: mtSignal, confidence: mtConf, label: "Medium-term", range: "1-4 weeks" },
-    longTerm: { signal: ltSignal, confidence: ltConf, label: "Long-term", range: "1-6 months" },
+    shortTerm: { signal: stSignal, confidence: stConf, estimatedMove: stEstimate, label: "Short-term", range: "1-7 days" },
+    mediumTerm: { signal: mtSignal, confidence: mtConf, estimatedMove: mtEstimate, label: "Medium-term", range: "1-4 weeks" },
+    longTerm: { signal: ltSignal, confidence: ltConf, estimatedMove: ltEstimate, label: "Long-term", range: "1-6 months" },
     riskLevel,
     sentimentScore: round2(combinedSentiment),
     sources: allSources.slice(0, 25),
