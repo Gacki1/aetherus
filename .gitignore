@@ -31,7 +31,6 @@ celerybeat-schedule
 
 # Node
 node_modules/
-package-lock.json
 
 # Betriebssystem-Dateien
 .DS_Store
