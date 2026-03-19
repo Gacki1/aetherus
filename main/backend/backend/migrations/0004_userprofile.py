@@ -1,32 +1,6 @@
 from django.conf import settings
-from django.db import migrations, models, connection
+from django.db import migrations, models
 import django.db.models.deletion
-
-
-def create_userprofile_if_missing(apps, schema_editor):
-    """Create UserProfile table using CREATE TABLE IF NOT EXISTS for safety."""
-    vendor = connection.vendor
-    if vendor == 'postgresql':
-        schema_editor.execute("""
-            CREATE TABLE IF NOT EXISTS backend_userprofile (
-                id bigserial PRIMARY KEY,
-                avatar varchar(100),
-                user_id integer NOT NULL UNIQUE REFERENCES auth_user(id) ON DELETE CASCADE
-            );
-            CREATE INDEX IF NOT EXISTS backend_userprofile_user_id_idx ON backend_userprofile(user_id);
-        """)
-    else:
-        schema_editor.execute("""
-            CREATE TABLE IF NOT EXISTS backend_userprofile (
-                id integer PRIMARY KEY AUTOINCREMENT,
-                avatar varchar(100),
-                user_id integer NOT NULL UNIQUE REFERENCES auth_user(id) ON DELETE CASCADE
-            );
-        """)
-
-
-def noop(apps, schema_editor):
-    pass
 
 
 class Migration(migrations.Migration):
@@ -37,5 +11,12 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(create_userprofile_if_missing, noop),
+        migrations.CreateModel(
+            name='UserProfile',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('avatar', models.ImageField(blank=True, null=True, upload_to='avatars/')),
+                ('user', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='profile', to=settings.AUTH_USER_MODEL)),
+            ],
+        ),
     ]

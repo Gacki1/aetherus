@@ -1,45 +1,7 @@
 import uuid
 from django.conf import settings
-from django.db import migrations, models, connection
+from django.db import migrations, models
 import django.db.models.deletion
-
-
-def create_fileshare_if_missing(apps, schema_editor):
-    """Create FileShare table using CREATE TABLE IF NOT EXISTS for safety."""
-    vendor = connection.vendor
-    if vendor == 'postgresql':
-        schema_editor.execute("""
-            CREATE TABLE IF NOT EXISTS backend_fileshare (
-                id bigserial PRIMARY KEY,
-                token uuid NOT NULL UNIQUE,
-                created_at timestamp with time zone NOT NULL DEFAULT now(),
-                cloud_file_id bigint NOT NULL REFERENCES backend_cloudfile(id) ON DELETE CASCADE,
-                shared_by_id integer NOT NULL REFERENCES auth_user(id) ON DELETE CASCADE,
-                shared_with_id integer REFERENCES auth_user(id) ON DELETE CASCADE
-            );
-            CREATE INDEX IF NOT EXISTS backend_fileshare_token_idx ON backend_fileshare(token);
-            CREATE INDEX IF NOT EXISTS backend_fileshare_cloud_file_id_idx ON backend_fileshare(cloud_file_id);
-            CREATE INDEX IF NOT EXISTS backend_fileshare_shared_by_id_idx ON backend_fileshare(shared_by_id);
-            CREATE INDEX IF NOT EXISTS backend_fileshare_shared_with_id_idx ON backend_fileshare(shared_with_id);
-            CREATE UNIQUE INDEX IF NOT EXISTS backend_fileshare_file_user_uniq
-                ON backend_fileshare(cloud_file_id, shared_with_id)
-                WHERE shared_with_id IS NOT NULL;
-        """)
-    else:
-        schema_editor.execute("""
-            CREATE TABLE IF NOT EXISTS backend_fileshare (
-                id integer PRIMARY KEY AUTOINCREMENT,
-                token char(32) NOT NULL UNIQUE,
-                created_at datetime NOT NULL,
-                cloud_file_id bigint NOT NULL REFERENCES backend_cloudfile(id) ON DELETE CASCADE,
-                shared_by_id integer NOT NULL REFERENCES auth_user(id) ON DELETE CASCADE,
-                shared_with_id integer REFERENCES auth_user(id) ON DELETE CASCADE
-            );
-        """)
-
-
-def noop(apps, schema_editor):
-    pass
 
 
 class Migration(migrations.Migration):
@@ -50,5 +12,19 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(create_fileshare_if_missing, noop),
+        migrations.CreateModel(
+            name='FileShare',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('token', models.UUIDField(default=uuid.uuid4, editable=False, unique=True)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('cloud_file', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='shares', to='backend.cloudfile')),
+                ('shared_by', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='shared_files', to=settings.AUTH_USER_MODEL)),
+                ('shared_with', models.ForeignKey(blank=True, help_text='If set, only this user sees it in their Shared tab. If null, link-only share.', null=True, on_delete=django.db.models.deletion.CASCADE, related_name='received_shares', to=settings.AUTH_USER_MODEL)),
+            ],
+            options={
+                'ordering': ['-created_at'],
+                'unique_together': {('cloud_file', 'shared_with')},
+            },
+        ),
     ]
