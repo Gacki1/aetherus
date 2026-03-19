@@ -1,19 +1,173 @@
-/* backend/static/css/chat.css */
+/* backend/static/css/chat.css — v5 */
 
-/* --- 1. LAYOUT --- */
+/* ======================================================
+   1. LAYOUT — chat layout with sidebar
+   ====================================================== */
+
+.chat-layout {
+    display: flex;
+    gap: 0;
+    height: 75vh;
+    position: relative;
+}
+
+/* ======================================================
+   2. SIDEBAR
+   ====================================================== */
+
+.chat-sidebar {
+    width: 220px;
+    min-width: 220px;
+    background: #161b22;
+    border: 1px solid rgba(0, 210, 255, 0.15);
+    border-radius: 12px 0 0 12px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.sidebar-header {
+    padding: 14px 16px 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sidebar-close-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 0;
+    line-height: 1;
+    display: none; /* shown on mobile */
+    transition: color 0.2s;
+}
+
+.sidebar-close-btn:hover {
+    color: #fff;
+}
+
+.room-list {
+    list-style: none;
+    margin: 0;
+    padding: 8px 0;
+    flex-grow: 1;
+    overflow-y: auto;
+}
+
+.room-list::-webkit-scrollbar { width: 4px; }
+.room-list::-webkit-scrollbar-thumb { background: #30363d; border-radius: 2px; }
+
+.room-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 16px;
+    cursor: pointer;
+    border-radius: 0;
+    transition: background 0.15s, color 0.15s;
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 0.9rem;
+    user-select: none;
+    border-left: 3px solid transparent;
+}
+
+.room-item:hover {
+    background: rgba(0, 210, 255, 0.07);
+    color: #e6edf3;
+}
+
+.room-item.active {
+    background: rgba(0, 210, 255, 0.12);
+    color: #00d2ff;
+    border-left-color: #00d2ff;
+    font-weight: 600;
+}
+
+.room-icon {
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.room-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sidebar-footer {
+    padding: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.create-group-btn {
+    width: 100%;
+    background: transparent;
+    border: 1px solid rgba(0, 210, 255, 0.3);
+    color: #00d2ff;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.create-group-btn:hover {
+    background: rgba(0, 210, 255, 0.1);
+    border-color: #00d2ff;
+    box-shadow: 0 0 10px rgba(0, 210, 255, 0.2);
+}
+
+/* Mobile sidebar toggle */
+.sidebar-toggle-btn {
+    display: none; /* shown on mobile */
+    background: rgba(0, 210, 255, 0.1);
+    border: 1px solid rgba(0, 210, 255, 0.25);
+    color: #00d2ff;
+    padding: 7px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 10px;
+    transition: all 0.2s;
+}
+
+.sidebar-toggle-btn:hover {
+    background: rgba(0, 210, 255, 0.18);
+}
+
+/* ======================================================
+   3. CHAT CONTAINER
+   ====================================================== */
+
 .chat-container {
     display: flex;
     flex-direction: column;
-    height: 75vh;
+    flex-grow: 1;
     background: #0d1117;
     border: 1px solid rgba(0, 210, 255, 0.2);
-    border-radius: 12px;
+    border-left: none;
+    border-radius: 0 12px 12px 0;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
     overflow: hidden;
     position: relative;
 }
 
-/* --- 2. CHAT LOG --- */
+/* ======================================================
+   4. CHAT LOG
+   ====================================================== */
+
 #chat-log {
     flex-grow: 1;
     padding: 20px;
@@ -27,7 +181,10 @@
 #chat-log::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
 #chat-log::-webkit-scrollbar-thumb:hover { background: #555; }
 
-/* --- 3. MESSAGE ROWS (avatar + bubble) --- */
+/* ======================================================
+   5. MESSAGE ROWS (avatar + bubble)
+   ====================================================== */
+
 .message-row {
     display: flex;
     align-items: flex-end;
@@ -63,7 +220,7 @@
     font-size: 0.8rem;
 }
 
-/* --- MESSAGE BUBBLE --- */
+/* MESSAGE BUBBLE */
 .message {
     max-width: 70%;
     padding: 10px 15px;
@@ -133,7 +290,10 @@
     color: #a5d6ff;
 }
 
-/* --- 4. ADMIN DELETE BTN --- */
+/* ======================================================
+   6. ADMIN DELETE BTN
+   ====================================================== */
+
 .delete-btn {
     background: transparent;
     border: none;
@@ -151,7 +311,10 @@
     text-shadow: 0 0 5px rgba(255, 77, 77, 0.6);
 }
 
-/* --- 5. INPUT AREA --- */
+/* ======================================================
+   7. INPUT AREA
+   ====================================================== */
+
 .chat-input-area {
     padding: 15px;
     background: #161b22;
@@ -162,12 +325,20 @@
     position: relative;
 }
 
-#chat-message-input {
+.chat-input-wrap {
     flex-grow: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+#chat-message-input {
+    width: 100%;
     background: #0d1117;
     border: 1px solid #30363d;
     color: white;
     padding: 12px;
+    padding-right: 55px;
     border-radius: 6px;
     outline: none;
     transition: border-color 0.2s;
@@ -183,8 +354,11 @@
     font-size: 0.7rem;
     color: #555;
     position: absolute;
-    right: 130px;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
     user-select: none;
+    pointer-events: none;
 }
 
 #chat-message-submit {
@@ -205,7 +379,10 @@
     box-shadow: 0 0 15px rgba(0, 210, 255, 0.4);
 }
 
-/* --- 6. SYSTEM MESSAGES --- */
+/* ======================================================
+   8. SYSTEM MESSAGES
+   ====================================================== */
+
 .chat-system-msg {
     text-align: center;
     color: #555;
@@ -223,7 +400,10 @@
     font-weight: bold;
 }
 
-/* --- 7. ONLINE INDICATOR --- */
+/* ======================================================
+   9. ONLINE INDICATOR
+   ====================================================== */
+
 .online-indicator {
     display: inline-flex;
     align-items: center;
@@ -256,7 +436,44 @@
     margin-left: 10px;
 }
 
-/* --- 8. TYPING INDICATOR --- */
+/* Group action buttons (invite, leave) */
+.group-action-btn {
+    background: transparent;
+    border: 1px solid rgba(0, 210, 255, 0.4);
+    color: #00d2ff;
+    padding: 3px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-left: 8px;
+    transition: all 0.2s;
+    vertical-align: middle;
+}
+
+.group-action-btn:hover {
+    background: rgba(0, 210, 255, 0.12);
+    border-color: #00d2ff;
+}
+
+.group-action-btn--danger {
+    border-color: rgba(255, 77, 77, 0.4);
+    color: #ff4d4d;
+}
+
+.group-action-btn--danger:hover {
+    background: rgba(255, 77, 77, 0.1);
+    border-color: #ff4d4d;
+}
+
+#group-invite-btn-wrap {
+    align-items: center;
+}
+
+/* ======================================================
+   10. TYPING INDICATOR
+   ====================================================== */
+
 .typing-indicator {
     padding: 6px 20px;
     font-size: 0.8rem;
@@ -281,9 +498,186 @@
     30% { opacity: 1; }
 }
 
-/* --- 9. RESPONSIVE --- */
+/* ======================================================
+   11. MODALS
+   ====================================================== */
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+    backdrop-filter: blur(3px);
+}
+
+.modal-box {
+    background: #161b22;
+    border: 1px solid rgba(0, 210, 255, 0.25);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    animation: modalIn 0.2s ease-out;
+}
+
+@keyframes modalIn {
+    from { opacity: 0; transform: scale(0.95) translateY(-10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-header {
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    color: #e6edf3;
+    font-weight: 600;
+}
+
+.modal-close-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.4);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 0;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.modal-close-btn:hover {
+    color: #fff;
+}
+
+.modal-body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.modal-body label {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.55);
+    font-weight: 500;
+}
+
+.modal-body input {
+    background: #0d1117;
+    border: 1px solid #30363d;
+    color: #e6edf3;
+    padding: 10px 12px;
+    border-radius: 6px;
+    outline: none;
+    font-size: 0.95rem;
+    transition: border-color 0.2s;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.modal-body input:focus {
+    border-color: #00d2ff;
+    box-shadow: 0 0 8px rgba(0, 210, 255, 0.12);
+}
+
+.modal-footer {
+    padding: 14px 20px 18px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.modal-btn {
+    padding: 9px 20px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+}
+
+.modal-btn--cancel {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.modal-btn--cancel:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+}
+
+.modal-btn--primary {
+    background: linear-gradient(135deg, #00d2ff, #0088ff);
+    color: #000;
+}
+
+.modal-btn--primary:hover {
+    box-shadow: 0 0 14px rgba(0, 210, 255, 0.4);
+    transform: translateY(-1px);
+}
+
+.modal-btn--primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* ======================================================
+   12. RESPONSIVE — Mobile
+   ====================================================== */
+
 @media (max-width: 768px) {
+    /* Show toggle button, hide sidebar by default */
+    .sidebar-toggle-btn {
+        display: inline-block;
+    }
+
+    .sidebar-close-btn {
+        display: block;
+    }
+
+    /* Stack layout vertically on mobile */
+    .chat-layout {
+        flex-direction: column;
+        height: auto;
+    }
+
+    /* Sidebar becomes a floating overlay on mobile */
+    .chat-sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 260px;
+        height: 100vh;
+        z-index: 900;
+        border-radius: 0 12px 12px 0;
+        border-left: none;
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
+    }
+
+    .chat-sidebar.sidebar-open {
+        transform: translateX(0);
+    }
+
     .chat-container {
+        border-left: 1px solid rgba(0, 210, 255, 0.2);
+        border-radius: 12px;
         height: calc(100vh - 200px);
     }
 
@@ -304,5 +698,16 @@
     .online-indicator {
         margin-left: 8px;
         font-size: 0.75rem;
+    }
+}
+
+@media (min-width: 769px) {
+    /* On desktop, sidebar is always visible; toggle button hidden */
+    .sidebar-toggle-btn {
+        display: none;
+    }
+
+    .sidebar-close-btn {
+        display: none;
     }
 }

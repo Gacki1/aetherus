@@ -23,6 +23,9 @@ urlpatterns = [
     path("cloud/edit/<int:file_id>/save/", pages.editor_save_view, name="editor_save"),
     path("cloud/share/<int:file_id>/", pages.share_file_view, name="cloud_share"),
     path("cloud/unshare/<int:share_id>/", pages.unshare_file_view, name="cloud_unshare"),
+    path("cloud/share/accept/<int:share_id>/", pages.accept_share_view, name="cloud_share_accept"),
+    path("cloud/share/decline/<int:share_id>/", pages.decline_share_view, name="cloud_share_decline"),
+    path("cloud/share/remove/<int:share_id>/", pages.remove_received_share_view, name="cloud_share_remove"),
     path("share/<uuid:token>/", pages.shared_download_view, name="shared_download"),
     path("login", pages.login_page_view, name="login_page"),
     path("register", pages.register_page_view, name="register_page"),
@@ -44,6 +47,13 @@ urlpatterns = [
     # 5. Djoser (for further auth management)
     path('api/auth/', include('djoser.urls')),
     path("api/auth/", include("djoser.urls.authtoken")),
+
+    # 6. Chat Group API
+    path("api/chat/groups/", pages.chat_groups_list_view, name="chat_groups_list"),
+    path("api/chat/groups/create/", pages.chat_group_create_view, name="chat_group_create"),
+    path("api/chat/groups/<int:group_id>/invite/", pages.chat_group_invite_view, name="chat_group_invite"),
+    path("api/chat/groups/<int:group_id>/leave/", pages.chat_group_leave_view, name="chat_group_leave"),
+    path("api/chat/groups/<int:group_id>/delete/", pages.chat_group_delete_view, name="chat_group_delete"),
 ]
 
 # Custom error handlers

@@ -40,6 +40,12 @@ class CloudFile(models.Model):
 
 class FileShare(models.Model):
     """A share link for a cloud file. Anyone with the token can download."""
+    STATUS_CHOICES = [
+        ('pending', 'Ausstehend'),
+        ('accepted', 'Akzeptiert'),
+        ('declined', 'Abgelehnt'),
+    ]
+
     cloud_file = models.ForeignKey(CloudFile, on_delete=models.CASCADE, related_name='shares')
     token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     shared_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='shared_files')
@@ -49,6 +55,9 @@ class FileShare(models.Model):
         help_text='If set, only this user sees it in their Shared tab. If null, link-only share.'
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    # default='accepted' so existing shares and public links work without approval
+    # Only user-targeted shares created after this migration start as 'pending'
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='accepted')
 
     class Meta:
         ordering = ['-created_at']
@@ -57,3 +66,45 @@ class FileShare(models.Model):
     def __str__(self):
         target = self.shared_with.username if self.shared_with else 'link'
         return f"{self.shared_by.username} → {target}: {self.cloud_file.filename}"
+
+
+# ====== Chat Groups ======
+
+class ChatGroup(models.Model):
+    """A named private chat group with multiple members."""
+    name = models.CharField(max_length=100)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_groups')
+    members = models.ManyToManyField(User, through='ChatGroupMembership', related_name='chat_groups')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
+
+class ChatGroupMembership(models.Model):
+    """Membership of a user in a chat group, with role."""
+    ROLE_CHOICES = [('admin', 'Admin'), ('member', 'Mitglied')]
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    group = models.ForeignKey(ChatGroup, on_delete=models.CASCADE)
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='member')
+    joined_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'group')
+
+    def __str__(self):
+        return f"{self.user.username} in {self.group.name} ({self.role})"
+
+
+class ChatGroupMessage(models.Model):
+    """A message posted in a chat group."""
+    group = models.ForeignKey(ChatGroup, on_delete=models.CASCADE, related_name='messages')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    content = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['timestamp']
+
+    def __str__(self):
+        return f"{self.user.username} in {self.group.name}: {self.content[:20]}"

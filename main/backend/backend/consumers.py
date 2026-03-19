@@ -2,7 +2,7 @@ import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import User
-from .models import ChatMessage, UserProfile
+from .models import ChatMessage, UserProfile, ChatGroup, ChatGroupMembership, ChatGroupMessage
 from django.utils.html import escape
 from django.utils import timezone
 
@@ -206,3 +206,196 @@ class ChatConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def delete_message_from_db(self, msg_id):
         ChatMessage.objects.filter(id=msg_id).delete()
+
+
+class GroupChatConsumer(AsyncWebsocketConsumer):
+    """WebSocket consumer for group-specific chat rooms."""
+
+    async def connect(self):
+        self.group_id = self.scope['url_route']['kwargs']['group_id']
+        self.room_group_name = f'chat_group_{self.group_id}'
+        self.username = self.scope['user'].username if self.scope['user'].is_authenticated else None
+
+        if not self.username:
+            await self.close()
+            return
+
+        # Verify user is a member of this group
+        is_member = await self.check_membership()
+        if not is_member:
+            await self.close()
+            return
+
+        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+        await self.accept()
+
+        # Load last 300 messages for this group
+        recent_messages = await self.get_last_300_group_messages()
+        for msg in recent_messages:
+            await self.send(text_data=json.dumps({
+                'type': 'chat_message',
+                'id': msg['id'],
+                'message': msg['content'],
+                'username': msg['username'],
+                'timestamp': msg['timestamp'],
+                'avatar_url': msg['avatar_url'],
+            }))
+
+    async def disconnect(self, close_code):
+        await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
+
+    async def receive(self, text_data):
+        data = json.loads(text_data)
+        msg_type = data.get('type', 'chat_message')
+
+        # --- TYPING INDICATOR ---
+        if msg_type == 'typing':
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'user_typing',
+                    'username': self.username,
+                }
+            )
+            return
+
+        if msg_type == 'stop_typing':
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'user_stop_typing',
+                    'username': self.username,
+                }
+            )
+            return
+
+        # --- DELETE MESSAGE (Admin or group admin) ---
+        if msg_type == 'delete_message':
+            user = self.scope['user']
+            if user.is_staff or await self.is_group_admin():
+                msg_id = data['message_id']
+                await self.delete_group_message_from_db(msg_id)
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        'type': 'message_deleted',
+                        'message_id': msg_id
+                    }
+                )
+            return
+
+        # --- NORMAL MESSAGE ---
+        message = data.get('message', '')
+
+        if len(message) > 500:
+            message = message[:500]
+
+        if not message.strip():
+            return
+
+        username = self.scope['user'].username
+
+        new_msg_id, timestamp, avatar_url = await self.save_group_message(username, message)
+
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                'type': 'chat_message',
+                'id': new_msg_id,
+                'message': message,
+                'username': username,
+                'timestamp': timestamp,
+                'avatar_url': avatar_url,
+            }
+        )
+
+    # --- BROADCAST HANDLERS ---
+
+    async def chat_message(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'chat_message',
+            'id': event['id'],
+            'message': event['message'],
+            'username': event['username'],
+            'timestamp': event.get('timestamp', ''),
+            'avatar_url': event.get('avatar_url', ''),
+        }))
+
+    async def message_deleted(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'message_deleted',
+            'message_id': event['message_id']
+        }))
+
+    async def user_typing(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'typing',
+            'username': event['username']
+        }))
+
+    async def user_stop_typing(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'stop_typing',
+            'username': event['username']
+        }))
+
+    # --- DATABASE ---
+
+    @database_sync_to_async
+    def check_membership(self):
+        return ChatGroupMembership.objects.filter(
+            user__username=self.username,
+            group_id=self.group_id
+        ).exists()
+
+    @database_sync_to_async
+    def is_group_admin(self):
+        return ChatGroupMembership.objects.filter(
+            user__username=self.username,
+            group_id=self.group_id,
+            role='admin'
+        ).exists()
+
+    @database_sync_to_async
+    def save_group_message(self, username, message):
+        user = User.objects.get(username=username)
+        group = ChatGroup.objects.get(id=self.group_id)
+        msg = ChatGroupMessage.objects.create(user=user, group=group, content=message)
+
+        avatar_url = ''
+        try:
+            profile = user.profile
+            if profile.avatar:
+                avatar_url = profile.avatar.url
+        except UserProfile.DoesNotExist:
+            pass
+
+        return msg.id, msg.timestamp.isoformat(), avatar_url
+
+    @database_sync_to_async
+    def get_last_300_group_messages(self):
+        messages = list(
+            ChatGroupMessage.objects.select_related('user')
+            .filter(group_id=self.group_id)
+            .order_by('timestamp')[:300]
+        )
+        result = []
+        user_ids = set(m.user_id for m in messages)
+        profiles = {p.user_id: p for p in UserProfile.objects.filter(user_id__in=user_ids)}
+        for m in messages:
+            avatar_url = ''
+            profile = profiles.get(m.user_id)
+            if profile and profile.avatar:
+                avatar_url = profile.avatar.url
+            result.append({
+                'id': m.id,
+                'username': m.user.username,
+                'content': m.content,
+                'timestamp': m.timestamp.isoformat(),
+                'avatar_url': avatar_url,
+            })
+        return result
+
+    @database_sync_to_async
+    def delete_group_message_from_db(self, msg_id):
+        ChatGroupMessage.objects.filter(id=msg_id, group_id=self.group_id).delete()

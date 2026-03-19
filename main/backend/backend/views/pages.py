@@ -2,13 +2,14 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import TemplateView
 from django.shortcuts import redirect, render, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.contrib import messages
 from django.db.models import Sum, Count
 from django.conf import settings
 from django.http import JsonResponse
 from django.core.files.base import ContentFile
 from django.contrib.auth.models import User
-from ..models import CloudFile, ChatMessage, FileShare, UserProfile
+from ..models import CloudFile, ChatMessage, FileShare, UserProfile, ChatGroup, ChatGroupMembership
 import logging
 import json
 import uuid
@@ -60,6 +61,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         return context
 
 
+@ensure_csrf_cookie
 def login_page_view(request):
     if request.user.is_authenticated:
         return redirect("/main")
@@ -68,7 +70,15 @@ def login_page_view(request):
 
 @login_required(login_url='/login')
 def chat_page_view(request):
-    return render(request, "chat.html")
+    try:
+        user_groups = list(
+            ChatGroup.objects.filter(members=request.user)
+            .values('id', 'name')
+            .order_by('name')
+        )
+    except Exception:
+        user_groups = []
+    return render(request, "chat.html", {'user_groups': user_groups})
 
 
 def start_page_view(request):
@@ -134,10 +144,12 @@ def cloud_page_view(request):
         total_storage = user_files.aggregate(total=Sum('file_size'))['total'] or 0
         storage_percent = round((total_storage / storage_limit) * 100, 1) if storage_limit > 0 else 0
 
-        # Get shared files (files others shared with me)
+        # Get shared files (files others shared with me) — pending + accepted
         shared_with_me = FileShare.objects.filter(
             shared_with=user
-        ).select_related('cloud_file', 'shared_by')
+        ).exclude(status='declined').select_related('cloud_file', 'shared_by')
+
+        pending_count = shared_with_me.filter(status='pending').count()
 
         # For personal files, annotate with share info
         for f in user_files:
@@ -146,6 +158,7 @@ def cloud_page_view(request):
         return render(request, "cloud.html", {
             "files": user_files,
             "shared_files": shared_with_me,
+            "pending_count": pending_count,
             "active_tab": tab,
             "storage_used": total_storage,
             "storage_limit": storage_limit,
@@ -157,6 +170,7 @@ def cloud_page_view(request):
         return render(request, "cloud.html", {
             "files": [],
             "shared_files": [],
+            "pending_count": 0,
             "active_tab": 'personal',
             "storage_used": 0,
             "storage_limit": storage_limit,
@@ -176,6 +190,7 @@ def profile_page_view(request):
     return render(request, "profile.html", {"profile": profile})
 
 
+@ensure_csrf_cookie
 def password_reset_page_view(request):
     if request.user.is_authenticated:
         return redirect("/main")
@@ -362,30 +377,84 @@ def share_file_view(request, file_id):
                 'message': 'Link existiert bereits.'
             })
 
+    # User-targeted shares start as 'pending'; public link shares are 'accepted' immediately
+    initial_status = 'pending' if shared_with_user else 'accepted'
+
     share = FileShare.objects.create(
         cloud_file=cloud_file,
         shared_by=request.user,
         shared_with=shared_with_user,
+        status=initial_status,
     )
+
+    if shared_with_user:
+        msg = f'Freigabeanfrage an {shared_with_user.username} gesendet.'
+    else:
+        msg = 'Datei wurde per Link geteilt.'
 
     return JsonResponse({
         'success': True,
         'token': str(share.token),
         'share_id': share.id,
-        'message': f'Datei wurde {("mit " + shared_with_user.username) if shared_with_user else "per Link"} geteilt.'
+        'message': msg
     })
 
 
 @login_required(login_url='/login')
 def unshare_file_view(request, share_id):
-    """Revoke a share link."""
+    """Revoke a share link. Allowed for the sharer OR the recipient."""
     if request.method != 'POST':
         return JsonResponse({'error': 'POST required'}, status=405)
 
-    share = get_object_or_404(FileShare, id=share_id, shared_by=request.user)
+    # Allow either the sharer or the shared_with user to delete the share
+    from django.db.models import Q
+    share = get_object_or_404(
+        FileShare,
+        Q(shared_by=request.user) | Q(shared_with=request.user),
+        id=share_id
+    )
     share.delete()
 
     return JsonResponse({'success': True, 'message': 'Freigabe wurde aufgehoben.'})
+
+
+@login_required(login_url='/login')
+def accept_share_view(request, share_id):
+    """Recipient accepts a pending share request."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    share = get_object_or_404(FileShare, id=share_id, shared_with=request.user, status='pending')
+    share.status = 'accepted'
+    share.save(update_fields=['status'])
+
+    return JsonResponse({'success': True, 'message': f'Datei "{share.cloud_file.filename}" wurde akzeptiert.'})
+
+
+@login_required(login_url='/login')
+def decline_share_view(request, share_id):
+    """Recipient declines a pending share request — deletes the share record."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    share = get_object_or_404(FileShare, id=share_id, shared_with=request.user, status='pending')
+    filename = share.cloud_file.filename
+    share.delete()
+
+    return JsonResponse({'success': True, 'message': f'Freigabeanfrage für "{filename}" wurde abgelehnt.'})
+
+
+@login_required(login_url='/login')
+def remove_received_share_view(request, share_id):
+    """Recipient removes an accepted share from their Shared tab."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    share = get_object_or_404(FileShare, id=share_id, shared_with=request.user, status='accepted')
+    filename = share.cloud_file.filename
+    share.delete()
+
+    return JsonResponse({'success': True, 'message': f'Datei "{filename}" wurde entfernt.'})
 
 
 def shared_download_view(request, token):
@@ -455,3 +524,154 @@ def avatar_delete_view(request):
 
 def custom_404(request, exception):
     return render(request, "404.html", status=404)
+
+
+# ====== Chat Group API Views ======
+
+@login_required(login_url='/login')
+def chat_groups_list_view(request):
+    """GET /api/chat/groups/ — list groups the user belongs to."""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'GET required'}, status=405)
+    groups = ChatGroup.objects.filter(members=request.user).order_by('name')
+    data = []
+    for g in groups:
+        membership = ChatGroupMembership.objects.get(user=request.user, group=g)
+        data.append({
+            'id': g.id,
+            'name': g.name,
+            'role': membership.role,
+            'created_by': g.created_by.username,
+        })
+    return JsonResponse({'groups': data})
+
+
+@login_required(login_url='/login')
+def chat_group_create_view(request):
+    """POST /api/chat/groups/create/ — create a new group."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, AttributeError):
+        return JsonResponse({'error': 'Ungültiger Request'}, status=400)
+
+    name = body.get('name', '').strip()
+    if not name:
+        return JsonResponse({'error': 'Gruppenname ist erforderlich.'}, status=400)
+    if len(name) > 100:
+        return JsonResponse({'error': 'Gruppenname zu lang (max. 100 Zeichen).'}, status=400)
+
+    group = ChatGroup.objects.create(name=name, created_by=request.user)
+    ChatGroupMembership.objects.create(user=request.user, group=group, role='admin')
+
+    return JsonResponse({
+        'success': True,
+        'group': {'id': group.id, 'name': group.name, 'role': 'admin', 'created_by': request.user.username},
+        'message': f'Gruppe "{name}" wurde erstellt.',
+    })
+
+
+@login_required(login_url='/login')
+def chat_group_invite_view(request, group_id):
+    """POST /api/chat/groups/<id>/invite/ — invite a user by username."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    group = get_object_or_404(ChatGroup, id=group_id)
+
+    # Only admin or site staff can invite
+    try:
+        membership = ChatGroupMembership.objects.get(user=request.user, group=group)
+    except ChatGroupMembership.DoesNotExist:
+        return JsonResponse({'error': 'Kein Zugriff.'}, status=403)
+
+    if membership.role != 'admin' and not request.user.is_staff:
+        return JsonResponse({'error': 'Nur Admins können Nutzer einladen.'}, status=403)
+
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, AttributeError):
+        return JsonResponse({'error': 'Ungültiger Request'}, status=400)
+
+    username = body.get('username', '').strip()
+    if not username:
+        return JsonResponse({'error': 'Benutzername ist erforderlich.'}, status=400)
+
+    try:
+        invite_user = User.objects.get(username=username)
+    except User.DoesNotExist:
+        return JsonResponse({'error': f'Nutzer "{username}" nicht gefunden.'}, status=404)
+
+    if invite_user == request.user:
+        return JsonResponse({'error': 'Du bist bereits in der Gruppe.'}, status=400)
+
+    _, created = ChatGroupMembership.objects.get_or_create(
+        user=invite_user, group=group,
+        defaults={'role': 'member'}
+    )
+
+    if not created:
+        return JsonResponse({'error': f'{username} ist bereits Mitglied dieser Gruppe.'}, status=400)
+
+    return JsonResponse({
+        'success': True,
+        'message': f'{username} wurde zur Gruppe eingeladen.',
+    })
+
+
+@login_required(login_url='/login')
+def chat_group_leave_view(request, group_id):
+    """POST /api/chat/groups/<id>/leave/ — leave a group."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    group = get_object_or_404(ChatGroup, id=group_id)
+
+    try:
+        membership = ChatGroupMembership.objects.get(user=request.user, group=group)
+    except ChatGroupMembership.DoesNotExist:
+        return JsonResponse({'error': 'Du bist kein Mitglied dieser Gruppe.'}, status=400)
+
+    # If creator is leaving and they're the only admin, transfer or delete group
+    is_creator = (group.created_by == request.user)
+    membership.delete()
+
+    # If no members left, delete the group
+    remaining = ChatGroupMembership.objects.filter(group=group).count()
+    if remaining == 0:
+        group.delete()
+        return JsonResponse({'success': True, 'message': 'Gruppe verlassen und gelöscht (keine Mitglieder mehr).'})
+
+    # If creator left and no admin remains, promote oldest member
+    if is_creator:
+        has_admin = ChatGroupMembership.objects.filter(group=group, role='admin').exists()
+        if not has_admin:
+            oldest = ChatGroupMembership.objects.filter(group=group).order_by('joined_at').first()
+            if oldest:
+                oldest.role = 'admin'
+                oldest.save()
+
+    return JsonResponse({'success': True, 'message': f'Du hast die Gruppe "{group.name}" verlassen.'})
+
+
+@login_required(login_url='/login')
+def chat_group_delete_view(request, group_id):
+    """DELETE /api/chat/groups/<id>/ — delete group (admin only)."""
+    if request.method != 'DELETE':
+        return JsonResponse({'error': 'DELETE required'}, status=405)
+
+    group = get_object_or_404(ChatGroup, id=group_id)
+
+    # Only group admin or site staff can delete
+    is_staff = request.user.is_staff
+    is_group_admin = ChatGroupMembership.objects.filter(
+        user=request.user, group=group, role='admin'
+    ).exists()
+
+    if not is_staff and not is_group_admin:
+        return JsonResponse({'error': 'Nur Admins können Gruppen löschen.'}, status=403)
+
+    group_name = group.name
+    group.delete()
+    return JsonResponse({'success': True, 'message': f'Gruppe "{group_name}" wurde gelöscht.'})

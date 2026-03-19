@@ -6,7 +6,7 @@
 {% block title %}Aetherus - Cloud{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/cloud.css' %}?v=2">
+<link rel="stylesheet" href="{% static 'css/cloud.css' %}?v=3">
 {% endblock %}
 
 {% block content %}
@@ -40,6 +40,9 @@
             <span class="tab-icon">🔗</span>
             <span class="tab-label">Geteilt mit mir</span>
             <span class="tab-count">{{ shared_files|length }}</span>
+            {% if pending_count > 0 %}
+            <span class="pending-dot" title="{{ pending_count }} ausstehende Anfrage{{ pending_count|pluralize:",n" }}">{{ pending_count }}</span>
+            {% endif %}
         </a>
     </aside>
 
@@ -151,7 +154,7 @@
             {% if shared_files %}
             <div class="files-grid">
                 {% for share in shared_files %}
-                <div class="file-item shared-file-item">
+                <div class="file-item shared-file-item {% if share.status == 'pending' %}share-pending-item{% endif %}" id="shared-item-{{ share.id }}">
                     <div class="file-info">
                         <div class="file-icon">{{ share.cloud_file.filename|file_type_icon }}</div>
                         <div class="file-details">
@@ -161,8 +164,20 @@
                     </div>
 
                     <div class="file-actions">
+                        {% if share.status == 'pending' %}
+                        <!-- Pending: show badge + accept/decline buttons -->
+                        <span class="share-status-badge badge-pending">Ausstehend</span>
+                        <button type="button" class="action-btn accept-btn" title="Akzeptieren"
+                            onclick="acceptShare({{ share.id }})">✓</button>
+                        <button type="button" class="action-btn decline-btn" title="Ablehnen"
+                            onclick="declineShare({{ share.id }})">✕</button>
+                        {% else %}
+                        <!-- Accepted: download, view, remove -->
                         <a href="{{ share.cloud_file.file.url }}" class="action-btn download-btn" title="Herunterladen" download="{{ share.cloud_file.filename }}">⬇️</a>
                         <a href="{{ share.cloud_file.file.url }}" target="_blank" class="action-btn view-btn" title="Ansehen">👁️</a>
+                        <button type="button" class="action-btn remove-share-btn" title="Entfernen"
+                            onclick="removeReceivedShare({{ share.id }})">🗑️</button>
+                        {% endif %}
                     </div>
                 </div>
                 {% endfor %}
@@ -422,6 +437,70 @@
                 if (badge) badge.remove();
             } else {
                 showToast(data.error || 'Fehler.', 'error');
+            }
+        } catch (err) {
+            showToast('Netzwerkfehler.', 'error');
+        }
+    }
+
+    // ====== Shared Tab: Accept / Decline / Remove ======
+
+    async function acceptShare(shareId) {
+        const csrfToken = getCsrfToken();
+        try {
+            const res = await fetch(`/cloud/share/accept/${shareId}/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(data.message, 'success');
+                // Reload to reflect accepted state
+                window.location.reload();
+            } else {
+                showToast(data.error || 'Fehler beim Akzeptieren.', 'error');
+            }
+        } catch (err) {
+            showToast('Netzwerkfehler.', 'error');
+        }
+    }
+
+    async function declineShare(shareId) {
+        if (!confirm('Freigabeanfrage wirklich ablehnen?')) return;
+        const csrfToken = getCsrfToken();
+        try {
+            const res = await fetch(`/cloud/share/decline/${shareId}/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(data.message, 'success');
+                const item = document.getElementById(`shared-item-${shareId}`);
+                if (item) item.remove();
+            } else {
+                showToast(data.error || 'Fehler beim Ablehnen.', 'error');
+            }
+        } catch (err) {
+            showToast('Netzwerkfehler.', 'error');
+        }
+    }
+
+    async function removeReceivedShare(shareId) {
+        if (!confirm('Datei aus der geteilten Ansicht entfernen?')) return;
+        const csrfToken = getCsrfToken();
+        try {
+            const res = await fetch(`/cloud/share/remove/${shareId}/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(data.message, 'success');
+                const item = document.getElementById(`shared-item-${shareId}`);
+                if (item) item.remove();
+            } else {
+                showToast(data.error || 'Fehler beim Entfernen.', 'error');
             }
         } catch (err) {
             showToast('Netzwerkfehler.', 'error');
