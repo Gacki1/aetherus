@@ -166,6 +166,11 @@ def cloud_page_view(request):
 
 
 @login_required(login_url='/login')
+def stoxview_page_view(request):
+    return render(request, "stoxview.html")
+
+
+@login_required(login_url='/login')
 def profile_page_view(request):
     profile, _ = UserProfile.objects.get_or_create(user=request.user)
     return render(request, "profile.html", {"profile": profile})

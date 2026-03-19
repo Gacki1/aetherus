@@ -18,6 +18,7 @@ urlpatterns = [
     path("chat", pages.chat_page_view, name="chat"),
     path("main", pages.DashboardView.as_view(), name="dashboard"),
     path("cloud", pages.cloud_page_view, name="cloud"),
+    path("stoxview", pages.stoxview_page_view, name="stoxview"),
     path("cloud/edit/<int:file_id>/", pages.editor_page_view, name="editor"),
     path("cloud/edit/<int:file_id>/save/", pages.editor_save_view, name="editor_save"),
     path("cloud/share/<int:file_id>/", pages.share_file_view, name="cloud_share"),
