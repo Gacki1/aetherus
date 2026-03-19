@@ -29,45 +29,46 @@ body {
 .bg-glow {
     position: absolute;
     border-radius: 50%;
-    filter: blur(120px);
-    opacity: 0.35;
+    filter: blur(100px);
+    opacity: 0.5;
     z-index: 0;
-    animation: glow-drift 20s infinite alternate ease-in-out;
+    animation: glow-drift 14s infinite alternate ease-in-out;
 }
 
 .bg-glow-1 {
-    width: 600px;
-    height: 600px;
-    background: radial-gradient(circle, rgba(0, 136, 255, 0.3), transparent 70%);
-    top: -15%;
-    left: -10%;
+    width: 650px;
+    height: 650px;
+    background: radial-gradient(circle, rgba(0, 136, 255, 0.45), transparent 70%);
+    top: -20%;
+    left: -15%;
 }
 
 .bg-glow-2 {
-    width: 500px;
-    height: 500px;
-    background: radial-gradient(circle, rgba(0, 210, 255, 0.2), transparent 70%);
-    bottom: -15%;
-    right: -10%;
-    animation-delay: -8s;
-    animation-duration: 25s;
+    width: 550px;
+    height: 550px;
+    background: radial-gradient(circle, rgba(0, 210, 255, 0.35), transparent 70%);
+    bottom: -20%;
+    right: -15%;
+    animation-delay: -6s;
+    animation-duration: 18s;
 }
 
 .bg-glow-3 {
-    width: 300px;
-    height: 300px;
-    background: radial-gradient(circle, rgba(0, 170, 255, 0.15), transparent 70%);
+    width: 350px;
+    height: 350px;
+    background: radial-gradient(circle, rgba(0, 170, 255, 0.25), transparent 70%);
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    animation-delay: -4s;
-    animation-duration: 18s;
+    animation-delay: -3s;
+    animation-duration: 12s;
 }
 
 @keyframes glow-drift {
     0%   { transform: translate(0, 0) scale(1); }
-    50%  { transform: translate(30px, -20px) scale(1.1); }
-    100% { transform: translate(-20px, 30px) scale(0.95); }
+    33%  { transform: translate(40px, -30px) scale(1.15); }
+    66%  { transform: translate(-30px, 20px) scale(0.9); }
+    100% { transform: translate(20px, 40px) scale(1.05); }
 }
 
 /* --- Main wrapper --- */
@@ -101,7 +102,13 @@ body {
     width: 80px;
     height: 80px;
     object-fit: contain;
-    filter: drop-shadow(0 0 20px rgba(0, 210, 255, 0.3));
+    filter: drop-shadow(0 0 20px rgba(0, 210, 255, 0.4));
+    animation: logo-pulse 4s ease-in-out infinite;
+}
+
+@keyframes logo-pulse {
+    0%, 100% { filter: drop-shadow(0 0 20px rgba(0, 210, 255, 0.4)); transform: scale(1); }
+    50%      { filter: drop-shadow(0 0 35px rgba(0, 210, 255, 0.7)); transform: scale(1.05); }
 }
 
 .start-title {
