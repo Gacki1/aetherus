@@ -8,7 +8,12 @@ aetherus.net, www.aetherus.net {
         file_server
     }
 
-    # B. Alles andere -> Django Backend
+    # B. Stoxview API -> Node.js container
+    handle_path /stoxview-api/* {
+        reverse_proxy stoxview:5000
+    }
+
+    # C. Alles andere -> Django Backend
     # Keine "try_files", kein globaler "file_server".
     # Django entscheidet, ob es /login, /register oder 404 gibt.
     reverse_proxy backend:8000

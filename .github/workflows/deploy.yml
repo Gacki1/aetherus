@@ -45,9 +45,9 @@ jobs:
             git reset --hard origin/main
             git clean -fd
             
-            echo "2. Erzeuge neues Docker-Image (mit neuem Code)"
+            echo "2. Erzeuge neue Docker-Images (Backend + Stoxview)"
             # `--no-cache` ist hier WICHTIG, damit die Umstrukturierung greift!
-            docker compose build --no-cache backend
+            docker compose build --no-cache backend stoxview
             
             echo "3. Starte alle Container neu"
             docker compose up -d --force-recreate --remove-orphans

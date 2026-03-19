@@ -48,6 +48,19 @@ services:
     networks:
       - aetherus-net
 
+  # -------------------- Stoxview (Node.js) --------------------
+  stoxview:
+    build: ./main/stoxview
+    container_name: stoxview
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+    expose:
+      - 5000
+    networks:
+      - aetherus-net
+
   # Redis Service
   redis:
     image: redis:7-alpine
