@@ -133,13 +133,20 @@ interface PredictionHistoryProps {
   isInWatchlist: boolean;
 }
 
+// Read Aetherus user from URL for per-user prediction history
+const _stoxviewUser = (() => {
+  try {
+    return new URLSearchParams(window.location.search).get("user") || "_default";
+  } catch { return "_default"; }
+})();
+
 export function PredictionHistory({ ticker, isInWatchlist }: PredictionHistoryProps) {
   const { t } = useI18n();
 
   const { data: accuracy } = useQuery<AccuracyData>({
-    queryKey: ["/api/prediction-accuracy", ticker],
+    queryKey: ["/api/prediction-accuracy", ticker, _stoxviewUser],
     queryFn: async () => {
-      const res = await apiRequest("GET", `/api/prediction-accuracy?ticker=${ticker}`);
+      const res = await apiRequest("GET", `/api/prediction-accuracy?ticker=${ticker}&user=${encodeURIComponent(_stoxviewUser)}`);
       return res.json();
     },
     enabled: isInWatchlist,

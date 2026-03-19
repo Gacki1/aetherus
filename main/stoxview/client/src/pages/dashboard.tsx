@@ -33,6 +33,15 @@ type ViewTab = "trending" | "browse" | "watchlist";
 type BrowseCategory = "most_actives" | "day_gainers" | "day_losers";
 type BrowseSort = "default" | "name" | "change-desc" | "change-asc" | "volume" | "marketcap";
 
+// Extract the Aetherus username from the page URL (?user=xxx)
+// This is set by the Django template when embedding Stoxview.
+const STOXVIEW_USER = (() => {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("user") || "_default";
+  } catch { return "_default"; }
+})();
+
 export default function Dashboard() {
   const queryClient = useQueryClient();
   const { t, lang, setLang } = useI18n();
@@ -119,9 +128,13 @@ export default function Dashboard() {
     refetchInterval: 300000,
   });
 
-  // === Watchlist ===
+  // === Watchlist (per-user) ===
   const { data: watchlistItems = [] } = useQuery<WatchlistItem[]>({
-    queryKey: ["/api/watchlist"],
+    queryKey: ["/api/watchlist", STOXVIEW_USER],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/watchlist?user=${encodeURIComponent(STOXVIEW_USER)}`);
+      return res.json();
+    },
   });
 
   // Watchlist predictions (fetched when watchlist has items)
@@ -145,7 +158,7 @@ export default function Dashboard() {
 
     setIsLoadingWatchlist(true);
     const symbolsStr = symbols.join(",");
-    apiRequest("GET", `/api/predictions?symbols=${encodeURIComponent(symbolsStr)}`)
+    apiRequest("GET", `/api/predictions?symbols=${encodeURIComponent(symbolsStr)}&user=${encodeURIComponent(STOXVIEW_USER)}`)
       .then((res) => res.json())
       .then((data: StockPrediction[]) => {
         setWatchlistPredictions(data);
@@ -156,21 +169,21 @@ export default function Dashboard() {
 
   const addToWatchlist = useMutation({
     mutationFn: async ({ symbol, name }: { symbol: string; name: string }) => {
-      const res = await apiRequest("POST", "/api/watchlist", { symbol, name });
+      const res = await apiRequest("POST", `/api/watchlist?user=${encodeURIComponent(STOXVIEW_USER)}`, { symbol, name });
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/watchlist", STOXVIEW_USER] });
     },
   });
 
   const removeFromWatchlist = useMutation({
     mutationFn: async (symbol: string) => {
-      const res = await apiRequest("DELETE", `/api/watchlist/${encodeURIComponent(symbol)}`);
+      const res = await apiRequest("DELETE", `/api/watchlist/${encodeURIComponent(symbol)}?user=${encodeURIComponent(STOXVIEW_USER)}`);
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/watchlist", STOXVIEW_USER] });
       // Also remove from local predictions cache
       setWatchlistPredictions((prev) => prev);
     },
@@ -273,7 +286,7 @@ export default function Dashboard() {
       // 2. Invalidate every client-side query so React-Query refetches
       queryClient.invalidateQueries({ queryKey: ["/api/predictions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/market-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/watchlist", STOXVIEW_USER] });
       queryClient.invalidateQueries({ queryKey: ["/api/history"] });
       setAutoRefreshCountdown(300);
     } finally {

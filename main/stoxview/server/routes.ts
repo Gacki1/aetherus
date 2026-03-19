@@ -673,36 +673,71 @@ interface WatchlistItem {
 }
 
 const DATA_DIR = process.env.STOXVIEW_DATA_DIR || "";
-const WATCHLIST_FILE = DATA_DIR ? join(DATA_DIR, "watchlist.json") : "";
 
-function loadWatchlistFromDisk(): WatchlistItem[] {
-  if (!WATCHLIST_FILE) return [];
+// ── Per-user watchlist storage ──
+// Sanitize username for safe filenames
+function safeUser(raw: string): string {
+  return raw.replace(/[^a-zA-Z0-9_-]/g, "_").toLowerCase().slice(0, 64) || "_default";
+}
+
+function watchlistPath(user: string): string {
+  if (!DATA_DIR) return "";
+  return join(DATA_DIR, `watchlist-${safeUser(user)}.json`);
+}
+
+// In-memory cache keyed by username
+const userWatchlists = new Map<string, WatchlistItem[]>();
+
+function getUserWatchlist(user: string): WatchlistItem[] {
+  const key = safeUser(user);
+  if (userWatchlists.has(key)) return userWatchlists.get(key)!;
+  const filePath = watchlistPath(user);
+  if (!filePath) return [];
   try {
-    if (existsSync(WATCHLIST_FILE)) {
-      const raw = readFileSync(WATCHLIST_FILE, "utf-8");
+    if (existsSync(filePath)) {
+      const raw = readFileSync(filePath, "utf-8");
       const data = JSON.parse(raw);
       if (Array.isArray(data)) {
-        console.log(`[Watchlist] Loaded ${data.length} items from ${WATCHLIST_FILE}`);
+        console.log(`[Watchlist] Loaded ${data.length} items for user '${key}'`);
+        userWatchlists.set(key, data);
         return data;
       }
     }
   } catch (err) {
-    console.error("[Watchlist] Failed to load from disk:", err);
+    console.error(`[Watchlist] Failed to load for user '${key}':`, err);
   }
-  return [];
+  const empty: WatchlistItem[] = [];
+  userWatchlists.set(key, empty);
+  return empty;
 }
 
-function saveWatchlistToDisk(items: WatchlistItem[]): void {
-  if (!WATCHLIST_FILE) return;
+function saveUserWatchlist(user: string): void {
+  const filePath = watchlistPath(user);
+  if (!filePath) return;
+  const items = getUserWatchlist(user);
   try {
     if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
-    writeFileSync(WATCHLIST_FILE, JSON.stringify(items, null, 2), "utf-8");
+    writeFileSync(filePath, JSON.stringify(items, null, 2), "utf-8");
   } catch (err) {
-    console.error("[Watchlist] Failed to save to disk:", err);
+    console.error(`[Watchlist] Failed to save for user '${safeUser(user)}':`, err);
   }
 }
 
-const watchlist: WatchlistItem[] = loadWatchlistFromDisk();
+// Legacy: load old shared watchlist and keep as fallback for "_default" user
+(function migrateLegacyWatchlist() {
+  if (!DATA_DIR) return;
+  const legacyPath = join(DATA_DIR, "watchlist.json");
+  try {
+    if (existsSync(legacyPath)) {
+      const raw = readFileSync(legacyPath, "utf-8");
+      const data = JSON.parse(raw);
+      if (Array.isArray(data) && data.length > 0) {
+        console.log(`[Watchlist] Migrated ${data.length} legacy items to _default user`);
+        userWatchlists.set("_default", data);
+      }
+    }
+  } catch { /* ignore */ }
+})();
 
 // ═══════════════════════════════════════════════════════════
 // PREDICTION HISTORY — stores past predictions for watchlist
@@ -723,44 +758,56 @@ interface PredictionHistoryEntry {
   actualPriceLong?: number;   // Price 90 days later
 }
 
-const HISTORY_FILE = DATA_DIR ? join(DATA_DIR, "prediction-history.json") : "";
+// Per-user prediction history
+const userHistories = new Map<string, PredictionHistoryEntry[]>();
 
-function loadHistoryFromDisk(): PredictionHistoryEntry[] {
-  if (!HISTORY_FILE) return [];
+function historyPath(user: string): string {
+  if (!DATA_DIR) return "";
+  return join(DATA_DIR, `prediction-history-${safeUser(user)}.json`);
+}
+
+function getUserHistory(user: string): PredictionHistoryEntry[] {
+  const key = safeUser(user);
+  if (userHistories.has(key)) return userHistories.get(key)!;
+  const filePath = historyPath(user);
+  if (!filePath) return [];
   try {
-    if (existsSync(HISTORY_FILE)) {
-      const raw = readFileSync(HISTORY_FILE, "utf-8");
+    if (existsSync(filePath)) {
+      const raw = readFileSync(filePath, "utf-8");
       const data = JSON.parse(raw);
       if (Array.isArray(data)) {
-        console.log(`[History] Loaded ${data.length} entries from ${HISTORY_FILE}`);
+        userHistories.set(key, data);
         return data;
       }
     }
   } catch (err) {
-    console.error("[History] Failed to load from disk:", err);
+    console.error(`[History] Failed to load for user '${key}':`, err);
   }
-  return [];
+  const empty: PredictionHistoryEntry[] = [];
+  userHistories.set(key, empty);
+  return empty;
 }
 
-function saveHistoryToDisk(entries: PredictionHistoryEntry[]): void {
-  if (!HISTORY_FILE) return;
+function saveUserHistory(user: string): void {
+  const filePath = historyPath(user);
+  if (!filePath) return;
+  const entries = getUserHistory(user);
   try {
     if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
-    writeFileSync(HISTORY_FILE, JSON.stringify(entries, null, 2), "utf-8");
+    writeFileSync(filePath, JSON.stringify(entries, null, 2), "utf-8");
   } catch (err) {
-    console.error("[History] Failed to save to disk:", err);
+    console.error(`[History] Failed to save for user '${safeUser(user)}':`, err);
   }
 }
 
-const predictionHistory: PredictionHistoryEntry[] = loadHistoryFromDisk();
-
 /** Save a snapshot of a prediction for a watchlist stock (once per day per ticker). */
-function recordPrediction(prediction: StockPrediction): void {
+function recordPrediction(prediction: StockPrediction, user: string): void {
+  const history = getUserHistory(user);
   const today = new Date().toISOString().split("T")[0];
-  // Only record once per day per ticker
-  if (predictionHistory.some(e => e.ticker === prediction.ticker && e.date === today)) return;
+  // Only record once per day per ticker per user
+  if (history.some(e => e.ticker === prediction.ticker && e.date === today)) return;
 
-  predictionHistory.push({
+  history.push({
     ticker: prediction.ticker,
     name: prediction.name,
     date: today,
@@ -773,59 +820,61 @@ function recordPrediction(prediction: StockPrediction): void {
   });
 
   // Cap at 5000 entries to prevent unbounded growth
-  while (predictionHistory.length > 5000) predictionHistory.shift();
-  saveHistoryToDisk(predictionHistory);
-  console.log(`[History] Recorded prediction for ${prediction.ticker} on ${today}`);
+  while (history.length > 5000) history.shift();
+  saveUserHistory(user);
+  console.log(`[History] Recorded prediction for ${prediction.ticker} on ${today} (user: ${safeUser(user)})`);
 }
 
-/** Check old predictions against actual prices and fill in accuracy. */
+/** Check old predictions against actual prices and fill in accuracy (runs for all users). */
 async function updateAccuracy(): Promise<void> {
   const now = Date.now();
-  const entriesToCheck = predictionHistory.filter(e => {
-    const age = now - new Date(e.date).getTime();
-    const ageDays = age / 86400000;
-    return (
-      (ageDays >= 7 && e.actualPriceShort === undefined) ||
-      (ageDays >= 28 && e.actualPriceMedium === undefined) ||
-      (ageDays >= 90 && e.actualPriceLong === undefined)
-    );
-  });
 
-  if (entriesToCheck.length === 0) return;
+  for (const [userKey, history] of userHistories.entries()) {
+    const entriesToCheck = history.filter(e => {
+      const age = now - new Date(e.date).getTime();
+      const ageDays = age / 86400000;
+      return (
+        (ageDays >= 7 && e.actualPriceShort === undefined) ||
+        (ageDays >= 28 && e.actualPriceMedium === undefined) ||
+        (ageDays >= 90 && e.actualPriceLong === undefined)
+      );
+    });
 
-  // Group by ticker to minimize API calls
-  const tickerSet = new Set(entriesToCheck.map(e => e.ticker));
-  const eurRate = await getEurRate();
+    if (entriesToCheck.length === 0) continue;
 
-  for (const ticker of tickerSet) {
-    try {
-      const quote = await yahooQuote(ticker);
-      if (!quote || !quote.regularMarketPrice) continue;
+    const tickerSet = new Set(entriesToCheck.map(e => e.ticker));
+    const eurRate = await getEurRate();
 
-      const rawCurrency = (quote.currency || "USD").toUpperCase();
-      const needsConversion = rawCurrency !== "EUR";
-      const currentPrice = needsConversion ? convertToEur(quote.regularMarketPrice, eurRate) : quote.regularMarketPrice;
+    for (const ticker of tickerSet) {
+      try {
+        const quote = await yahooQuote(ticker);
+        if (!quote || !quote.regularMarketPrice) continue;
 
-      for (const entry of entriesToCheck.filter(e => e.ticker === ticker)) {
-        const age = now - new Date(entry.date).getTime();
-        const ageDays = age / 86400000;
+        const rawCurrency = (quote.currency || "USD").toUpperCase();
+        const needsConversion = rawCurrency !== "EUR";
+        const currentPrice = needsConversion ? convertToEur(quote.regularMarketPrice, eurRate) : quote.regularMarketPrice;
 
-        if (ageDays >= 7 && entry.actualPriceShort === undefined) {
-          entry.actualPriceShort = round2(currentPrice);
+        for (const entry of entriesToCheck.filter(e => e.ticker === ticker)) {
+          const age = now - new Date(entry.date).getTime();
+          const ageDays = age / 86400000;
+
+          if (ageDays >= 7 && entry.actualPriceShort === undefined) {
+            entry.actualPriceShort = round2(currentPrice);
+          }
+          if (ageDays >= 28 && entry.actualPriceMedium === undefined) {
+            entry.actualPriceMedium = round2(currentPrice);
+          }
+          if (ageDays >= 90 && entry.actualPriceLong === undefined) {
+            entry.actualPriceLong = round2(currentPrice);
+          }
         }
-        if (ageDays >= 28 && entry.actualPriceMedium === undefined) {
-          entry.actualPriceMedium = round2(currentPrice);
-        }
-        if (ageDays >= 90 && entry.actualPriceLong === undefined) {
-          entry.actualPriceLong = round2(currentPrice);
-        }
+      } catch {
+        // skip failed tickers
       }
-    } catch {
-      // skip failed tickers
     }
-  }
 
-  saveHistoryToDisk(predictionHistory);
+    saveUserHistory(userKey);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -836,49 +885,54 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
 
-  // --- Watchlist CRUD ---
-  app.get("/api/watchlist", (_req, res) => {
-    res.json(watchlist);
+  // --- Watchlist CRUD (per-user) ---
+  app.get("/api/watchlist", (req, res) => {
+    const user = (req.query.user as string) || "_default";
+    res.json(getUserWatchlist(user));
   });
 
   app.post("/api/watchlist", (req, res) => {
+    const user = (req.query.user as string) || (req.body.user as string) || "_default";
     const { symbol, name } = req.body;
     if (!symbol || typeof symbol !== "string") {
       return res.status(400).json({ error: "symbol is required" });
     }
     const upper = symbol.toUpperCase();
-    if (watchlist.some((w) => w.symbol === upper)) {
+    const wl = getUserWatchlist(user);
+    if (wl.some((w) => w.symbol === upper)) {
       return res.json({ ok: true, message: "Already in watchlist" });
     }
-    watchlist.push({ symbol: upper, name: name || upper, addedAt: new Date().toISOString() });
-    saveWatchlistToDisk(watchlist);
-    res.json({ ok: true, watchlist });
+    wl.push({ symbol: upper, name: name || upper, addedAt: new Date().toISOString() });
+    saveUserWatchlist(user);
+    res.json({ ok: true, watchlist: wl });
   });
 
   app.delete("/api/watchlist/:symbol", (req, res) => {
+    const user = (req.query.user as string) || "_default";
     const symbol = req.params.symbol.toUpperCase();
-    const idx = watchlist.findIndex((w) => w.symbol === symbol);
-    if (idx !== -1) watchlist.splice(idx, 1);
-    saveWatchlistToDisk(watchlist);
-    res.json({ ok: true, watchlist });
+    const wl = getUserWatchlist(user);
+    const idx = wl.findIndex((w) => w.symbol === symbol);
+    if (idx !== -1) wl.splice(idx, 1);
+    saveUserWatchlist(user);
+    res.json({ ok: true, watchlist: wl });
   });
 
-  // --- Prediction History ---
+  // --- Prediction History (per-user) ---
   app.get("/api/prediction-history", async (req, res) => {
     try {
+      const user = (req.query.user as string) || "_default";
       const ticker = (req.query.ticker as string || "").toUpperCase();
+      const history = getUserHistory(user);
 
       // Trigger accuracy updates in the background
       updateAccuracy().catch(() => {});
 
       if (ticker) {
-        // Return history for a specific ticker
-        const entries = predictionHistory.filter(e => e.ticker === ticker);
+        const entries = history.filter(e => e.ticker === ticker);
         return res.json(entries);
       }
 
-      // Return all history (limited to last 500)
-      res.json(predictionHistory.slice(-500));
+      res.json(history.slice(-500));
     } catch (err: any) {
       console.error("History error:", err.message);
       res.status(500).json({ error: "Failed to fetch prediction history." });
@@ -887,10 +941,12 @@ export async function registerRoutes(
 
   app.get("/api/prediction-accuracy", async (req, res) => {
     try {
+      const user = (req.query.user as string) || "_default";
       const ticker = (req.query.ticker as string || "").toUpperCase();
+      const history = getUserHistory(user);
       const entries = ticker
-        ? predictionHistory.filter(e => e.ticker === ticker)
-        : predictionHistory;
+        ? history.filter(e => e.ticker === ticker)
+        : history;
 
       // Calculate accuracy stats
       let shortCorrect = 0, shortTotal = 0;
@@ -996,15 +1052,17 @@ export async function registerRoutes(
   // --- Full prediction for a single stock ---
   app.get("/api/predict/:symbol", async (req, res) => {
     try {
+      const user = (req.query.user as string) || "_default";
       const symbol = req.params.symbol.toUpperCase();
       const prediction = await fetchFullPrediction(symbol);
       if (!prediction) {
         return res.status(404).json({ error: "No data found. Market may be closed or symbol invalid." });
       }
 
-      // Record prediction for watchlist stocks
-      if (watchlist.some(w => w.symbol === symbol)) {
-        recordPrediction(prediction);
+      // Record prediction for watchlist stocks (per-user)
+      const wl = getUserWatchlist(user);
+      if (wl.some(w => w.symbol === symbol)) {
+        recordPrediction(prediction, user);
       }
 
       res.json(prediction);
@@ -1034,15 +1092,17 @@ export async function registerRoutes(
       const cached = !force ? getCached<any>(cacheKey, 180000) : null;
       if (cached) return res.json(cached);
 
+      const user = (req.query.user as string) || "_default";
       const results: StockPrediction[] = [];
-      const watchlistSymbols = new Set(watchlist.map(w => w.symbol));
+      const wl = getUserWatchlist(user);
+      const watchlistSymbols = new Set(wl.map(w => w.symbol));
       for (const symbol of symbols.slice(0, 20)) {
         const prediction = await fetchFullPrediction(symbol);
         if (prediction) {
           results.push(prediction);
-          // Record predictions for watchlist stocks
+          // Record predictions for watchlist stocks (per-user)
           if (watchlistSymbols.has(symbol)) {
-            recordPrediction(prediction);
+            recordPrediction(prediction, user);
           }
         }
       }
