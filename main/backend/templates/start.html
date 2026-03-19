@@ -1,29 +1,24 @@
-{% load static%} <!DOCTYPE html>
+{% load static %}
+<!DOCTYPE html>
 <html lang="de">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aetherus - Willkommen</title>
     <link rel="stylesheet" href="{% static 'css/start.css' %}">
 </head>
-
 <body>
     <div class="bg-glow-center"></div>
     <div class="container">
         <div class="main">
-            <h1>Hmm, noch nichts hier?</h1>
-            <p>Vielleicht sollte mal ein Meisterarchitekt hierfür kommen...</p>
+            <div class="logo-text">AETHERUS</div>
+            <p>Dein persönlicher Hub. Chat, Cloud, Dashboard - alles an einem Ort.</p>
         </div>
 
         <div class="login_register">
-            <p>Wollen Sie sich direkt einloggen?</p>
             <button class="btn-login" onclick="window.location.href='/login'">Login</button>
-
-            <p>Oder sogar registrieren?</p>
             <button class="btn-register" onclick="window.location.href='/register'">Registrieren</button>
         </div>
     </div>
 </body>
-
 </html>

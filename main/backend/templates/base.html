@@ -1,67 +1,152 @@
 {% load static %}
+{% load humanize %}
 <!DOCTYPE html>
 <html lang="de">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aetherus</title>
+    <title>{% block title %}Aetherus{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+    {% block extra_css %}{% endblock %}
 </head>
 
 <body>
     <nav class="navbar">
-        <div class="nav-logo">AETHERUS</div>
+        <a href="/main" class="nav-logo">AETHERUS</a>
 
-        <div class="nav-center">
-            <a href="/main" class="nav-pill {% if '/main' in request.path or '/start' in request.path %}active{% endif %}">
-                <span class="icon">🏠</span> Dashboard
+        <!-- Hamburger toggle for mobile -->
+        <button class="hamburger" id="hamburger-btn" aria-label="Menü öffnen">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+
+        <div class="nav-center" id="nav-center">
+            <a href="/main" class="nav-pill {% if '/main' in request.path %}active{% endif %}">
+                <span class="icon">🏠</span> <span class="nav-label">Dashboard</span>
             </a>
 
             <a href="/chat" class="nav-pill {% if '/chat' in request.path %}active{% endif %}">
-                <span class="icon">💬</span> Chat
+                <span class="icon">💬</span> <span class="nav-label">Chat</span>
             </a>
 
             <a href="/cloud" class="nav-pill {% if '/cloud' in request.path %}active{% endif %}">
-                <span class="icon">☁️</span> Cloud
+                <span class="icon">☁️</span> <span class="nav-label">Cloud</span>
+            </a>
+
+            <a href="/profile" class="nav-pill {% if '/profile' in request.path %}active{% endif %}">
+                <span class="icon">👤</span> <span class="nav-label">Profil</span>
             </a>
         </div>
 
         <div class="nav-user">
-            <span>Willkommen, <strong>{{ user.username }}</strong></span>
+            <span class="nav-username">{{ user.username }}</span>
             <button onclick="logoutUser()" class="logout-btn">Abmelden</button>
         </div>
     </nav>
+
+    <!-- Mobile nav overlay -->
+    <div class="nav-overlay" id="nav-overlay"></div>
+
+    <!-- Toast notification container -->
+    <div id="toast-container" class="toast-container"></div>
 
     <main class="dashboard-container">
         {% block content %}
         {% endblock %}
     </main>
-</body>
 
-<script>
-    async function logoutUser() {
-        const csrfToken = document.cookie
-            .split('; ')
-            .find(row => row.startsWith('csrftoken='))
-            ?.split('=')[1];
+    <script>
+        // ====== Toast Notification System ======
+        function showToast(message, type = 'info', duration = 4000) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
 
-        try {
-            const response = await fetch('/api/auth/logout/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                }
-            });
-            if (response.ok) {
-                localStorage.removeItem('auth_mode');
-                window.location.href = '/';
-            }
-        } catch (error) {
-            console.error("Logout Fehler:", error);
+            const icons = { success: '✓', error: '✕', info: 'ℹ', warning: '⚠' };
+            toast.innerHTML = `
+                <span class="toast-icon">${icons[type] || icons.info}</span>
+                <span class="toast-message">${message}</span>
+                <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+            `;
+
+            container.appendChild(toast);
+
+            // Trigger animation
+            requestAnimationFrame(() => toast.classList.add('toast-visible'));
+
+            // Auto-dismiss
+            setTimeout(() => {
+                toast.classList.remove('toast-visible');
+                toast.classList.add('toast-hiding');
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
         }
-    }
-</script>
+
+        // ====== Logout ======
+        async function logoutUser() {
+            const csrfToken = document.cookie
+                .split('; ')
+                .find(row => row.startsWith('csrftoken='))
+                ?.split('=')[1];
+
+            try {
+                const response = await fetch('/api/auth/logout/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    }
+                });
+                if (response.ok) {
+                    localStorage.removeItem('auth_mode');
+                    window.location.href = '/';
+                }
+            } catch (error) {
+                showToast('Abmeldung fehlgeschlagen.', 'error');
+            }
+        }
+
+        // ====== Hamburger Menu ======
+        const hamburger = document.getElementById('hamburger-btn');
+        const navCenter = document.getElementById('nav-center');
+        const navOverlay = document.getElementById('nav-overlay');
+
+        hamburger.addEventListener('click', () => {
+            hamburger.classList.toggle('active');
+            navCenter.classList.toggle('mobile-open');
+            navOverlay.classList.toggle('active');
+            document.body.classList.toggle('nav-open');
+        });
+
+        navOverlay.addEventListener('click', () => {
+            hamburger.classList.remove('active');
+            navCenter.classList.remove('mobile-open');
+            navOverlay.classList.remove('active');
+            document.body.classList.remove('nav-open');
+        });
+
+        // Close menu on nav link click (mobile)
+        document.querySelectorAll('.nav-pill').forEach(link => {
+            link.addEventListener('click', () => {
+                hamburger.classList.remove('active');
+                navCenter.classList.remove('mobile-open');
+                navOverlay.classList.remove('active');
+                document.body.classList.remove('nav-open');
+            });
+        });
+
+        // ====== CSRF Helper ======
+        function getCsrfToken() {
+            return document.cookie
+                .split('; ')
+                .find(row => row.startsWith('csrftoken='))
+                ?.split('=')[1];
+        }
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
 
 </html>

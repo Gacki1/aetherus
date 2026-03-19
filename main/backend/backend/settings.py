@@ -26,10 +26,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-al@57g9r$c=t!%d&j2k-$ca6jl=j9uey3f-v&s5th3g=l_072&'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-al@57g9r$c=t!%d&j2k-$ca6jl=j9uey3f-v&s5th3g=l_072&')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DJANGO_DEBUG', 'False').lower() in ('true', '1', 'yes')
 
 ALLOWED_HOSTS = [
     "aetherus.net",
@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     "backend",
     "channels",
     "storages",
+    "django.contrib.humanize",
 ]
 
 from datetime import timedelta
@@ -248,8 +249,7 @@ SECURE_SSL_REDIRECT = False
 
 APPEND_SLASH = False
 
-LOGIN_URL = "/login.html"
-DEBUG = True
+LOGIN_URL = "/login"
 
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
@@ -269,6 +269,44 @@ STATICFILES_DIRS = [
 # Media files setup (default local)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# File upload limits
+DATA_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024  # 50 MB max upload
+FILE_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024
+MAX_CLOUD_STORAGE_PER_USER = 500 * 1024 * 1024  # 500 MB per user
+
+# Rate limiting (uses Django cache)
+RATE_LIMIT_LOGIN_ATTEMPTS = 5
+RATE_LIMIT_LOGIN_WINDOW = 300  # 5 minutes
+RATE_LIMIT_REGISTER_ATTEMPTS = 3
+RATE_LIMIT_REGISTER_WINDOW = 3600  # 1 hour
+
+# Logging (production-safe, no sensitive data)
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'standard': {
+            'format': '[%(asctime)s] %(levelname)s %(name)s: %(message)s'
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'standard',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+        },
+        'backend': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
+    },
+}
 
 # Hetzner Object Storage (S3 Compatible) Configuration
 HETZNER_S3_ACCESS_KEY = os.getenv("HETZNER_S3_ACCESS_KEY")

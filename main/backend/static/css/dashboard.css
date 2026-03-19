@@ -10,6 +10,12 @@
     --text-muted: #8b949e;
     --border-color: rgba(0, 136, 255, 0.2);
     --danger-red: #ff4d4d;
+    --success-green: #00ffaa;
+    --warning-amber: #f5dd5d;
+}
+
+* {
+    box-sizing: border-box;
 }
 
 body {
@@ -18,8 +24,11 @@ body {
     font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     margin: 0;
     min-height: 100vh;
-    /* Dezenter Blau-Schimmer im Hintergrund */
     background: radial-gradient(circle at 50% -20%, #1a2a3a 0%, var(--bg-black) 80%);
+}
+
+body.nav-open {
+    overflow: hidden;
 }
 
 /* =========================================
@@ -39,7 +48,6 @@ body {
     z-index: 1000;
 }
 
-/* --- Logo --- */
 .nav-logo {
     font-size: 1.8rem;
     font-weight: 800;
@@ -49,7 +57,62 @@ body {
     background-clip: text;
     -webkit-text-fill-color: transparent;
     color: transparent;
-    cursor: default;
+    cursor: pointer;
+    text-decoration: none;
+    flex-shrink: 0;
+}
+
+/* --- Hamburger Button (Mobile) --- */
+.hamburger {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    z-index: 1100;
+}
+
+.hamburger span {
+    display: block;
+    width: 24px;
+    height: 2px;
+    background: var(--text-white);
+    transition: all 0.3s ease;
+    border-radius: 2px;
+}
+
+.hamburger.active span:nth-child(1) {
+    transform: rotate(45deg) translate(5px, 5px);
+}
+
+.hamburger.active span:nth-child(2) {
+    opacity: 0;
+}
+
+.hamburger.active span:nth-child(3) {
+    transform: rotate(-45deg) translate(5px, -5px);
+}
+
+/* --- Nav Overlay (Mobile) --- */
+.nav-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 999;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.nav-overlay.active {
+    display: block;
+    opacity: 1;
 }
 
 /* --- Mittlerer Bereich (Buttons) --- */
@@ -57,10 +120,8 @@ body {
     display: flex;
     align-items: center;
     gap: 15px;
-    /* Abstand zwischen den Buttons */
 }
 
-/* Das "Pillen"-Design für Dashboard & Chat */
 .nav-pill {
     text-decoration: none;
     font-weight: 600;
@@ -69,17 +130,13 @@ body {
     gap: 8px;
     padding: 8px 20px;
     border-radius: 50px;
-    /* Runde Form */
-
-    /* Standard (Inaktiv): Transparent, dünner Rahmen */
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.1);
     color: var(--text-muted);
-
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
 }
 
-/* Hover-Effekt (Maus drüber) */
 .nav-pill:hover {
     background: rgba(255, 255, 255, 0.08);
     color: var(--text-white);
@@ -87,25 +144,13 @@ body {
     border-color: rgba(255, 255, 255, 0.3);
 }
 
-/* ACTIVE STATE (Wenn man auf der Seite ist) */
-/* Das ist der "Aufleuchten"-Effekt */
 .nav-pill.active {
-    /* Hintergrund wird bläulich gefüllt */
     background: rgba(0, 210, 255, 0.15);
-
-    /* Rahmen wird Neon-Cyan */
     border-color: var(--neon-cyan);
-
-    /* Text wird strahlend weiß */
     color: #fff !important;
-
-    /* NEON GLOW EFFEKT */
     box-shadow: inset 0 0 10px rgba(0, 210, 255, 0.2),
-        /* Innen */
         0 0 15px rgba(0, 210, 255, 0.5),
-        /* Außen klein */
         0 0 30px rgba(0, 210, 255, 0.2);
-    /* Außen groß */
 }
 
 /* --- User Bereich (Rechts) --- */
@@ -113,6 +158,12 @@ body {
     display: flex;
     align-items: center;
     gap: 1.5rem;
+    flex-shrink: 0;
+}
+
+.nav-username {
+    color: var(--text-muted);
+    font-size: 0.9rem;
 }
 
 .logout-btn {
@@ -124,6 +175,7 @@ body {
     cursor: pointer;
     font-weight: 600;
     transition: all 0.3s ease;
+    font-size: 0.85rem;
 }
 
 .logout-btn:hover {
@@ -143,15 +195,8 @@ body {
 }
 
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .dashboard-header h1 {
@@ -169,7 +214,7 @@ body {
    ========================================= */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 1.5rem;
     margin-top: 2.5rem;
 }
@@ -185,7 +230,6 @@ body {
     overflow: hidden;
 }
 
-/* Karte leuchtet beim Hover */
 .stat-card:hover {
     transform: scale(1.03);
     border-color: var(--accent-blue);
@@ -207,16 +251,132 @@ body {
 }
 
 .status-online {
-    color: #00ffaa;
+    color: var(--success-green);
     text-shadow: 0 0 10px rgba(0, 255, 170, 0.3);
 }
 
 /* =========================================
-   5. CONTENT AREA (Abstand Fix)
+   4b. PROGRESS BAR (Storage usage)
+   ========================================= */
+.progress-bar-track {
+    width: 100%;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    margin-top: 12px;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--accent-blue), var(--neon-cyan));
+    transition: width 0.6s ease;
+}
+
+.progress-bar-fill.warning {
+    background: linear-gradient(90deg, var(--warning-amber), #ff8800);
+}
+
+.progress-bar-fill.danger {
+    background: linear-gradient(90deg, #ff8800, var(--danger-red));
+}
+
+.stat-detail {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-top: 8px;
+}
+
+/* =========================================
+   4c. DASHBOARD WIDGETS
+   ========================================= */
+.widget-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+
+.widget-card {
+    background: var(--card-bg);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.widget-header {
+    padding: 1.2rem 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.widget-header h2 {
+    font-size: 1rem;
+    margin: 0;
+    color: var(--text-white);
+}
+
+.widget-header .widget-action {
+    font-size: 0.8rem;
+    color: var(--neon-cyan);
+    text-decoration: none;
+}
+
+.widget-header .widget-action:hover {
+    text-decoration: underline;
+}
+
+.widget-body {
+    padding: 1.5rem;
+}
+
+.widget-body .empty-hint {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    text-align: center;
+    padding: 1rem 0;
+}
+
+.recent-file-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.recent-file-item:last-child {
+    border-bottom: none;
+}
+
+.recent-file-icon {
+    font-size: 1.3rem;
+    width: 32px;
+    text-align: center;
+}
+
+.recent-file-name {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.9rem;
+}
+
+.recent-file-date {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+/* =========================================
+   5. CONTENT AREA
    ========================================= */
 .content-area {
     margin-top: 4rem;
-    /* Abstand nach oben */
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
@@ -224,21 +384,189 @@ body {
 }
 
 /* =========================================
-   6. RESPONSIVE (Handy)
+   6. TOAST NOTIFICATIONS
+   ========================================= */
+.toast-container {
+    position: fixed;
+    top: 85px;
+    right: 20px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.toast {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    border-radius: 10px;
+    background: rgba(19, 23, 28, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-white);
+    font-size: 0.9rem;
+    min-width: 280px;
+    max-width: 420px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    transform: translateX(120%);
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    pointer-events: all;
+}
+
+.toast-visible {
+    transform: translateX(0);
+}
+
+.toast-hiding {
+    transform: translateX(120%);
+    opacity: 0;
+}
+
+.toast-icon {
+    font-size: 1.1rem;
+    font-weight: bold;
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.toast-success .toast-icon {
+    color: var(--success-green);
+    background: rgba(0, 255, 170, 0.15);
+}
+
+.toast-error .toast-icon {
+    color: var(--danger-red);
+    background: rgba(255, 77, 77, 0.15);
+}
+
+.toast-info .toast-icon {
+    color: var(--neon-cyan);
+    background: rgba(0, 210, 255, 0.15);
+}
+
+.toast-warning .toast-icon {
+    color: var(--warning-amber);
+    background: rgba(245, 221, 93, 0.15);
+}
+
+.toast-success { border-color: rgba(0, 255, 170, 0.3); }
+.toast-error { border-color: rgba(255, 77, 77, 0.3); }
+.toast-info { border-color: rgba(0, 210, 255, 0.3); }
+.toast-warning { border-color: rgba(245, 221, 93, 0.3); }
+
+.toast-message {
+    flex: 1;
+}
+
+.toast-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0 0 0 8px;
+    line-height: 1;
+}
+
+.toast-close:hover {
+    color: var(--text-white);
+}
+
+/* =========================================
+   7. RESPONSIVE (Mobile)
    ========================================= */
 @media (max-width: 768px) {
     .navbar {
         padding: 0 1rem;
     }
 
-    .nav-user span {
+    .hamburger {
+        display: flex;
+    }
+
+    .nav-center {
         display: none;
-        /* Usernamen ausblenden */
+        position: fixed;
+        top: 70px;
+        left: 0;
+        width: 100%;
+        background: rgba(19, 23, 28, 0.98);
+        backdrop-filter: blur(20px);
+        flex-direction: column;
+        padding: 1.5rem;
+        gap: 10px;
+        border-bottom: 1px solid var(--border-color);
+        z-index: 1000;
+        animation: slideDown 0.3s ease;
+    }
+
+    @keyframes slideDown {
+        from { transform: translateY(-10px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    .nav-center.mobile-open {
+        display: flex;
     }
 
     .nav-pill {
-        padding: 6px 14px;
-        /* Buttons kleiner machen */
-        font-size: 0.9rem;
+        width: 100%;
+        justify-content: flex-start;
+        padding: 14px 20px;
+        border-radius: 10px;
+    }
+
+    .nav-user {
+        gap: 0.8rem;
+    }
+
+    .nav-username {
+        display: none;
+    }
+
+    .logout-btn {
+        padding: 6px 12px;
+        font-size: 0.8rem;
+    }
+
+    .dashboard-container {
+        margin: 1.5rem auto;
+        padding: 0 1rem;
+    }
+
+    .dashboard-header h1 {
+        font-size: 1.6rem;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .widget-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .toast-container {
+        right: 10px;
+        left: 10px;
+    }
+
+    .toast {
+        min-width: auto;
+        max-width: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .nav-logo {
+        font-size: 1.3rem;
     }
 }

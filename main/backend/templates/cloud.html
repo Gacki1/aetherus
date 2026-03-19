@@ -1,32 +1,58 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load humanize %}
+{% load file_helpers %}
+
+{% block title %}Aetherus - Cloud{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/cloud.css' %}">
+{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/cloud.css' %}">
-
 <header class="dashboard-header">
     <h1>Dein Cloud-Speicher</h1>
-    <p>Lade Dateien hoch, teile sie und verwalte deinen persönlichen Speicherplatz sicher auf unseren Servern.</p>
+    <p>Lade Dateien hoch, teile sie und verwalte deinen persönlichen Speicherplatz.</p>
 </header>
+
+<!-- Storage Quota -->
+<section class="storage-quota">
+    <div class="quota-info">
+        <span>Speicherplatz: {{ storage_used|filesizeformat }} / {{ storage_limit|filesizeformat }}</span>
+        <span class="quota-percent">{{ storage_percent }}%</span>
+    </div>
+    <div class="progress-bar-track">
+        <div class="progress-bar-fill {% if storage_percent > 80 %}danger{% elif storage_percent > 60 %}warning{% endif %}"
+            style="width: {{ storage_percent }}%"></div>
+    </div>
+</section>
 
 <section class="content-area">
 
-    <!-- Upload Form -->
-    <div class="card cloud-upload-card">
+    <!-- Upload Form with Drag & Drop -->
+    <div class="card cloud-upload-card" id="drop-zone">
         <h2>Datei hochladen</h2>
-        <form action="{% url 'cloud' %}" method="POST" enctype="multipart/form-data" class="cloud-upload-form">
+        <form action="{% url 'cloud' %}" method="POST" enctype="multipart/form-data" class="cloud-upload-form" id="upload-form">
             {% csrf_token %}
             <input type="hidden" name="action" value="upload">
 
-            <div class="file-input-wrapper">
+            <div class="drop-area" id="drop-area">
+                <div class="drop-icon">📁</div>
+                <p class="drop-text">Datei hierher ziehen oder klicken</p>
+                <p class="drop-hint">Maximal 50 MB pro Datei</p>
                 <input type="file" name="file" id="file" required class="file-input">
-                <label for="file" class="file-label">
-                    <span class="icon">📁</span> Datei auswählen
-                </label>
-                <span id="file-name-display" class="file-name-display">Keine Datei ausgewählt</span>
             </div>
 
-            <button type="submit" class="upload-btn">Hochladen</button>
+            <div id="file-preview" class="file-preview" style="display: none;">
+                <span id="preview-icon" class="preview-icon">📄</span>
+                <div class="preview-info">
+                    <span id="preview-name" class="preview-name"></span>
+                    <span id="preview-size" class="preview-size"></span>
+                </div>
+                <button type="button" class="preview-remove" onclick="clearFileSelection()">✕</button>
+            </div>
+
+            <button type="submit" class="upload-btn" id="upload-btn" disabled>Hochladen</button>
         </form>
     </div>
 
@@ -41,24 +67,23 @@
 
     <!-- File List -->
     <div class="card cloud-files-card">
-        <h2>Deine Dateien</h2>
+        <h2>Deine Dateien <span class="file-count">({{ files|length }})</span></h2>
 
         {% if files %}
         <div class="files-grid">
             {% for f in files %}
             <div class="file-item">
                 <div class="file-info">
-                    <div class="file-icon">📄</div>
+                    <div class="file-icon">{{ f.filename|file_type_icon }}</div>
                     <div class="file-details">
                         <span class="filename" title="{{ f.filename }}">{{ f.filename }}</span>
-                        <span class="filesize">{{ f.file_size|filesizeformat }} • {{ f.uploaded_at|date:"d.m.Y"
-                            }}</span>
+                        <span class="filesize">{{ f.file_size|filesizeformat }} · {{ f.uploaded_at|date:"d.m.Y" }}</span>
                     </div>
                 </div>
 
                 <div class="file-actions">
-                    <a href="{{ f.file.url }}" target="_blank" class="action-btn view-btn"
-                        title="Ansehen / Herunterladen">👁️</a>
+                    <a href="{{ f.file.url }}" class="action-btn download-btn" title="Herunterladen" download="{{ f.filename }}">⬇️</a>
+                    <a href="{{ f.file.url }}" target="_blank" class="action-btn view-btn" title="Ansehen">👁️</a>
 
                     <form action="{% url 'cloud' %}" method="POST" class="delete-form"
                         onsubmit="return confirm('Möchtest du diese Datei wirklich löschen?');">
@@ -79,13 +104,99 @@
     </div>
 
 </section>
+{% endblock %}
 
+{% block extra_js %}
 <script>
-    // Simple script to show selected file name
-    document.getElementById('file').addEventListener('change', function (e) {
-        let fileName = e.target.files[0] ? e.target.files[0].name : "Keine Datei ausgewählt";
-        document.getElementById('file-name-display').textContent = fileName;
+    const dropArea = document.getElementById('drop-area');
+    const fileInput = document.getElementById('file');
+    const uploadBtn = document.getElementById('upload-btn');
+    const filePreview = document.getElementById('file-preview');
+    const previewName = document.getElementById('preview-name');
+    const previewSize = document.getElementById('preview-size');
+    const previewIcon = document.getElementById('preview-icon');
+    const MAX_SIZE = 50 * 1024 * 1024; // 50 MB
+
+    const FILE_ICONS = {
+        jpg: '🖼️', jpeg: '🖼️', png: '🖼️', gif: '🖼️', webp: '🖼️', svg: '🖼️',
+        pdf: '📕', doc: '📄', docx: '📄', txt: '📝',
+        xls: '📊', xlsx: '📊', csv: '📊',
+        ppt: '📽️', pptx: '📽️',
+        zip: '📦', rar: '📦', '7z': '📦',
+        mp3: '🎵', wav: '🎵', flac: '🎵',
+        mp4: '🎬', mkv: '🎬', avi: '🎬', mov: '🎬',
+        py: '🐍', js: '💛', html: '🌐', css: '🎨', java: '☕',
+    };
+
+    function getFileIcon(filename) {
+        const ext = filename.split('.').pop().toLowerCase();
+        return FILE_ICONS[ext] || '📄';
+    }
+
+    function formatSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function handleFileSelect(file) {
+        if (!file) return;
+
+        if (file.size > MAX_SIZE) {
+            if (typeof showToast === 'function') {
+                showToast('Datei ist zu groß. Maximum: 50 MB.', 'error');
+            } else {
+                alert('Datei ist zu groß. Maximum: 50 MB.');
+            }
+            clearFileSelection();
+            return;
+        }
+
+        previewIcon.textContent = getFileIcon(file.name);
+        previewName.textContent = file.name;
+        previewSize.textContent = formatSize(file.size);
+        filePreview.style.display = 'flex';
+        dropArea.classList.add('has-file');
+        uploadBtn.disabled = false;
+    }
+
+    function clearFileSelection() {
+        fileInput.value = '';
+        filePreview.style.display = 'none';
+        dropArea.classList.remove('has-file');
+        uploadBtn.disabled = true;
+    }
+
+    // Click to select
+    dropArea.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', function(e) {
+        if (e.target.files[0]) handleFileSelect(e.target.files[0]);
+    });
+
+    // Drag & drop
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropArea.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropArea.classList.add('drag-over');
+        });
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropArea.classList.remove('drag-over');
+        });
+    });
+
+    dropArea.addEventListener('drop', (e) => {
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            handleFileSelect(files[0]);
+        }
     });
 </script>
-
 {% endblock %}

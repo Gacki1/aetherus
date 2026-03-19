@@ -1,11 +1,10 @@
 /* backend/static/css/chat.css */
 
-/* --- 1. HAUPT-LAYOUT DES CHATS --- */
+/* --- 1. LAYOUT --- */
 .chat-container {
     display: flex;
     flex-direction: column;
     height: 75vh;
-    /* Füllt den Bildschirm gut aus */
     background: #0d1117;
     border: 1px solid rgba(0, 210, 255, 0.2);
     border-radius: 12px;
@@ -14,32 +13,21 @@
     position: relative;
 }
 
-/* --- 2. NACHRICHTEN VERLAUF --- */
+/* --- 2. CHAT LOG --- */
 #chat-log {
     flex-grow: 1;
     padding: 20px;
     overflow-y: auto;
-    /* Scrollbar wenn voll */
     display: flex;
     flex-direction: column;
     gap: 15px;
 }
 
-/* Scrollbar Design */
-#chat-log::-webkit-scrollbar {
-    width: 8px;
-}
+#chat-log::-webkit-scrollbar { width: 8px; }
+#chat-log::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+#chat-log::-webkit-scrollbar-thumb:hover { background: #555; }
 
-#chat-log::-webkit-scrollbar-thumb {
-    background: #333;
-    border-radius: 4px;
-}
-
-#chat-log::-webkit-scrollbar-thumb:hover {
-    background: #555;
-}
-
-/* --- 3. EINZELNE NACHRICHT --- */
+/* --- 3. MESSAGES --- */
 .message {
     max-width: 70%;
     padding: 10px 15px;
@@ -49,19 +37,12 @@
     position: relative;
     animation: popIn 0.3s ease-out;
     word-wrap: break-word;
-    /* Lange Wörter umbrechen */
+    overflow-wrap: break-word;
 }
 
 @keyframes popIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .message-header {
@@ -70,14 +51,26 @@
     opacity: 0.8;
     font-weight: bold;
     display: flex;
-    /* Damit Name und Lösch-Button nebeneinander sind */
     justify-content: space-between;
     align-items: center;
     min-width: 120px;
-    /* Mindestbreite für Header */
+    gap: 8px;
 }
 
-/* Nachrichten von ANDEREN (Links, Grau) */
+.message-header-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.message-time {
+    font-size: 0.65rem;
+    font-weight: 400;
+    opacity: 0.5;
+    white-space: nowrap;
+}
+
+/* Received (left) */
 .message.received {
     align-self: flex-start;
     background: #1f2428;
@@ -86,12 +79,11 @@
     border-bottom-left-radius: 2px;
 }
 
-.message.received .message-header span {
+.message.received .message-header span:first-child {
     color: #00d2ff;
-    /* Neon Cyan Name */
 }
 
-/* Nachrichten von MIR (Rechts, Blau) */
+/* Sent (right) */
 .message.sent {
     align-self: flex-end;
     background: rgba(0, 136, 255, 0.2);
@@ -102,19 +94,17 @@
 
 .message.sent .message-header {
     flex-direction: row-reverse;
-    /* Mein Name rechts, Löschbutton links davon */
 }
 
-.message.sent .message-header span {
+.message.sent .message-header span:first-child {
     color: #a5d6ff;
 }
 
-/* --- 4. ADMIN LÖSCH BUTTON --- */
+/* --- 4. ADMIN DELETE BTN --- */
 .delete-btn {
     background: transparent;
     border: none;
     color: #ff4d4d;
-    /* Warn-Rot */
     cursor: pointer;
     font-size: 0.9rem;
     padding: 0 5px;
@@ -128,13 +118,15 @@
     text-shadow: 0 0 5px rgba(255, 77, 77, 0.6);
 }
 
-/* --- 5. EINGABE BEREICH --- */
+/* --- 5. INPUT AREA --- */
 .chat-input-area {
     padding: 15px;
     background: #161b22;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
     gap: 10px;
+    align-items: center;
+    position: relative;
 }
 
 #chat-message-input {
@@ -146,6 +138,7 @@
     border-radius: 6px;
     outline: none;
     transition: border-color 0.2s;
+    font-size: 0.95rem;
 }
 
 #chat-message-input:focus {
@@ -153,18 +146,124 @@
     box-shadow: 0 0 10px rgba(0, 210, 255, 0.1);
 }
 
+.char-count {
+    font-size: 0.7rem;
+    color: #555;
+    position: absolute;
+    right: 130px;
+    user-select: none;
+}
+
 #chat-message-submit {
     background: linear-gradient(135deg, #00d2ff, #0088ff);
     color: #000;
     font-weight: bold;
     border: none;
-    padding: 0 25px;
+    padding: 12px 25px;
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s;
+    font-size: 0.9rem;
+    flex-shrink: 0;
 }
 
 #chat-message-submit:hover {
     transform: translateY(-2px);
     box-shadow: 0 0 15px rgba(0, 210, 255, 0.4);
+}
+
+/* --- 6. SYSTEM MESSAGES --- */
+.chat-system-msg {
+    text-align: center;
+    color: #555;
+    font-size: 0.8rem;
+    margin-top: 10px;
+    padding: 4px 0;
+}
+
+.chat-system-warn {
+    color: #f5dd5d;
+}
+
+.chat-system-error {
+    color: #ff4d4d;
+    font-weight: bold;
+}
+
+/* --- 7. ONLINE INDICATOR --- */
+.online-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 15px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.online-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #00ffaa;
+    box-shadow: 0 0 6px rgba(0, 255, 170, 0.5);
+    animation: pulse-dot 2s infinite;
+}
+
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.admin-badge {
+    color: #ff4d4d;
+    font-size: 0.8em;
+    border: 1px solid #ff4d4d;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 10px;
+}
+
+/* --- 8. TYPING INDICATOR --- */
+.typing-indicator {
+    padding: 6px 20px;
+    font-size: 0.8rem;
+    color: #555;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: #161b22;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.typing-dots span {
+    animation: typingDot 1.4s infinite;
+    font-weight: bold;
+}
+
+.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typingDot {
+    0%, 60%, 100% { opacity: 0.2; }
+    30% { opacity: 1; }
+}
+
+/* --- 9. RESPONSIVE --- */
+@media (max-width: 768px) {
+    .chat-container {
+        height: calc(100vh - 200px);
+    }
+
+    .message {
+        max-width: 85%;
+    }
+
+    .char-count {
+        display: none;
+    }
+
+    .online-indicator {
+        margin-left: 8px;
+        font-size: 0.75rem;
+    }
 }

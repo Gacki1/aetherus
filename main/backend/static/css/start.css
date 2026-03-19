@@ -78,14 +78,26 @@ body::after {
 
 h1 {
     color: #58a6ff;
-    /* Hellblau */
     margin-bottom: 0.5rem;
     font-size: 2rem;
+}
+
+.logo-text {
+    font-size: 2.5rem;
+    font-weight: 900;
+    letter-spacing: 4px;
+    background: linear-gradient(90deg, #0088ff, #00d2ff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    margin-bottom: 1rem;
 }
 
 .main p {
     color: #8b949e;
     margin-bottom: 2rem;
+    line-height: 1.5;
 }
 
 /* Button-Bereich */

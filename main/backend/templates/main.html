@@ -1,15 +1,19 @@
 {% extends 'base.html' %}
+{% load humanize %}
+{% load file_helpers %}
+
+{% block title %}Aetherus - Dashboard{% endblock %}
 
 {% block content %}
 <header class="dashboard-header">
-    <h1>Dein Dashboard</h1>
+    <h1>Willkommen, {{ user.username }}</h1>
     <p>Hier hast du alle wichtigen Informationen im Blick.</p>
 </header>
 
 <section class="stats-grid">
     <div class="stat-card">
         <h3>Status</h3>
-        <p class="status-online">Verbunden</p>
+        <p class="status-online">● Verbunden</p>
     </div>
     <div class="stat-card">
         <h3>Letzter Login</h3>
@@ -19,12 +23,75 @@
         <h3>Berechtigungen</h3>
         <p>{% if user.is_staff %}Administrator{% else %}Benutzer{% endif %}</p>
     </div>
+    <div class="stat-card">
+        <h3>Cloud-Speicher</h3>
+        <p>{{ cloud_file_count }} Datei{{ cloud_file_count|pluralize:"en" }}</p>
+        <div class="progress-bar-track">
+            <div class="progress-bar-fill {% if cloud_storage_percent > 80 %}danger{% elif cloud_storage_percent > 60 %}warning{% endif %}"
+                style="width: {{ cloud_storage_percent }}%"></div>
+        </div>
+        <span class="stat-detail">{{ cloud_storage_used|filesizeformat }} / {{ cloud_storage_limit|filesizeformat }}</span>
+    </div>
 </section>
 
-<section class="content-area">
-    <div class="card">
-        <h2>Neuigkeiten</h2>
-        <p>Willkommen in der neuen Aetherus-Umgebung. Dein Login war erfolgreich!</p>
+<section class="widget-grid">
+    <!-- Recent Cloud Files -->
+    <div class="widget-card">
+        <div class="widget-header">
+            <h2>Letzte Dateien</h2>
+            <a href="/cloud" class="widget-action">Alle anzeigen →</a>
+        </div>
+        <div class="widget-body">
+            {% if recent_files %}
+                {% for f in recent_files %}
+                <div class="recent-file-item">
+                    <span class="recent-file-icon">{{ f.filename|file_type_icon }}</span>
+                    <span class="recent-file-name" title="{{ f.filename }}">{{ f.filename }}</span>
+                    <span class="recent-file-date">{{ f.uploaded_at|date:"d.m." }}</span>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="empty-hint">Noch keine Dateien hochgeladen.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Chat Activity -->
+    <div class="widget-card">
+        <div class="widget-header">
+            <h2>Chat-Aktivität</h2>
+            <a href="/chat" class="widget-action">Zum Chat →</a>
+        </div>
+        <div class="widget-body">
+            <div class="recent-file-item">
+                <span class="recent-file-icon">💬</span>
+                <span class="recent-file-name">Deine Nachrichten</span>
+                <span class="recent-file-date" style="font-size: 1.1rem; font-weight: 600; color: var(--neon-cyan);">{{ user_message_count }}</span>
+            </div>
+            <div class="recent-file-item">
+                <span class="recent-file-icon">🌐</span>
+                <span class="recent-file-name">Nachrichten gesamt</span>
+                <span class="recent-file-date" style="font-size: 1.1rem; font-weight: 600; color: var(--text-white);">{{ total_message_count }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Account Info -->
+    <div class="widget-card">
+        <div class="widget-header">
+            <h2>Dein Account</h2>
+            <a href="/profile" class="widget-action">Bearbeiten →</a>
+        </div>
+        <div class="widget-body">
+            <div class="recent-file-item">
+                <span class="recent-file-icon">📧</span>
+                <span class="recent-file-name">{{ user.email }}</span>
+            </div>
+            <div class="recent-file-item">
+                <span class="recent-file-icon">📅</span>
+                <span class="recent-file-name">Mitglied seit {{ user.date_joined|date:"d.m.Y" }}</span>
+            </div>
+        </div>
     </div>
 </section>
 {% endblock %}

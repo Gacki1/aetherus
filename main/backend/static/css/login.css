@@ -161,3 +161,30 @@ input[type="checkbox"] {
     cursor: pointer;
     accent-color: #58a6ff;
 }
+
+.login-links {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.login-links p {
+    font-size: 0.85rem;
+    margin: 8px 0;
+}
+
+.login-links a {
+    color: #58a6ff;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.login-links a:hover {
+    color: #79c0ff;
+    text-decoration: underline;
+}
+
+.message.info {
+    background-color: rgba(88, 166, 255, 0.15);
+    border: 1px solid #58a6ff;
+    color: #58a6ff;
+}

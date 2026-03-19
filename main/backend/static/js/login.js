@@ -1,7 +1,35 @@
 // login.js
 
-// Konstante für die Weiterleitung nach erfolgreichem Login
 const REDIRECT_URL = "/main";
+
+// Show activation/reset messages from URL params
+document.addEventListener('DOMContentLoaded', function() {
+    const params = new URLSearchParams(window.location.search);
+    const messageBox = document.getElementById('message-box');
+
+    if (params.get('activated') === 'true') {
+        messageBox.textContent = 'Account erfolgreich aktiviert! Du kannst dich jetzt einloggen.';
+        messageBox.className = 'message success';
+        messageBox.style.display = 'block';
+    } else if (params.get('already_active') === 'true') {
+        messageBox.textContent = 'Account ist bereits aktiviert.';
+        messageBox.className = 'message info';
+        messageBox.style.display = 'block';
+    } else if (params.get('activation_expired') === 'true') {
+        messageBox.textContent = 'Aktivierungslink ist abgelaufen. Bitte registriere dich erneut.';
+        messageBox.className = 'message error';
+        messageBox.style.display = 'block';
+    } else if (params.get('activation_invalid') === 'true') {
+        messageBox.textContent = 'Ungültiger Aktivierungslink.';
+        messageBox.className = 'message error';
+        messageBox.style.display = 'block';
+    }
+
+    // Clean URL params without page reload
+    if (params.toString()) {
+        window.history.replaceState({}, '', '/login');
+    }
+});
 
 document.getElementById('login-form').addEventListener('submit', function (event) {
     event.preventDefault();
@@ -11,10 +39,15 @@ document.getElementById('login-form').addEventListener('submit', function (event
     const password = form.password.value;
     const messageBox = document.getElementById('message-box');
     const rememberMe = document.getElementById("rememberMeCheckbox").checked;
+    const submitBtn = form.querySelector('button[type="submit"]');
 
-    // Anzeige zurücksetzen
+    // Reset
     messageBox.style.display = 'none';
     messageBox.textContent = '';
+
+    // Disable button
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Anmelden...';
 
     function getCookie(name) {
         let cookieValue = null;
@@ -30,13 +63,11 @@ document.getElementById('login-form').addEventListener('submit', function (event
         return cookieValue;
     }
 
-    // POST-Anfrage an den neuen Session-basierten Endpunkt
-    fetch('/api/auth/login/', { // Wichtig: URL passend zur urls.py
+    fetch('/api/auth/login/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             "X-CSRFToken": getCookie("csrftoken"),
-
         },
         body: JSON.stringify({
             username,
@@ -44,34 +75,33 @@ document.getElementById('login-form').addEventListener('submit', function (event
             rememberMe: rememberMe,
         })
     })
-        .then(async response => {
-            const data = await response.json();
+    .then(async response => {
+        const data = await response.json();
 
-            if (response.status === 200) {
-                // Erfolg: Wir speichern den Modus für die Tab-Close-Logik
-                localStorage.setItem('auth_mode', data.mode);
+        if (response.status === 200) {
+            localStorage.setItem('auth_mode', data.mode);
 
-                messageBox.textContent = 'Login erfolgreich! Weiterleitung...';
-                messageBox.className = 'message success';
-                messageBox.style.display = 'block';
-
-                // Kurze Verzögerung, damit die Nachricht sichtbar ist und Cookies gesetzt werden
-                setTimeout(() => {
-                    window.location.href = REDIRECT_URL;
-                }, 500);
-
-            } else if (response.status === 401) {
-                // Unauthorized (Falsche Zugangsdaten)
-                throw new Error(data.error || 'Anmeldung fehlgeschlagen.');
-            } else {
-                // Anderer Serverfehler (z.B. 404 oder 500)
-                throw new Error('Serverfehler (' + response.status + ')');
-            }
-        })
-        .catch(error => {
-            messageBox.textContent = error.message || 'Ein Netzwerkfehler ist aufgetreten.';
-            messageBox.className = 'message error';
+            messageBox.textContent = 'Login erfolgreich! Weiterleitung...';
+            messageBox.className = 'message success';
             messageBox.style.display = 'block';
-        });
-    
+
+            setTimeout(() => {
+                window.location.href = REDIRECT_URL;
+            }, 500);
+
+        } else if (response.status === 429) {
+            throw new Error(data.error || 'Zu viele Versuche. Bitte warte etwas.');
+        } else if (response.status === 401) {
+            throw new Error(data.error || 'Anmeldung fehlgeschlagen.');
+        } else {
+            throw new Error('Serverfehler (' + response.status + ')');
+        }
+    })
+    .catch(error => {
+        messageBox.textContent = error.message || 'Ein Netzwerkfehler ist aufgetreten.';
+        messageBox.className = 'message error';
+        messageBox.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Einloggen';
+    });
 });
