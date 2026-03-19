@@ -452,6 +452,302 @@ async function fetchAnalystSignal(symbol: string): Promise<{ rating: number; sou
 }
 
 // ═══════════════════════════════════════════════════════════
+// SOURCE 3: FINNHUB NEWS (requires free API key)
+// ═══════════════════════════════════════════════════════════
+const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY || "";
+
+async function fetchFinnhubNews(symbol: string): Promise<NewsSource[]> {
+  if (!FINNHUB_API_KEY) return [];
+  const sources: NewsSource[] = [];
+
+  try {
+    // Finnhub company news — last 7 days
+    const now = new Date();
+    const from = new Date(now.getTime() - 7 * 86400000);
+    const fromStr = from.toISOString().split("T")[0];
+    const toStr = now.toISOString().split("T")[0];
+
+    const url = `https://finnhub.io/api/v1/company-news?symbol=${encodeURIComponent(symbol)}&from=${fromStr}&to=${toStr}&token=${FINNHUB_API_KEY}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) {
+      console.warn(`[Finnhub] News request failed: ${res.status}`);
+      return [];
+    }
+    const articles: any[] = await res.json();
+
+    // Trusted financial news domains only
+    const TRUSTED_DOMAINS = new Set([
+      "reuters.com", "bloomberg.com", "cnbc.com", "yahoo.com", "finance.yahoo.com",
+      "marketwatch.com", "seekingalpha.com", "fool.com", "wsj.com", "ft.com",
+      "barrons.com", "benzinga.com", "zacks.com", "investors.com", "nasdaq.com",
+      "thestreet.com", "investopedia.com", "tipranks.com",
+      "handelsblatt.com", "finanzen.net", "boerse.de", "onvista.de",
+    ]);
+
+    for (const article of articles.slice(0, 15)) {
+      const articleUrl = article.url || "";
+      let hostname = "";
+      try { hostname = new URL(articleUrl).hostname.replace("www.", ""); } catch {}
+
+      // Only include articles from trusted sources
+      const isTrusted = TRUSTED_DOMAINS.has(hostname) ||
+        Array.from(TRUSTED_DOMAINS).some(d => hostname.endsWith(`.${d}`));
+      if (!isTrusted && hostname) continue;
+
+      const text = `${article.headline || ""} ${article.summary || ""}`;
+      const score = analyzeSentiment(text);
+
+      sources.push({
+        name: extractDomain(articleUrl) || article.source || "Finnhub",
+        url: articleUrl,
+        title: article.headline || "News",
+        summary: (article.summary || "").slice(0, 200),
+        sentiment: classifySentiment(score),
+        sentimentScore: score,
+        publishedAt: article.datetime
+          ? new Date(article.datetime * 1000).toISOString()
+          : new Date().toISOString(),
+        sourceType: "finnhub" as const,
+      });
+    }
+  } catch (e) {
+    console.warn(`[Finnhub] News fetch failed for ${symbol}:`, (e as Error).message?.slice(0, 80));
+  }
+
+  return sources;
+}
+
+// Finnhub also provides a built-in sentiment score
+async function fetchFinnhubSentiment(symbol: string): Promise<number | null> {
+  if (!FINNHUB_API_KEY) return null;
+
+  try {
+    const url = `https://finnhub.io/api/v1/news-sentiment?symbol=${encodeURIComponent(symbol)}&token=${FINNHUB_API_KEY}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) return null;
+    const data = await res.json();
+    // Finnhub returns sentiment.bullishPercent (0-1)
+    const bullish = data?.sentiment?.bullishPercent;
+    if (typeof bullish === "number") {
+      // Convert 0-1 range to -1..+1 (0.5 = neutral)
+      return Math.max(-1, Math.min(1, (bullish - 0.5) * 2));
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// SOURCE 4: ALPHA VANTAGE TECHNICAL INDICATORS (requires free API key)
+// ═══════════════════════════════════════════════════════════
+const ALPHA_VANTAGE_KEY = process.env.ALPHA_VANTAGE_KEY || "";
+
+interface TechnicalSignals {
+  rsi: number | null;       // 0-100 (>70 overbought, <30 oversold)
+  smaShort: number | null;  // 20-day SMA
+  smaLong: number | null;   // 50-day SMA
+  ema: number | null;       // 20-day EMA
+  overallSignal: number;    // -1 to +1 composite
+  sources: NewsSource[];
+}
+
+async function fetchAlphaVantageTechnicals(symbol: string, currentPrice: number): Promise<TechnicalSignals> {
+  const empty: TechnicalSignals = { rsi: null, smaShort: null, smaLong: null, ema: null, overallSignal: 0, sources: [] };
+  if (!ALPHA_VANTAGE_KEY || !currentPrice) return empty;
+
+  // For German stocks (.DE suffix), Alpha Vantage may not have data
+  // Try to use the base symbol for US stocks
+  const avSymbol = symbol.endsWith(".DE") ? symbol : symbol;
+
+  try {
+    // Fetch RSI (14-day, daily) — most impactful single indicator
+    const rsiUrl = `https://www.alphavantage.co/query?function=RSI&symbol=${encodeURIComponent(avSymbol)}&interval=daily&time_period=14&series_type=close&apikey=${ALPHA_VANTAGE_KEY}`;
+    const rsiRes = await fetch(rsiUrl, { signal: AbortSignal.timeout(10000) });
+    if (!rsiRes.ok) return empty;
+    const rsiData = await rsiRes.json();
+
+    // Check for rate limit / error messages
+    if (rsiData["Note"] || rsiData["Error Message"] || rsiData["Information"]) {
+      console.warn(`[AlphaVantage] Rate limited or error for ${symbol}`);
+      return empty;
+    }
+
+    const rsiTimeSeries = rsiData["Technical Analysis: RSI"];
+    let rsi: number | null = null;
+    if (rsiTimeSeries) {
+      const latestDate = Object.keys(rsiTimeSeries)[0];
+      if (latestDate) rsi = parseFloat(rsiTimeSeries[latestDate]["RSI"]);
+    }
+
+    // Brief pause to respect rate limit (5/min on free tier)
+    await new Promise(r => setTimeout(r, 1200));
+
+    // Fetch SMA (20-day)
+    const sma20Url = `https://www.alphavantage.co/query?function=SMA&symbol=${encodeURIComponent(avSymbol)}&interval=daily&time_period=20&series_type=close&apikey=${ALPHA_VANTAGE_KEY}`;
+    const sma20Res = await fetch(sma20Url, { signal: AbortSignal.timeout(10000) });
+    let smaShort: number | null = null;
+    let smaLong: number | null = null;
+
+    if (sma20Res.ok) {
+      const sma20Data = await sma20Res.json();
+      const sma20Series = sma20Data["Technical Analysis: SMA"];
+      if (sma20Series) {
+        const latestDate = Object.keys(sma20Series)[0];
+        if (latestDate) smaShort = parseFloat(sma20Series[latestDate]["SMA"]);
+      }
+    }
+
+    // Compute signals from available data
+    let signalSum = 0;
+    let signalCount = 0;
+    const summaryParts: string[] = [];
+
+    // RSI signal
+    if (rsi !== null && !isNaN(rsi)) {
+      if (rsi > 70) {
+        signalSum -= 0.6; // Overbought → bearish
+        summaryParts.push(`RSI ${rsi.toFixed(1)} (überkauft)`);
+      } else if (rsi < 30) {
+        signalSum += 0.6; // Oversold → bullish
+        summaryParts.push(`RSI ${rsi.toFixed(1)} (überverkauft)`);
+      } else if (rsi > 55) {
+        signalSum += 0.2;
+        summaryParts.push(`RSI ${rsi.toFixed(1)} (leicht bullisch)`);
+      } else if (rsi < 45) {
+        signalSum -= 0.2;
+        summaryParts.push(`RSI ${rsi.toFixed(1)} (leicht bärisch)`);
+      } else {
+        summaryParts.push(`RSI ${rsi.toFixed(1)} (neutral)`);
+      }
+      signalCount++;
+    }
+
+    // SMA crossover signal (price vs 20-day SMA)
+    if (smaShort !== null && !isNaN(smaShort) && currentPrice > 0) {
+      const priceSmaRatio = (currentPrice - smaShort) / smaShort;
+      if (priceSmaRatio > 0.03) {
+        signalSum += 0.3;
+        summaryParts.push(`Kurs über SMA20 (+${(priceSmaRatio * 100).toFixed(1)}%)`);
+      } else if (priceSmaRatio < -0.03) {
+        signalSum -= 0.3;
+        summaryParts.push(`Kurs unter SMA20 (${(priceSmaRatio * 100).toFixed(1)}%)`);
+      } else {
+        summaryParts.push(`Kurs nahe SMA20`);
+      }
+      signalCount++;
+    }
+
+    const overallSignal = signalCount > 0 ? Math.max(-1, Math.min(1, signalSum / signalCount)) : 0;
+    const sentiment = classifySentiment(overallSignal);
+
+    const sources: NewsSource[] = summaryParts.length > 0 ? [{
+      name: "Alpha Vantage Technicals",
+      url: `https://www.alphavantage.co/query?function=RSI&symbol=${avSymbol}`,
+      title: `${symbol} Technische Analyse: ${sentiment === "positive" ? "Bullisch" : sentiment === "negative" ? "Bärisch" : "Neutral"}`,
+      summary: summaryParts.join(" · "),
+      sentiment,
+      sentimentScore: overallSignal,
+      publishedAt: new Date().toISOString(),
+      sourceType: "technical" as const,
+    }] : [];
+
+    return { rsi, smaShort, smaLong, ema: null, overallSignal, sources };
+  } catch (e) {
+    console.warn(`[AlphaVantage] Technical fetch failed for ${symbol}:`, (e as Error).message?.slice(0, 80));
+    return empty;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// SOURCE 5: CNN FEAR & GREED INDEX (no API key, market-wide)
+// ═══════════════════════════════════════════════════════════
+let fearGreedCache: { score: number; rating: string; timestamp: number } | null = null;
+
+async function fetchFearGreedIndex(): Promise<{ score: number; rating: string; signal: number; source: NewsSource | null }> {
+  const fallback = { score: 50, rating: "Neutral", signal: 0, source: null };
+
+  // Cache for 30 minutes — this is market-wide, doesn't change per stock
+  if (fearGreedCache && Date.now() - fearGreedCache.timestamp < 1800000) {
+    const signal = fearGreedToSignal(fearGreedCache.score);
+    return {
+      score: fearGreedCache.score,
+      rating: fearGreedCache.rating,
+      signal,
+      source: buildFearGreedSource(fearGreedCache.score, fearGreedCache.rating, signal),
+    };
+  }
+
+  try {
+    // CNN Fear & Greed public JSON endpoint
+    const url = "https://production.dataviz.cnn.io/index/fearandgreed/graphdata";
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; Stoxview/4.0)",
+        "Accept": "application/json",
+      },
+      signal: AbortSignal.timeout(8000),
+    });
+
+    if (!res.ok) {
+      console.warn(`[FearGreed] Failed: ${res.status}`);
+      return fallback;
+    }
+
+    const data = await res.json();
+    const fgNow = data?.fear_and_greed?.score;
+    const fgRating = data?.fear_and_greed?.rating || "Neutral";
+
+    if (typeof fgNow !== "number") return fallback;
+
+    const score = Math.round(fgNow);
+    const rating = fgRating.replace(/_/g, " ");
+
+    fearGreedCache = { score, rating, timestamp: Date.now() };
+    const signal = fearGreedToSignal(score);
+
+    return {
+      score,
+      rating,
+      signal,
+      source: buildFearGreedSource(score, rating, signal),
+    };
+  } catch (e) {
+    console.warn(`[FearGreed] Fetch failed:`, (e as Error).message?.slice(0, 80));
+    return fallback;
+  }
+}
+
+function fearGreedToSignal(score: number): number {
+  // 0 = extreme fear (-1), 50 = neutral (0), 100 = extreme greed (+1)
+  // But contrarian: extreme greed often precedes corrections
+  // We use a mild contrarian bias for medium/long-term
+  return Math.max(-1, Math.min(1, (score - 50) / 50));
+}
+
+function buildFearGreedSource(score: number, rating: string, signal: number): NewsSource {
+  const sentiment = classifySentiment(signal);
+  const ratingDe = {
+    "Extreme Fear": "Extreme Angst",
+    "Fear": "Angst",
+    "Neutral": "Neutral",
+    "Greed": "Gier",
+    "Extreme Greed": "Extreme Gier",
+  }[rating] || rating;
+
+  return {
+    name: "CNN Fear & Greed",
+    url: "https://edition.cnn.com/markets/fear-and-greed",
+    title: `Marktstimmung: ${ratingDe} (${score}/100)`,
+    summary: `CNN Fear & Greed Index steht bei ${score}/100 (${ratingDe}). Der Index misst Marktmomentum, Volatilität, Put/Call-Ratio, Junk-Bond-Nachfrage und sichere Häfen.`,
+    sentiment,
+    sentimentScore: signal,
+    publishedAt: new Date().toISOString(),
+    sourceType: "fear-greed" as const,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════
 // SENTIMENT ANALYSIS ENGINE
 // ═══════════════════════════════════════════════════════════
 const POSITIVE_WORDS = [
@@ -514,6 +810,9 @@ function generatePrediction(
   analystRating: number,
   symbol: string,
   eurRate: number,
+  finnhubSentiment: number | null = null,
+  technicalSignal: number = 0,
+  fearGreedSignal: number = 0,
 ): StockPrediction {
   const rawCurrency = (quote.currency || "USD").toUpperCase();
   const needsConversion = rawCurrency !== "EUR";
@@ -530,13 +829,43 @@ function generatePrediction(
 
   // Per-source-type sentiment
   const webSources = allSources.filter((s) => s.sourceType === "web-search");
+  const finnhubSources = allSources.filter((s) => s.sourceType === "finnhub");
   const analystSources = allSources.filter((s) => s.sourceType === "analyst");
+  const technicalSources = allSources.filter((s) => s.sourceType === "technical");
+  const fearGreedSources = allSources.filter((s) => s.sourceType === "fear-greed");
+
   const avgWeb = webSources.length > 0
     ? webSources.reduce((sum, s) => sum + s.sentimentScore, 0) / webSources.length
     : 0;
+  const avgFinnhub = finnhubSources.length > 0
+    ? finnhubSources.reduce((sum, s) => sum + s.sentimentScore, 0) / finnhubSources.length
+    : 0;
 
-  // Combined: Web 55%, Analyst 45%
-  const combinedSentiment = avgWeb * 0.55 + analystRating * 0.45;
+  // Use Finnhub's built-in sentiment if available, else use our computed average
+  const effectiveFinnhubSentiment = finnhubSentiment !== null ? finnhubSentiment : avgFinnhub;
+
+  // ── Multi-source combined sentiment ──
+  // Dynamic weighting: each available source gets its share
+  // Core sources (always available): Web search, Yahoo analyst
+  // Optional sources: Finnhub, AlphaVantage technicals, CNN Fear&Greed
+  let weightedSentiment = 0;
+  let totalWeight = 0;
+
+  // Web search news: 25%
+  if (webSources.length > 0) { weightedSentiment += avgWeb * 0.25; totalWeight += 0.25; }
+  // Yahoo analyst consensus: 25%
+  if (analystRating !== 0) { weightedSentiment += analystRating * 0.25; totalWeight += 0.25; }
+  // Finnhub news sentiment: 20%
+  if (finnhubSources.length > 0 || finnhubSentiment !== null) {
+    weightedSentiment += effectiveFinnhubSentiment * 0.20; totalWeight += 0.20;
+  }
+  // Technical indicators: 20%
+  if (technicalSignal !== 0) { weightedSentiment += technicalSignal * 0.20; totalWeight += 0.20; }
+  // Fear & Greed: 10% (market-wide, not stock-specific)
+  if (fearGreedSignal !== 0) { weightedSentiment += fearGreedSignal * 0.10; totalWeight += 0.10; }
+
+  // Normalize if not all sources available
+  const combinedSentiment = totalWeight > 0 ? weightedSentiment / totalWeight : 0;
 
   // Price momentum
   const momentum = priceChangePercent / 100;
@@ -544,27 +873,35 @@ function generatePrediction(
   const rangePosition = dayRange > 0 ? (currentPrice - dayLow) / dayRange : 0.5;
   const gapSignal = openPrice > previousClose ? 0.08 : openPrice < previousClose ? -0.08 : 0;
 
-  // SHORT-TERM (1-7 days)
-  const stRaw = combinedSentiment * 0.45 + momentum * 3.5 + (rangePosition - 0.5) * 0.25 + gapSignal;
+  // SHORT-TERM (1-7 days): Momentum-heavy, with technicals
+  const stTechBoost = technicalSignal * 0.15;
+  const stRaw = combinedSentiment * 0.40 + momentum * 3.0 + (rangePosition - 0.5) * 0.25 + gapSignal + stTechBoost;
   const stSignal = stRaw > 0.10 ? "bullish" : stRaw < -0.10 ? "bearish" : "neutral";
   const stConf = clamp(Math.round(Math.abs(stRaw) * 130 + 18), 20, 85);
 
-  // MEDIUM-TERM (1-4 weeks)
-  const mtRaw = combinedSentiment * 0.55 + analystRating * 0.2 + momentum * 1.2;
+  // MEDIUM-TERM (1-4 weeks): Balanced sentiment + technicals
+  const mtTechBoost = technicalSignal * 0.15;
+  const mtFgBoost = fearGreedSignal * 0.05;
+  const mtRaw = combinedSentiment * 0.50 + analystRating * 0.15 + momentum * 1.0 + mtTechBoost + mtFgBoost;
   const mtSignal = mtRaw > 0.07 ? "bullish" : mtRaw < -0.07 ? "bearish" : "neutral";
   const mtConf = clamp(Math.round(Math.abs(mtRaw) * 100 + 14), 16, 72);
 
-  // LONG-TERM (1-6 months)
-  const ltRaw = analystRating * 0.45 + combinedSentiment * 0.45 + momentum * 0.3;
+  // LONG-TERM (1-6 months): Analyst-heavy, with contrarian Fear&Greed
+  // For long-term, extreme greed is a warning (contrarian)
+  const ltFgContrarian = -fearGreedSignal * 0.08;
+  const ltRaw = analystRating * 0.40 + combinedSentiment * 0.35 + momentum * 0.2 + technicalSignal * 0.10 + ltFgContrarian;
   const ltSignal = ltRaw > 0.05 ? "bullish" : ltRaw < -0.05 ? "bearish" : "neutral";
   const ltConf = clamp(Math.round(Math.abs(ltRaw) * 80 + 10), 12, 62);
 
-  // Risk
+  // Risk: more sources = better risk assessment
   const volatility = dayRange > 0 && currentPrice > 0 ? (dayRange / currentPrice) * 100 : 2;
   const sentimentSpread = allSources.length > 1
     ? Math.sqrt(allSources.reduce((sum, s) => sum + Math.pow(s.sentimentScore - combinedSentiment, 2), 0) / allSources.length)
     : 0.3;
-  const riskBase = volatility * 14 + sentimentSpread * 28 + Math.abs(priceChangePercent) * 4;
+  // Source diversity bonus: more sources = slightly lower perceived risk
+  const sourceCount = allSources.length;
+  const diversityBonus = clamp(sourceCount * 0.3, 0, 5);
+  const riskBase = volatility * 14 + sentimentSpread * 28 + Math.abs(priceChangePercent) * 4 - diversityBonus;
   const riskLevel = clamp(Math.round(riskBase), 8, 95);
 
   // Currency — always EUR for display
@@ -591,11 +928,13 @@ function generatePrediction(
     longTerm: { signal: ltSignal, confidence: ltConf, label: "Long-term", range: "1-6 months" },
     riskLevel,
     sentimentScore: round2(combinedSentiment),
-    sources: allSources.slice(0, 20),
+    sources: allSources.slice(0, 25),
     sourceBreakdown: {
-      finnhub: 0,
+      finnhub: finnhubSources.length,
       webSearch: webSources.length,
       analyst: analystSources.length,
+      technical: technicalSources.length,
+      fearGreed: fearGreedSources.length,
       total: allSources.length,
     },
     isin: lookupIsin(symbol),
@@ -610,7 +949,7 @@ function round2(n: number) { return Math.round(n * 100) / 100; }
 // MULTI-SOURCE ORCHESTRATOR
 // ═══════════════════════════════════════════════════════════
 async function fetchFullPrediction(symbol: string): Promise<StockPrediction | null> {
-  const cacheKey = `v3:${symbol}`;
+  const cacheKey = `v4:${symbol}`;
   const cached = getCached<StockPrediction>(cacheKey, 180000);
   if (cached) return cached;
 
@@ -623,22 +962,37 @@ async function fetchFullPrediction(symbol: string): Promise<StockPrediction | nu
     if (!quote || !quote.regularMarketPrice) return null;
 
     const companyName = quote.shortName || quote.longName || symbol;
+    const rawCurrency = (quote.currency || "USD").toUpperCase();
+    const needsConversion = rawCurrency !== "EUR";
+    const currentPriceEur = needsConversion ? convertToEur(quote.regularMarketPrice, eurRate) : quote.regularMarketPrice;
 
-    // Phase 2: Fetch news + analyst data in parallel
-    const [webNews, analystData] = await Promise.all([
+    // Phase 2: Fetch ALL sources in parallel
+    const [webNews, analystData, finnhubNews, finnhubSentiment, technicals, fearGreed] = await Promise.all([
       fetchWebNews(companyName, symbol),
       fetchAnalystSignal(symbol),
+      fetchFinnhubNews(symbol),
+      fetchFinnhubSentiment(symbol),
+      fetchAlphaVantageTechnicals(symbol, currentPriceEur),
+      fetchFearGreedIndex(),
     ]);
 
-    const allSources = [...webNews, ...analystData.sources];
+    const allSources = [
+      ...webNews,
+      ...analystData.sources,
+      ...finnhubNews,
+      ...technicals.sources,
+      ...(fearGreed.source ? [fearGreed.source] : []),
+    ];
 
-    // Phase 3: Generate prediction (all prices converted to EUR)
-    const prediction = generatePrediction(quote, allSources, analystData.rating, symbol, eurRate);
+    // Phase 3: Generate prediction with enriched multi-source data
+    const prediction = generatePrediction(
+      quote, allSources, analystData.rating, symbol, eurRate,
+      finnhubSentiment, technicals.overallSignal, fearGreed.signal,
+    );
 
     // Phase 4: If ISIN is missing, fire async resolution (non-blocking)
     if (!prediction.isin) {
       resolveIsinAsync(symbol, companyName).then(() => {
-        // Update the cached prediction with the resolved ISIN
         const resolved = lookupIsin(symbol);
         if (resolved) {
           prediction.isin = resolved;

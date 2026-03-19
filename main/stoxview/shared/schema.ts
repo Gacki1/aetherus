@@ -9,7 +9,7 @@ export const newsSourceSchema = z.object({
   sentiment: z.enum(["positive", "negative", "neutral"]),
   sentimentScore: z.number().min(-1).max(1),
   publishedAt: z.string(),
-  sourceType: z.enum(["finnhub", "web-search", "analyst"]),
+  sourceType: z.enum(["finnhub", "web-search", "analyst", "technical", "fear-greed"]),
 });
 
 export type NewsSource = z.infer<typeof newsSourceSchema>;
@@ -53,6 +53,8 @@ export const stockPredictionSchema = z.object({
     finnhub: z.number(),
     webSearch: z.number(),
     analyst: z.number(),
+    technical: z.number().optional(),
+    fearGreed: z.number().optional(),
     total: z.number(),
   }),
   // Identifiers

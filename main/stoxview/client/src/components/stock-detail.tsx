@@ -323,6 +323,8 @@ function SourceIcon({ type }: { type: string }) {
     case "finnhub": return <Newspaper className="w-3 h-3 text-blue-400 shrink-0" />;
     case "web-search": return <Search className="w-3 h-3 text-amber-400 shrink-0" />;
     case "analyst": return <Users className="w-3 h-3 text-purple-400 shrink-0" />;
+    case "technical": return <LineChart className="w-3 h-3 text-cyan-400 shrink-0" />;
+    case "fear-greed": return <Zap className="w-3 h-3 text-orange-400 shrink-0" />;
     default: return <Globe className="w-3 h-3 text-muted-foreground shrink-0" />;
   }
 }
@@ -395,7 +397,7 @@ export function StockDetail({ prediction, isInWatchlist, onToggleWatchlist, onCl
   const riskColor = prediction.riskLevel > 65 ? "text-red-400" : prediction.riskLevel > 40 ? "text-amber-400" : "text-emerald-400";
   const riskLabel = prediction.riskLevel > 65 ? t("detail.riskLevel.high") : prediction.riskLevel > 40 ? t("detail.riskLevel.medium") : t("detail.riskLevel.low");
 
-  const { finnhub, webSearch, analyst, total } = prediction.sourceBreakdown;
+  const { finnhub, webSearch, analyst, technical, fearGreed, total } = prediction.sourceBreakdown;
 
   const formatTimeAgo = (dateStr: string): string => {
     const diff = Date.now() - new Date(dateStr).getTime();
@@ -596,10 +598,22 @@ export function StockDetail({ prediction, isInWatchlist, onToggleWatchlist, onCl
                     <span className="text-muted-foreground">{analyst} {t("detail.analyst")}</span>
                   </div>
                 )}
+                {(technical ?? 0) > 0 && (
+                  <div className="flex items-center gap-1.5 text-[11px]">
+                    <LineChart className="w-3 h-3 text-cyan-400" />
+                    <span className="text-muted-foreground">{technical} {t("detail.technical")}</span>
+                  </div>
+                )}
+                {(fearGreed ?? 0) > 0 && (
+                  <div className="flex items-center gap-1.5 text-[11px]">
+                    <Zap className="w-3 h-3 text-orange-400" />
+                    <span className="text-muted-foreground">{fearGreed} {t("detail.fearGreed")}</span>
+                  </div>
+                )}
               </div>
               {/* Evidence list */}
               <div className="space-y-1.5">
-                {prediction.sources.slice(0, 12).map((source, i) => (
+                {prediction.sources.slice(0, 15).map((source, i) => (
                   <div key={i} className="flex items-start gap-2 py-2 border-b border-border/50 last:border-0">
                     <div className="mt-0.5 flex items-center gap-1">
                       <SourceIcon type={source.sourceType} />
@@ -846,11 +860,23 @@ export function StockDetail({ prediction, isInWatchlist, onToggleWatchlist, onCl
               <span className="text-muted-foreground">{analyst} {t("detail.analyst")}</span>
             </div>
           )}
+          {(technical ?? 0) > 0 && (
+            <div className="flex items-center gap-1.5 text-[11px]">
+              <LineChart className="w-3 h-3 text-cyan-400" />
+              <span className="text-muted-foreground">{technical} {t("detail.technical")}</span>
+            </div>
+          )}
+          {(fearGreed ?? 0) > 0 && (
+            <div className="flex items-center gap-1.5 text-[11px]">
+              <Zap className="w-3 h-3 text-orange-400" />
+              <span className="text-muted-foreground">{fearGreed} {t("detail.fearGreed")}</span>
+            </div>
+          )}
         </div>
 
         {/* Evidence list */}
         <div className="space-y-1.5">
-          {prediction.sources.slice(0, 12).map((source, i) => (
+          {prediction.sources.slice(0, 15).map((source, i) => (
             <div
               key={i}
               className="flex items-start gap-2 py-2 border-b border-border/50 last:border-0"

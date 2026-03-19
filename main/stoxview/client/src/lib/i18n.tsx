@@ -125,6 +125,8 @@ const translations = {
   "detail.finnhub": { en: "Finnhub", de: "Finnhub" },
   "detail.web": { en: "Web", de: "Web" },
   "detail.analyst": { en: "Analyst", de: "Analyst" },
+  "detail.technical": { en: "Technical", de: "Technisch" },
+  "detail.fearGreed": { en: "Fear & Greed", de: "Fear & Greed" },
   "detail.disclaimer": {
     en: "Predictions are estimates aggregated from multiple sources and are never 100% accurate. This tool does not constitute financial advice. Always do your own research.",
     de: "Vorhersagen sind Schätzungen aus mehreren Quellen und nie 100% genau. Dieses Tool stellt keine Finanzberatung dar. Recherchiere immer selbst.",

@@ -36,3 +36,5 @@ package-lock.json
 # Betriebssystem-Dateien
 .DS_Store
 Thumbs.db
+# Stoxview build output
+main/stoxview/dist/
