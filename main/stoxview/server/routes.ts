@@ -257,31 +257,99 @@ function isValidIsin(isin: string): boolean {
 
 const VALID_ISIN_COUNTRIES = new Set(["US", "DE", "GB", "NL", "FR", "CH", "CA", "IE", "LU", "BE", "AT", "DK", "SE", "NO", "FI", "ES", "IT", "JP", "AU", "KR", "TW", "HK", "CN", "SG", "BR", "IN", "ZA", "IL", "MX", "CL", "CO", "AR", "NZ", "PT"]);
 
-/** Extract the best ISIN from a blob of text. Validates checksum and picks the most frequent. */
-function extractBestIsin(html: string): string | null {
+/** Map Yahoo exchange codes to ISIN country prefixes */
+const EXCHANGE_TO_ISIN_COUNTRY: Record<string, string> = {
+  // US
+  NMS: "US", NGM: "US", NYQ: "US", PCX: "US", ASE: "US", BTS: "US", NCM: "US",
+  NASDAQ: "US", NYSE: "US", "NYSE ARCA": "US", AMEX: "US", "CBOE BZX U.S. EQUITIES EXCHANGE": "US",
+  // Germany
+  GER: "DE", FRA: "DE", STU: "DE", BER: "DE", HAM: "DE", HAN: "DE", MUN: "DE", DUS: "DE", XETRA: "DE",
+  // UK
+  LSE: "GB", IOB: "GB", AIM: "GB",
+  // France
+  PAR: "FR", ENX: "FR",
+  // Netherlands
+  AMS: "NL",
+  // Switzerland
+  EBS: "CH", SWX: "CH", VTX: "CH",
+  // Canada
+  TOR: "CA", TSX: "CA", CVE: "CA",
+  // Japan
+  JPX: "JP", TYO: "JP",
+  // Australia
+  ASX: "AU",
+  // Hong Kong
+  HKG: "HK",
+};
+
+/** Determine the expected ISIN country prefix from Yahoo exchange code/name */
+function exchangeToIsinCountry(exchange: string): string | null {
+  if (!exchange) return null;
+  const upper = exchange.toUpperCase().trim();
+  // Direct lookup
+  if (EXCHANGE_TO_ISIN_COUNTRY[upper]) return EXCHANGE_TO_ISIN_COUNTRY[upper];
+  // Fuzzy match for full names
+  if (upper.includes("NASDAQ") || upper.includes("NYSE") || upper.includes("AMEX")) return "US";
+  if (upper.includes("XETRA") || upper.includes("FRANK")) return "DE";
+  if (upper.includes("LONDON") || upper.includes("LSE")) return "GB";
+  if (upper.includes("PARIS") || upper.includes("EURONEXT")) return "FR";
+  if (upper.includes("AMSTERDAM")) return "NL";
+  if (upper.includes("TORONTO") || upper.includes("TSX")) return "CA";
+  if (upper.includes("SWISS") || upper.includes("SIX")) return "CH";
+  if (upper.includes("TOKYO")) return "JP";
+  return null;
+}
+
+/** Well-known index ISINs that should never be assigned to individual stocks */
+const INDEX_ISINS = new Set([
+  "DE0008469008", // DAX
+  "EU0009658145", // EURO STOXX 50
+  "US78378X1072", // S&P 500 (SPY-like, but used as index)
+  "GB0001383545", // FTSE 100
+  "JP3027040005", // Nikkei related
+]);
+
+/** Extract the best ISIN from a blob of text. Validates checksum and picks the most frequent.
+ *  If expectedCountry is given, only ISINs matching that country prefix are considered.
+ *  Falls back to any valid ISIN if none match the expected country. */
+function extractBestIsin(html: string, expectedCountry?: string | null): string | null {
   const raw = html.match(/\b([A-Z]{2}[A-Z0-9]{9}[0-9])\b/g);
   if (!raw) return null;
-  // Filter: valid country code + valid Luhn checksum
-  const valid = raw.filter(m => VALID_ISIN_COUNTRIES.has(m.substring(0, 2)) && isValidIsin(m));
+  // Filter: valid country code + valid Luhn checksum + not a known index ISIN
+  const valid = raw.filter(m =>
+    VALID_ISIN_COUNTRIES.has(m.substring(0, 2)) && isValidIsin(m) && !INDEX_ISINS.has(m)
+  );
   if (valid.length === 0) return null;
+
+  // If we know the expected country, prefer ISINs matching it
+  const countryMatched = expectedCountry
+    ? valid.filter(m => m.startsWith(expectedCountry))
+    : [];
+  const candidates = countryMatched.length > 0 ? countryMatched : valid;
+
   // Pick the most frequently appearing ISIN (more mentions = more likely correct)
   const freq = new Map<string, number>();
-  for (const v of valid) freq.set(v, (freq.get(v) || 0) + 1);
+  for (const v of candidates) freq.set(v, (freq.get(v) || 0) + 1);
   return [...freq.entries()].sort((a, b) => b[1] - a[1])[0][0];
 }
 
-async function resolveIsinAsync(ticker: string, companyName: string): Promise<void> {
+async function resolveIsinAsync(ticker: string, companyName: string, exchange?: string): Promise<void> {
   const key = ticker.toUpperCase();
   // Already resolved (or attempted)
   if (TICKER_TO_ISIN[key] || dynamicIsinCache.has(key)) return;
   // Mark as in-progress (null = attempted but not found)
   dynamicIsinCache.set(key, null);
 
+  // Determine expected ISIN country from exchange (e.g. NYQ→US, GER→DE)
+  const expectedCountry = exchangeToIsinCountry(exchange || "");
+  console.log(`[ISIN] Resolving ${key} (company: ${companyName}, exchange: ${exchange || "?"}, expectedCountry: ${expectedCountry || "?"})`);
+
   try {
-    // Strategy 1: Search DuckDuckGo for "<ticker> ISIN" with company name for context
+    // Strategy 1: Search DuckDuckGo for "<ticker> <company> ISIN" with exchange context
+    const exchangeLabel = expectedCountry === "US" ? "NYSE NASDAQ" : expectedCountry === "DE" ? "XETRA" : "";
     const queries = [
+      `"${companyName}" ISIN ${exchangeLabel}`.trim(),
       `${ticker} ${companyName} ISIN`,
-      `${ticker} ISIN stock`,
     ];
 
     for (const query of queries) {
@@ -294,10 +362,10 @@ async function resolveIsinAsync(ticker: string, companyName: string): Promise<vo
         if (!res.ok) continue;
         const html = await res.text();
 
-        const bestIsin = extractBestIsin(html);
+        const bestIsin = extractBestIsin(html, expectedCountry);
         if (bestIsin) {
           dynamicIsinCache.set(key, bestIsin);
-          console.log(`[ISIN] Resolved ${key} → ${bestIsin}`);
+          console.log(`[ISIN] Resolved ${key} → ${bestIsin} (via DuckDuckGo, expected: ${expectedCountry})`);
           return;
         }
 
@@ -316,10 +384,10 @@ async function resolveIsinAsync(ticker: string, companyName: string): Promise<vo
       });
       if (boerseRes.ok) {
         const boerseHtml = await boerseRes.text();
-        const bestIsin = extractBestIsin(boerseHtml);
+        const bestIsin = extractBestIsin(boerseHtml, expectedCountry);
         if (bestIsin) {
           dynamicIsinCache.set(key, bestIsin);
-          console.log(`[ISIN] Resolved ${key} → ${bestIsin} (via boerse.de)`);
+          console.log(`[ISIN] Resolved ${key} → ${bestIsin} (via boerse.de, expected: ${expectedCountry})`);
           return;
         }
       }
@@ -327,7 +395,7 @@ async function resolveIsinAsync(ticker: string, companyName: string): Promise<vo
       // ignore
     }
 
-    console.log(`[ISIN] Could not resolve ${key}`);
+    console.log(`[ISIN] Could not resolve ${key} (no valid ISIN found matching country ${expectedCountry || "any"})`);
   } catch (e) {
     console.warn(`[ISIN] Resolution failed for ${key}:`, (e as Error).message?.slice(0, 80));
   }
@@ -1109,7 +1177,8 @@ async function fetchFullPrediction(symbol: string): Promise<StockPrediction | nu
 
     // Phase 4: If ISIN is missing, fire async resolution (non-blocking)
     if (!prediction.isin) {
-      resolveIsinAsync(symbol, companyName).then(() => {
+      const yahooExchange = quote.exchange || quote.fullExchangeName || "";
+      resolveIsinAsync(symbol, companyName, yahooExchange).then(() => {
         const resolved = lookupIsin(symbol);
         if (resolved) {
           prediction.isin = resolved;
