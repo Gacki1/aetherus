@@ -1,0 +1,250 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Aetherus - Editor: {{ file.filename }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/editor.css' %}">
+<!-- CodeMirror -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/theme/material-darker.min.css">
+<!-- Addons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/dialog/dialog.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/search/matchesonscrollbar.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/fold/foldgutter.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="editor-wrapper">
+    <!-- Editor Header -->
+    <div class="editor-header">
+        <div class="editor-file-info">
+            <a href="/cloud" class="editor-back" title="Zurück zur Cloud">← Cloud</a>
+            <span class="editor-filename" title="{{ file.filename }}">{{ file.filename }}</span>
+            <span class="editor-size" id="file-size">{{ file.file_size|filesizeformat }}</span>
+            <span class="editor-status" id="save-status"></span>
+        </div>
+        <div class="editor-actions">
+            <span class="editor-shortcut">Ctrl+S zum Speichern</span>
+            <button class="editor-btn editor-btn-secondary" id="btn-undo" title="Rückgängig (Ctrl+Z)">↩ Rückgängig</button>
+            <button class="editor-btn editor-btn-secondary" id="btn-redo" title="Wiederholen (Ctrl+Y)">↪ Wiederholen</button>
+            <button class="editor-btn editor-btn-primary" id="btn-save" title="Speichern (Ctrl+S)">💾 Speichern</button>
+        </div>
+    </div>
+
+    <!-- Editor Body -->
+    <div class="editor-body">
+        <textarea id="code-editor">{{ content }}</textarea>
+    </div>
+
+    <!-- Editor Footer -->
+    <div class="editor-footer">
+        <div class="editor-footer-left">
+            <span class="editor-lang" id="editor-lang">{{ language|default:"text" }}</span>
+            <span class="editor-encoding">UTF-8</span>
+        </div>
+        <div class="editor-footer-right">
+            <span id="cursor-pos">Zeile 1, Spalte 1</span>
+            <span id="line-count">0 Zeilen</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- CodeMirror Core -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.js"></script>
+
+<!-- Language Modes -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/javascript/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/htmlmixed/htmlmixed.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/xml/xml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/css/css.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/clike/clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/markdown/markdown.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/yaml/yaml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/sql/sql.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/shell/shell.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/go/go.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/rust/rust.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/ruby/ruby.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/php/php.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/lua/lua.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/r/r.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/perl/perl.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/toml/toml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/properties/properties.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/dockerfile/dockerfile.min.js"></script>
+
+<!-- Addons -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/edit/closebrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/edit/closetag.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/selection/active-line.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/fold/foldcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/fold/foldgutter.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/fold/brace-fold.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/fold/indent-fold.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/fold/comment-fold.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/search/search.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/search/searchcursor.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/search/jump-to-line.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/dialog/dialog.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/comment/comment.min.js"></script>
+
+<script>
+(function() {
+    const FILE_ID = {{ file.id }};
+    const LANGUAGE = '{{ language }}';
+    const saveStatus = document.getElementById('save-status');
+    const cursorPos = document.getElementById('cursor-pos');
+    const lineCount = document.getElementById('line-count');
+    const fileSize = document.getElementById('file-size');
+
+    // Initialize CodeMirror
+    const editor = CodeMirror.fromTextArea(document.getElementById('code-editor'), {
+        mode: LANGUAGE || null,
+        theme: 'material-darker',
+        lineNumbers: true,
+        lineWrapping: false,
+        indentUnit: 4,
+        tabSize: 4,
+        indentWithTabs: false,
+        matchBrackets: true,
+        autoCloseBrackets: true,
+        autoCloseTags: true,
+        styleActiveLine: true,
+        foldGutter: true,
+        gutters: ['CodeMirror-linenumbers', 'CodeMirror-foldgutter'],
+        extraKeys: {
+            'Ctrl-S': saveFile,
+            'Cmd-S': saveFile,
+            'Ctrl-/': 'toggleComment',
+            'Cmd-/': 'toggleComment',
+            'Tab': function(cm) {
+                if (cm.somethingSelected()) {
+                    cm.indentSelection('add');
+                } else {
+                    cm.replaceSelection('    ', 'end');
+                }
+            },
+            'Shift-Tab': function(cm) {
+                cm.indentSelection('subtract');
+            }
+        }
+    });
+
+    // Track unsaved changes
+    let hasUnsavedChanges = false;
+    let originalContent = editor.getValue();
+
+    editor.on('change', function() {
+        const changed = editor.getValue() !== originalContent;
+        if (changed !== hasUnsavedChanges) {
+            hasUnsavedChanges = changed;
+            updateStatus();
+        }
+    });
+
+    // Cursor position tracking
+    editor.on('cursorActivity', function() {
+        const pos = editor.getCursor();
+        cursorPos.textContent = `Zeile ${pos.line + 1}, Spalte ${pos.ch + 1}`;
+    });
+
+    // Update line count on changes
+    editor.on('change', function() {
+        lineCount.textContent = `${editor.lineCount()} Zeilen`;
+    });
+
+    // Initial line count
+    lineCount.textContent = `${editor.lineCount()} Zeilen`;
+
+    function updateStatus() {
+        if (hasUnsavedChanges) {
+            saveStatus.textContent = '● Ungespeichert';
+            saveStatus.className = 'editor-status unsaved';
+        } else {
+            saveStatus.textContent = '';
+            saveStatus.className = 'editor-status';
+        }
+    }
+
+    function formatSize(bytes) {
+        if (bytes < 1024) return bytes + ' Bytes';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    async function saveFile() {
+        const content = editor.getValue();
+        const csrfToken = getCsrfToken();
+
+        saveStatus.textContent = '⏳ Speichert...';
+        saveStatus.className = 'editor-status saving';
+
+        try {
+            const response = await fetch(`/cloud/edit/${FILE_ID}/save/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ content: content })
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                originalContent = content;
+                hasUnsavedChanges = false;
+                saveStatus.textContent = '✓ Gespeichert';
+                saveStatus.className = 'editor-status saved';
+                fileSize.textContent = formatSize(data.new_size);
+
+                if (typeof showToast === 'function') {
+                    showToast('Datei gespeichert', 'success');
+                }
+
+                setTimeout(() => {
+                    if (!hasUnsavedChanges) {
+                        saveStatus.textContent = '';
+                        saveStatus.className = 'editor-status';
+                    }
+                }, 3000);
+            } else {
+                saveStatus.textContent = '✕ Fehler';
+                saveStatus.className = 'editor-status error';
+                if (typeof showToast === 'function') {
+                    showToast(data.error || 'Speichern fehlgeschlagen', 'error');
+                }
+            }
+        } catch (err) {
+            saveStatus.textContent = '✕ Fehler';
+            saveStatus.className = 'editor-status error';
+            if (typeof showToast === 'function') {
+                showToast('Netzwerkfehler beim Speichern', 'error');
+            }
+        }
+    }
+
+    // Button handlers
+    document.getElementById('btn-save').addEventListener('click', saveFile);
+    document.getElementById('btn-undo').addEventListener('click', () => editor.undo());
+    document.getElementById('btn-redo').addEventListener('click', () => editor.redo());
+
+    // Warn before leaving with unsaved changes
+    window.addEventListener('beforeunload', function(e) {
+        if (hasUnsavedChanges) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+
+    // Focus editor on load
+    editor.focus();
+})();
+</script>
+{% endblock %}

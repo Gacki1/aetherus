@@ -5,8 +5,11 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Sum, Count
 from django.conf import settings
+from django.http import JsonResponse
+from django.core.files.base import ContentFile
 from ..models import CloudFile, ChatMessage
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -152,6 +155,144 @@ def password_reset_page_view(request):
     if request.user.is_authenticated:
         return redirect("/main")
     return render(request, "password_reset.html")
+
+
+# ====== File Editor ======
+
+# Extensions that can be opened in the editor
+EDITABLE_EXTENSIONS = {
+    # Code
+    'py', 'js', 'ts', 'jsx', 'tsx', 'html', 'htm', 'css', 'scss', 'sass', 'less',
+    'java', 'c', 'cpp', 'h', 'hpp', 'cs', 'go', 'rs', 'rb', 'php', 'swift', 'kt',
+    'lua', 'r', 'pl', 'sh', 'bash', 'zsh', 'fish', 'bat', 'ps1', 'cmd',
+    'sql', 'graphql', 'gql',
+    # Data / Config
+    'json', 'xml', 'yaml', 'yml', 'toml', 'ini', 'cfg', 'conf', 'env',
+    'csv', 'tsv',
+    # Text / Docs
+    'txt', 'md', 'markdown', 'rst', 'log', 'tex', 'bib',
+    # Web
+    'svg', 'htaccess', 'nginx',
+    # Docker / CI
+    'dockerfile', 'dockerignore', 'gitignore', 'editorconfig',
+}
+
+# Map extensions to CodeMirror language modes
+LANGUAGE_MAP = {
+    'py': 'python', 'pyw': 'python',
+    'js': 'javascript', 'jsx': 'javascript', 'mjs': 'javascript',
+    'ts': 'javascript', 'tsx': 'javascript',
+    'html': 'htmlmixed', 'htm': 'htmlmixed', 'svg': 'xml',
+    'css': 'css', 'scss': 'css', 'sass': 'css', 'less': 'css',
+    'json': 'javascript',
+    'xml': 'xml', 'yaml': 'yaml', 'yml': 'yaml',
+    'sql': 'sql',
+    'md': 'markdown', 'markdown': 'markdown',
+    'sh': 'shell', 'bash': 'shell', 'zsh': 'shell', 'fish': 'shell',
+    'bat': 'shell', 'ps1': 'shell', 'cmd': 'shell',
+    'java': 'clike', 'c': 'clike', 'cpp': 'clike', 'h': 'clike',
+    'hpp': 'clike', 'cs': 'clike', 'kt': 'clike', 'swift': 'clike',
+    'go': 'go', 'rs': 'rust', 'rb': 'ruby', 'php': 'php',
+    'lua': 'lua', 'r': 'r', 'pl': 'perl',
+    'toml': 'toml', 'ini': 'properties', 'cfg': 'properties',
+    'dockerfile': 'dockerfile',
+}
+
+
+def _get_extension(filename):
+    """Get lowercase file extension without dot."""
+    if '.' in filename:
+        return filename.rsplit('.', 1)[-1].lower()
+    # Handle dot-files like Dockerfile, .gitignore
+    return filename.lower().lstrip('.')
+
+
+def is_editable(filename):
+    """Check if a file can be opened in the editor."""
+    ext = _get_extension(filename)
+    return ext in EDITABLE_EXTENSIONS
+
+
+@login_required(login_url='/login')
+def editor_page_view(request, file_id):
+    """Serve the file editor page."""
+    cloud_file = get_object_or_404(CloudFile, id=file_id, user=request.user)
+
+    if not is_editable(cloud_file.filename):
+        messages.error(request, "Dieser Dateityp kann nicht bearbeitet werden.")
+        return redirect("cloud")
+
+    # Read file content
+    try:
+        cloud_file.file.open('rb')
+        raw_bytes = cloud_file.file.read()
+        cloud_file.file.close()
+
+        # Try UTF-8 first, then latin-1 as fallback
+        try:
+            content = raw_bytes.decode('utf-8')
+        except UnicodeDecodeError:
+            content = raw_bytes.decode('latin-1')
+    except Exception as e:
+        logger.error(f"Could not read file {cloud_file.filename}: {e}")
+        messages.error(request, "Datei konnte nicht gelesen werden.")
+        return redirect("cloud")
+
+    ext = _get_extension(cloud_file.filename)
+    language = LANGUAGE_MAP.get(ext, '')
+
+    return render(request, "editor.html", {
+        "file": cloud_file,
+        "content": content,
+        "language": language,
+    })
+
+
+@login_required(login_url='/login')
+def editor_save_view(request, file_id):
+    """API endpoint to save edited file content."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    cloud_file = get_object_or_404(CloudFile, id=file_id, user=request.user)
+
+    if not is_editable(cloud_file.filename):
+        return JsonResponse({'error': 'Dateityp nicht editierbar'}, status=400)
+
+    try:
+        body = json.loads(request.body)
+        new_content = body.get('content', '')
+    except (json.JSONDecodeError, AttributeError):
+        return JsonResponse({'error': 'Ungültiger Request'}, status=400)
+
+    try:
+        # Encode content
+        content_bytes = new_content.encode('utf-8')
+        new_size = len(content_bytes)
+
+        # Check quota (account for size difference)
+        size_diff = new_size - cloud_file.file_size
+        if size_diff > 0:
+            current_usage = CloudFile.objects.filter(user=request.user).aggregate(
+                total=Sum('file_size'))['total'] or 0
+            if current_usage + size_diff > settings.MAX_CLOUD_STORAGE_PER_USER:
+                return JsonResponse({'error': 'Speicherlimit erreicht'}, status=400)
+
+        # Delete old file and save new content
+        old_filename = cloud_file.file.name
+        cloud_file.file.delete(save=False)
+        cloud_file.file.save(cloud_file.filename, ContentFile(content_bytes), save=False)
+        cloud_file.file_size = new_size
+        cloud_file.save()
+
+        return JsonResponse({
+            'success': True,
+            'new_size': new_size,
+            'message': 'Datei gespeichert'
+        })
+    except Exception as e:
+        logger.error(f"Could not save file {cloud_file.filename}: {e}")
+        return JsonResponse({'error': 'Speichern fehlgeschlagen'}, status=500)
 
 
 def custom_404(request, exception):

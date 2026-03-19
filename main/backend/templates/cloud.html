@@ -82,6 +82,9 @@
                 </div>
 
                 <div class="file-actions">
+                    {% if f.filename|is_editable %}
+                    <a href="/cloud/edit/{{ f.id }}/" class="action-btn edit-btn" title="Bearbeiten">✏️</a>
+                    {% endif %}
                     <a href="{{ f.file.url }}" class="action-btn download-btn" title="Herunterladen" download="{{ f.filename }}">⬇️</a>
                     <a href="{{ f.file.url }}" target="_blank" class="action-btn view-btn" title="Ansehen">👁️</a>
 

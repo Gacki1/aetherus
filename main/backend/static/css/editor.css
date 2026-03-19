@@ -1,0 +1,322 @@
+/* ====== File Editor ====== */
+
+.editor-wrapper {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 80px);
+    margin: -30px -40px;
+    /* Stretch to fill the dashboard container */
+}
+
+/* Header */
+.editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background: rgba(15, 15, 25, 0.95);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    flex-shrink: 0;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.editor-file-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    overflow: hidden;
+    flex: 1;
+    min-width: 0;
+}
+
+.editor-back {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.85rem;
+    padding: 4px 10px;
+    border-radius: 6px;
+    transition: all 0.2s;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.editor-back:hover {
+    color: var(--text-white);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.editor-filename {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--text-white);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.editor-size {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.editor-status {
+    font-size: 0.8rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: color 0.3s;
+}
+
+.editor-status.unsaved {
+    color: #ffaa00;
+}
+
+.editor-status.saving {
+    color: var(--neon-cyan);
+}
+
+.editor-status.saved {
+    color: var(--success-green);
+}
+
+.editor-status.error {
+    color: #ff4d4d;
+}
+
+/* Actions */
+.editor-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.editor-shortcut {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    padding: 3px 8px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.editor-btn {
+    border: none;
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.editor-btn-secondary {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-muted);
+}
+
+.editor-btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: var(--text-white);
+}
+
+.editor-btn-primary {
+    background: linear-gradient(135deg, var(--accent-blue), var(--neon-cyan));
+    color: #000;
+    font-weight: 700;
+}
+
+.editor-btn-primary:hover {
+    box-shadow: 0 0 14px rgba(0, 210, 255, 0.4);
+    transform: translateY(-1px);
+}
+
+/* Editor Body */
+.editor-body {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+}
+
+/* CodeMirror overrides to fill container */
+.editor-body .CodeMirror {
+    height: 100%;
+    font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Consolas', 'Monaco', monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    background: #0d0d14;
+}
+
+.editor-body .CodeMirror-gutters {
+    background: #0a0a12;
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.editor-body .CodeMirror-linenumber {
+    color: rgba(255, 255, 255, 0.2);
+    padding: 0 8px;
+}
+
+.editor-body .CodeMirror-activeline .CodeMirror-linenumber {
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.editor-body .CodeMirror-activeline-background {
+    background: rgba(0, 210, 255, 0.04);
+}
+
+.editor-body .CodeMirror-selected {
+    background: rgba(0, 136, 255, 0.2) !important;
+}
+
+.editor-body .CodeMirror-focused .CodeMirror-selected {
+    background: rgba(0, 136, 255, 0.3) !important;
+}
+
+.editor-body .CodeMirror-cursor {
+    border-left-color: var(--neon-cyan);
+    border-left-width: 2px;
+}
+
+.editor-body .CodeMirror-matchingbracket {
+    color: var(--neon-cyan) !important;
+    background: rgba(0, 210, 255, 0.15);
+    border-bottom: 1px solid var(--neon-cyan);
+}
+
+/* Fold gutter */
+.editor-body .CodeMirror-foldgutter-open,
+.editor-body .CodeMirror-foldgutter-folded {
+    color: rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+}
+
+.editor-body .CodeMirror-foldgutter-open:hover,
+.editor-body .CodeMirror-foldgutter-folded:hover {
+    color: var(--neon-cyan);
+}
+
+/* Search dialog */
+.editor-body .CodeMirror-dialog {
+    background: rgba(15, 15, 25, 0.98);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 8px 16px;
+    color: var(--text-white);
+    font-size: 0.9rem;
+}
+
+.editor-body .CodeMirror-dialog input {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    color: var(--text-white);
+    padding: 4px 8px;
+    font-family: inherit;
+    outline: none;
+}
+
+.editor-body .CodeMirror-dialog input:focus {
+    border-color: var(--neon-cyan);
+}
+
+/* Scrollbar */
+.editor-body .CodeMirror-vscrollbar::-webkit-scrollbar,
+.editor-body .CodeMirror-hscrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.editor-body .CodeMirror-vscrollbar::-webkit-scrollbar-track,
+.editor-body .CodeMirror-hscrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.editor-body .CodeMirror-vscrollbar::-webkit-scrollbar-thumb,
+.editor-body .CodeMirror-hscrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 4px;
+}
+
+.editor-body .CodeMirror-vscrollbar::-webkit-scrollbar-thumb:hover,
+.editor-body .CodeMirror-hscrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Footer */
+.editor-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 20px;
+    background: rgba(10, 10, 18, 0.95);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.editor-footer-left,
+.editor-footer-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.editor-lang {
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--neon-cyan);
+    letter-spacing: 0.5px;
+}
+
+/* Cloud file list: edit button */
+.edit-btn:hover {
+    color: var(--neon-cyan);
+    background: rgba(0, 210, 255, 0.1);
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .editor-wrapper {
+        margin: -15px -15px;
+    }
+
+    .editor-header {
+        padding: 8px 12px;
+    }
+
+    .editor-shortcut {
+        display: none;
+    }
+
+    .editor-btn {
+        padding: 5px 10px;
+        font-size: 0.78rem;
+    }
+
+    .editor-body .CodeMirror {
+        font-size: 12px;
+    }
+
+    .editor-actions {
+        gap: 6px;
+    }
+}
+
+@media (max-width: 480px) {
+    .editor-file-info {
+        gap: 8px;
+    }
+
+    .editor-size {
+        display: none;
+    }
+
+    #btn-undo,
+    #btn-redo {
+        display: none;
+    }
+}

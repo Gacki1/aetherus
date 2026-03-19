@@ -39,3 +39,29 @@ def file_extension(filename):
     if not filename or '.' not in filename:
         return ''
     return filename.rsplit('.', 1)[-1].upper()
+
+
+# Extensions that the in-app editor supports
+EDITABLE_EXTENSIONS = {
+    'py', 'js', 'ts', 'jsx', 'tsx', 'html', 'htm', 'css', 'scss', 'sass', 'less',
+    'java', 'c', 'cpp', 'h', 'hpp', 'cs', 'go', 'rs', 'rb', 'php', 'swift', 'kt',
+    'lua', 'r', 'pl', 'sh', 'bash', 'zsh', 'fish', 'bat', 'ps1', 'cmd',
+    'sql', 'graphql', 'gql',
+    'json', 'xml', 'yaml', 'yml', 'toml', 'ini', 'cfg', 'conf', 'env',
+    'csv', 'tsv',
+    'txt', 'md', 'markdown', 'rst', 'log', 'tex', 'bib',
+    'svg', 'htaccess', 'nginx',
+    'dockerfile', 'dockerignore', 'gitignore', 'editorconfig',
+}
+
+
+@register.filter(name='is_editable')
+def is_editable(filename):
+    """Check if a file can be opened in the in-app editor."""
+    if not filename:
+        return False
+    if '.' in filename:
+        ext = filename.rsplit('.', 1)[-1].lower()
+    else:
+        ext = filename.lower().lstrip('.')
+    return ext in EDITABLE_EXTENSIONS
