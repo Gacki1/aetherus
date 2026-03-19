@@ -27,7 +27,43 @@
 #chat-log::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
 #chat-log::-webkit-scrollbar-thumb:hover { background: #555; }
 
-/* --- 3. MESSAGES --- */
+/* --- 3. MESSAGE ROWS (avatar + bubble) --- */
+.message-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    animation: popIn 0.3s ease-out;
+}
+
+.message-row.sent {
+    justify-content: flex-end;
+}
+
+.message-row.received {
+    justify-content: flex-start;
+}
+
+/* Avatar in messages */
+.msg-avatar {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.msg-avatar-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #00d2ff, #0088ff);
+    color: #000;
+    font-weight: 700;
+    font-size: 0.8rem;
+}
+
+/* --- MESSAGE BUBBLE --- */
 .message {
     max-width: 70%;
     padding: 10px 15px;
@@ -35,7 +71,6 @@
     font-size: 0.95rem;
     line-height: 1.4;
     position: relative;
-    animation: popIn 0.3s ease-out;
     word-wrap: break-word;
     overflow-wrap: break-word;
 }
@@ -72,7 +107,6 @@
 
 /* Received (left) */
 .message.received {
-    align-self: flex-start;
     background: #1f2428;
     border: 1px solid rgba(255, 255, 255, 0.1);
     color: #e6edf3;
@@ -85,7 +119,6 @@
 
 /* Sent (right) */
 .message.sent {
-    align-self: flex-end;
     background: rgba(0, 136, 255, 0.2);
     border: 1px solid rgba(0, 136, 255, 0.4);
     color: white;
@@ -255,7 +288,13 @@
     }
 
     .message {
-        max-width: 85%;
+        max-width: 80%;
+    }
+
+    .msg-avatar {
+        width: 28px;
+        height: 28px;
+        min-width: 28px;
     }
 
     .char-count {

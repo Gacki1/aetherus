@@ -2,7 +2,7 @@ import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import User
-from .models import ChatMessage
+from .models import ChatMessage, UserProfile
 from django.utils.html import escape
 from django.utils import timezone
 
@@ -27,7 +27,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         online_users.add(self.username)
         await self.broadcast_online_count()
 
-        # Load last 300 messages with timestamps
+        # Load last 300 messages with timestamps and avatars
         recent_messages = await self.get_last_300_messages()
         for msg in recent_messages:
             await self.send(text_data=json.dumps({
@@ -36,6 +36,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'message': msg['content'],
                 'username': msg['username'],
                 'timestamp': msg['timestamp'],
+                'avatar_url': msg['avatar_url'],
             }))
 
     async def disconnect(self, close_code):
@@ -97,8 +98,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         username = self.scope["user"].username
 
-        # Save and get timestamp
-        new_msg_id, timestamp = await self.save_message(username, message)
+        # Save and get timestamp + avatar
+        new_msg_id, timestamp, avatar_url = await self.save_message(username, message)
 
         await self.channel_layer.group_send(
             self.room_group_name,
@@ -108,6 +109,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'message': message,
                 'username': username,
                 'timestamp': timestamp,
+                'avatar_url': avatar_url,
             }
         )
 
@@ -120,6 +122,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'message': event['message'],
             'username': event['username'],
             'timestamp': event.get('timestamp', ''),
+            'avatar_url': event.get('avatar_url', ''),
         }))
 
     async def message_deleted(self, event):
@@ -169,17 +172,36 @@ class ChatConsumer(AsyncWebsocketConsumer):
             last_300_ids = ChatMessage.objects.order_by('-timestamp').values_list('id', flat=True)[:300]
             ChatMessage.objects.exclude(id__in=last_300_ids).delete()
 
-        return msg.id, msg.timestamp.isoformat()
+        avatar_url = ''
+        try:
+            profile = user.profile
+            if profile.avatar:
+                avatar_url = profile.avatar.url
+        except UserProfile.DoesNotExist:
+            pass
+
+        return msg.id, msg.timestamp.isoformat(), avatar_url
 
     @database_sync_to_async
     def get_last_300_messages(self):
-        messages = ChatMessage.objects.all().order_by('timestamp')[:300]
-        return [{
-            'id': m.id,
-            'username': m.user.username,
-            'content': m.content,
-            'timestamp': m.timestamp.isoformat(),
-        } for m in messages]
+        messages = list(ChatMessage.objects.select_related('user').order_by('timestamp')[:300])
+        result = []
+        # Pre-fetch all avatar URLs for these users
+        user_ids = set(m.user_id for m in messages)
+        profiles = {p.user_id: p for p in UserProfile.objects.filter(user_id__in=user_ids)}
+        for m in messages:
+            avatar_url = ''
+            profile = profiles.get(m.user_id)
+            if profile and profile.avatar:
+                avatar_url = profile.avatar.url
+            result.append({
+                'id': m.id,
+                'username': m.user.username,
+                'content': m.content,
+                'timestamp': m.timestamp.isoformat(),
+                'avatar_url': avatar_url,
+            })
+        return result
 
     @database_sync_to_async
     def delete_message_from_db(self, msg_id):

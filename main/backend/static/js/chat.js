@@ -67,6 +67,7 @@ function connectWebSocket() {
         const sender = data.username || data.user || 'Unbekannt';
         const msgId = data.id || 0;
         const timestamp = data.timestamp || '';
+        const avatarUrl = data.avatar_url || '';
 
         const isMe = (sender === myUsername);
         const messageClass = isMe ? 'sent' : 'received';
@@ -78,17 +79,25 @@ function connectWebSocket() {
         }
 
         const timeDisplay = timestamp ? formatTimestamp(timestamp) : '';
+        const initial = sender.charAt(0).toUpperCase();
+        const avatarHtml = avatarUrl
+            ? `<img class="msg-avatar" src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(sender)}">`
+            : `<span class="msg-avatar msg-avatar-fallback">${escapeHtml(initial)}</span>`;
 
         const messageElement = `
-            <div id="msg-${msgId}" class="message ${messageClass}">
-                <div class="message-header">
-                    <span>${escapeHtml(senderDisplay)}</span>
-                    <div class="message-header-right">
-                        <span class="message-time">${timeDisplay}</span>
-                        ${deleteHtml}
+            <div id="msg-${msgId}" class="message-row ${messageClass}">
+                ${!isMe ? avatarHtml : ''}
+                <div class="message ${messageClass}">
+                    <div class="message-header">
+                        <span>${escapeHtml(senderDisplay)}</span>
+                        <div class="message-header-right">
+                            <span class="message-time">${timeDisplay}</span>
+                            ${deleteHtml}
+                        </div>
                     </div>
+                    <div class="message-body">${escapeHtml(message)}</div>
                 </div>
-                <div class="message-body">${escapeHtml(message)}</div>
+                ${isMe ? avatarHtml : ''}
             </div>
         `;
 
