@@ -1,0 +1,134 @@
+{% load static %}
+{% load humanize %}
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aetherus - {{ cloud_file.filename }}</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: #0a0c10;
+            color: #f0f2f5;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: radial-gradient(circle at 50% -20%, #1a2a3a 0%, #0a0c10 80%);
+        }
+
+        .share-container {
+            text-align: center;
+            padding: 2rem;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        .share-logo {
+            font-size: 1.8rem;
+            font-weight: 800;
+            letter-spacing: 2px;
+            background: linear-gradient(90deg, #0088ff, #00d2ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            color: transparent;
+            text-decoration: none;
+            display: inline-block;
+            margin-bottom: 2.5rem;
+        }
+
+        .share-card {
+            background: #13171c;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 2.5rem 2rem;
+        }
+
+        .share-icon {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .share-filename {
+            font-size: 1.3rem;
+            font-weight: 600;
+            word-break: break-word;
+            margin-bottom: 0.5rem;
+        }
+
+        .share-meta {
+            color: #8b949e;
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+        }
+
+        .share-meta span {
+            display: inline-block;
+            margin: 0 6px;
+        }
+
+        .share-download-btn {
+            display: inline-block;
+            padding: 14px 40px;
+            background: linear-gradient(135deg, #0088ff, #00d2ff);
+            color: #000;
+            text-decoration: none;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(0, 136, 255, 0.3);
+        }
+
+        .share-download-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 0 30px rgba(0, 210, 255, 0.5);
+        }
+
+        .share-shared-by {
+            margin-top: 1.5rem;
+            font-size: 0.8rem;
+            color: #555;
+        }
+
+        .scanlines {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: repeating-linear-gradient(
+                0deg, transparent, transparent 2px,
+                rgba(0, 0, 0, 0.03) 2px, rgba(0, 0, 0, 0.03) 4px
+            );
+            pointer-events: none;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div class="scanlines"></div>
+    <div class="share-container">
+        <a href="/" class="share-logo">AETHERUS</a>
+
+        <div class="share-card">
+            <div class="share-icon">📄</div>
+            <div class="share-filename">{{ cloud_file.filename }}</div>
+            <div class="share-meta">
+                <span>{{ cloud_file.file_size|filesizeformat }}</span>
+                <span>·</span>
+                <span>{{ share.created_at|date:"d.m.Y H:i" }}</span>
+            </div>
+
+            <a href="{{ cloud_file.file.url }}" class="share-download-btn" download="{{ cloud_file.filename }}">
+                ⬇️ Herunterladen
+            </a>
+
+            <div class="share-shared-by">
+                Geteilt von {{ share.shared_by.username }}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

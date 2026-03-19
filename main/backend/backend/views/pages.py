@@ -7,9 +7,11 @@ from django.db.models import Sum, Count
 from django.conf import settings
 from django.http import JsonResponse
 from django.core.files.base import ContentFile
-from ..models import CloudFile, ChatMessage
+from django.contrib.auth.models import User
+from ..models import CloudFile, ChatMessage, FileShare
 import logging
 import json
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -125,24 +127,41 @@ def cloud_page_view(request):
 
             return redirect("cloud")
 
-        # GET request - list user files with storage info
+        # GET request - determine active tab
+        tab = request.GET.get('tab', 'personal')
+
         user_files = CloudFile.objects.filter(user=user)
         total_storage = user_files.aggregate(total=Sum('file_size'))['total'] or 0
         storage_percent = round((total_storage / storage_limit) * 100, 1) if storage_limit > 0 else 0
 
+        # Get shared files (files others shared with me)
+        shared_with_me = FileShare.objects.filter(
+            shared_with=user
+        ).select_related('cloud_file', 'shared_by')
+
+        # For personal files, annotate with share info
+        for f in user_files:
+            f.share_links = f.shares.all()
+
         return render(request, "cloud.html", {
             "files": user_files,
+            "shared_files": shared_with_me,
+            "active_tab": tab,
             "storage_used": total_storage,
             "storage_limit": storage_limit,
             "storage_percent": min(storage_percent, 100),
+            "all_users": User.objects.exclude(id=user.id).order_by('username'),
         })
-    except Exception:
-        logger.warning("CloudFile table not available — run migrations")
+    except Exception as e:
+        logger.warning(f"Cloud page error: {e}")
         return render(request, "cloud.html", {
             "files": [],
+            "shared_files": [],
+            "active_tab": 'personal',
             "storage_used": 0,
             "storage_limit": storage_limit,
             "storage_percent": 0,
+            "all_users": [],
         })
 
 
@@ -293,6 +312,85 @@ def editor_save_view(request, file_id):
     except Exception as e:
         logger.error(f"Could not save file {cloud_file.filename}: {e}")
         return JsonResponse({'error': 'Speichern fehlgeschlagen'}, status=500)
+
+
+# ====== Cloud File Sharing ======
+
+@login_required(login_url='/login')
+def share_file_view(request, file_id):
+    """Create a share link or share with a specific user."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    cloud_file = get_object_or_404(CloudFile, id=file_id, user=request.user)
+
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, AttributeError):
+        body = {}
+
+    share_with_id = body.get('share_with_id')  # null = public link
+
+    shared_with_user = None
+    if share_with_id:
+        shared_with_user = get_object_or_404(User, id=share_with_id)
+        # Prevent duplicate
+        existing = FileShare.objects.filter(
+            cloud_file=cloud_file, shared_with=shared_with_user
+        ).first()
+        if existing:
+            return JsonResponse({
+                'success': True,
+                'token': str(existing.token),
+                'message': f'Bereits mit {shared_with_user.username} geteilt.'
+            })
+    else:
+        # Public link: check if one already exists
+        existing = FileShare.objects.filter(
+            cloud_file=cloud_file, shared_with__isnull=True
+        ).first()
+        if existing:
+            return JsonResponse({
+                'success': True,
+                'token': str(existing.token),
+                'message': 'Link existiert bereits.'
+            })
+
+    share = FileShare.objects.create(
+        cloud_file=cloud_file,
+        shared_by=request.user,
+        shared_with=shared_with_user,
+    )
+
+    return JsonResponse({
+        'success': True,
+        'token': str(share.token),
+        'share_id': share.id,
+        'message': f'Datei wurde {("mit " + shared_with_user.username) if shared_with_user else "per Link"} geteilt.'
+    })
+
+
+@login_required(login_url='/login')
+def unshare_file_view(request, share_id):
+    """Revoke a share link."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    share = get_object_or_404(FileShare, id=share_id, shared_by=request.user)
+    share.delete()
+
+    return JsonResponse({'success': True, 'message': 'Freigabe wurde aufgehoben.'})
+
+
+def shared_download_view(request, token):
+    """Public page to download a shared file via token."""
+    share = get_object_or_404(FileShare, token=token)
+    cloud_file = share.cloud_file
+
+    return render(request, "shared_download.html", {
+        "share": share,
+        "cloud_file": cloud_file,
+    })
 
 
 def custom_404(request, exception):

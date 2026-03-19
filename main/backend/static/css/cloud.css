@@ -23,9 +23,84 @@
     color: var(--text-white);
 }
 
+/* =========================================
+   CLOUD LAYOUT (Sidebar + Main)
+   ========================================= */
+.cloud-layout {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+
+/* Sidebar */
+.cloud-sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.sidebar-tab {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    text-decoration: none;
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.sidebar-tab:hover {
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-white);
+}
+
+.sidebar-tab.active {
+    background: rgba(0, 210, 255, 0.08);
+    border-color: rgba(0, 210, 255, 0.2);
+    color: var(--text-white);
+}
+
+.tab-icon {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.tab-label {
+    flex: 1;
+    white-space: nowrap;
+}
+
+.tab-count {
+    font-size: 0.75rem;
+    background: rgba(255, 255, 255, 0.08);
+    padding: 2px 8px;
+    border-radius: 10px;
+    min-width: 24px;
+    text-align: center;
+}
+
+.sidebar-tab.active .tab-count {
+    background: rgba(0, 210, 255, 0.15);
+    color: var(--neon-cyan);
+}
+
+/* Main Content */
+.cloud-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
 /* Upload Card */
 .cloud-upload-card {
-    margin-bottom: 20px;
     background: var(--card-bg);
     border: 1px solid var(--border-color);
 }
@@ -171,9 +246,9 @@
 }
 
 .files-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
     margin-top: 20px;
 }
 
@@ -191,6 +266,10 @@
 .file-item:hover {
     transform: translateY(-2px);
     border-color: var(--neon-cyan);
+}
+
+.shared-file-item {
+    border-left: 3px solid rgba(0, 210, 255, 0.3);
 }
 
 .file-info {
@@ -217,7 +296,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 180px;
+    max-width: 250px;
 }
 
 .filesize {
@@ -259,6 +338,11 @@
     color: var(--neon-cyan);
 }
 
+.share-btn:hover {
+    color: var(--neon-cyan);
+    background: rgba(0, 210, 255, 0.1);
+}
+
 .delete-btn {
     color: inherit;
 }
@@ -279,6 +363,226 @@
     border: 1px dashed rgba(255, 255, 255, 0.1);
     border-radius: 12px;
     margin-top: 20px;
+}
+
+/* =========================================
+   SHARE BADGES (under each file)
+   ========================================= */
+.file-shares-info {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 0 14px 10px;
+}
+
+.share-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: rgba(0, 210, 255, 0.06);
+    border: 1px solid rgba(0, 210, 255, 0.15);
+    border-radius: 20px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.share-target {
+    white-space: nowrap;
+}
+
+.share-revoke {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 0 2px;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.share-revoke:hover {
+    color: var(--danger-red);
+}
+
+/* =========================================
+   SHARE MODAL
+   ========================================= */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 2000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem;
+}
+
+.modal-card {
+    background: var(--card-bg);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 460px;
+    overflow: hidden;
+    animation: modalIn 0.25s ease;
+}
+
+@keyframes modalIn {
+    from { transform: scale(0.95) translateY(10px); opacity: 0; }
+    to { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.2rem 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.3rem;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.modal-close:hover {
+    color: var(--text-white);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.modal-filename {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--neon-cyan);
+    margin-bottom: 1.5rem;
+    word-break: break-word;
+}
+
+.share-section {
+    margin-bottom: 1.5rem;
+}
+
+.share-section:last-child {
+    margin-bottom: 0;
+}
+
+.share-section h4 {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+}
+
+.share-hint {
+    font-size: 0.8rem;
+    color: #555;
+    margin-bottom: 10px;
+}
+
+.share-action-btn {
+    background: linear-gradient(135deg, var(--accent-blue), var(--neon-cyan));
+    color: #000;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: all 0.3s ease;
+}
+
+.share-action-btn:hover {
+    box-shadow: 0 0 12px rgba(0, 210, 255, 0.4);
+    transform: translateY(-1px);
+}
+
+.share-link-result {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.share-link-input {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text-white);
+    font-size: 0.8rem;
+    font-family: monospace;
+    outline: none;
+}
+
+.share-link-input:focus {
+    border-color: var(--accent-blue);
+}
+
+.copy-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-white);
+    padding: 10px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.copy-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.share-user-row {
+    display: flex;
+    gap: 8px;
+}
+
+.share-user-select {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text-white);
+    font-size: 0.85rem;
+    outline: none;
+    appearance: none;
+    cursor: pointer;
+}
+
+.share-user-select option {
+    background: #1a1f26;
+    color: var(--text-white);
+}
+
+.share-user-select:focus {
+    border-color: var(--accent-blue);
 }
 
 /* Feedback messages */
@@ -305,12 +609,47 @@
     color: #ff4d4d;
 }
 
+/* =========================================
+   RESPONSIVE
+   ========================================= */
 @media (max-width: 768px) {
-    .files-grid {
-        grid-template-columns: 1fr;
+    .cloud-layout {
+        flex-direction: column;
+    }
+
+    .cloud-sidebar {
+        width: 100%;
+        flex-direction: row;
+        gap: 8px;
+    }
+
+    .sidebar-tab {
+        flex: 1;
+        justify-content: center;
+        padding: 10px 12px;
+    }
+
+    .tab-label {
+        font-size: 0.85rem;
+    }
+
+    .filename {
+        max-width: 140px;
     }
 
     .drop-area {
         padding: 25px 15px;
+    }
+
+    .modal-card {
+        max-width: 100%;
+    }
+
+    .share-link-result {
+        flex-direction: column;
+    }
+
+    .share-user-row {
+        flex-direction: column;
     }
 }

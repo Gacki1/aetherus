@@ -6,7 +6,7 @@
 {% block title %}Aetherus - Cloud{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/cloud.css' %}">
+<link rel="stylesheet" href="{% static 'css/cloud.css' %}?v=2">
 {% endblock %}
 
 {% block content %}
@@ -27,90 +27,202 @@
     </div>
 </section>
 
-<section class="content-area">
+<section class="cloud-layout">
 
-    <!-- Upload Form with Drag & Drop -->
-    <div class="card cloud-upload-card" id="drop-zone">
-        <h2>Datei hochladen</h2>
-        <form action="{% url 'cloud' %}" method="POST" enctype="multipart/form-data" class="cloud-upload-form" id="upload-form">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="upload">
+    <!-- Sidebar Tabs -->
+    <aside class="cloud-sidebar">
+        <a href="?tab=personal" class="sidebar-tab {% if active_tab == 'personal' %}active{% endif %}">
+            <span class="tab-icon">📁</span>
+            <span class="tab-label">Persönlich</span>
+            <span class="tab-count">{{ files|length }}</span>
+        </a>
+        <a href="?tab=shared" class="sidebar-tab {% if active_tab == 'shared' %}active{% endif %}">
+            <span class="tab-icon">🔗</span>
+            <span class="tab-label">Geteilt mit mir</span>
+            <span class="tab-count">{{ shared_files|length }}</span>
+        </a>
+    </aside>
 
-            <div class="drop-area" id="drop-area">
-                <div class="drop-icon">📁</div>
-                <p class="drop-text">Datei hierher ziehen oder klicken</p>
-                <p class="drop-hint">Maximal 50 MB pro Datei</p>
-                <input type="file" name="file" id="file" required class="file-input">
-            </div>
+    <!-- Main Content Area -->
+    <div class="cloud-main">
 
-            <div id="file-preview" class="file-preview" style="display: none;">
-                <span id="preview-icon" class="preview-icon">📄</span>
-                <div class="preview-info">
-                    <span id="preview-name" class="preview-name"></span>
-                    <span id="preview-size" class="preview-size"></span>
+        {% if active_tab == 'personal' %}
+        <!-- Upload Form with Drag & Drop -->
+        <div class="card cloud-upload-card" id="drop-zone">
+            <h2>Datei hochladen</h2>
+            <form action="{% url 'cloud' %}" method="POST" enctype="multipart/form-data" class="cloud-upload-form" id="upload-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="upload">
+
+                <div class="drop-area" id="drop-area">
+                    <div class="drop-icon">📁</div>
+                    <p class="drop-text">Datei hierher ziehen oder klicken</p>
+                    <p class="drop-hint">Maximal 50 MB pro Datei</p>
+                    <input type="file" name="file" id="file" required class="file-input">
                 </div>
-                <button type="button" class="preview-remove" onclick="clearFileSelection()">✕</button>
-            </div>
 
-            <button type="submit" class="upload-btn" id="upload-btn" disabled>Hochladen</button>
-        </form>
-    </div>
+                <div id="file-preview" class="file-preview" style="display: none;">
+                    <span id="preview-icon" class="preview-icon">📄</span>
+                    <div class="preview-info">
+                        <span id="preview-name" class="preview-name"></span>
+                        <span id="preview-size" class="preview-size"></span>
+                    </div>
+                    <button type="button" class="preview-remove" onclick="clearFileSelection()">✕</button>
+                </div>
 
-    <!-- Feedback messages -->
-    {% if messages %}
-    <div class="messages">
-        {% for message in messages %}
-        <div class="msg {% if message.tags %}{{ message.tags }}{% endif %}">{{ message }}</div>
-        {% endfor %}
-    </div>
-    {% endif %}
+                <button type="submit" class="upload-btn" id="upload-btn" disabled>Hochladen</button>
+            </form>
+        </div>
 
-    <!-- File List -->
-    <div class="card cloud-files-card">
-        <h2>Deine Dateien <span class="file-count">({{ files|length }})</span></h2>
+        <!-- Feedback messages -->
+        {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+            <div class="msg {% if message.tags %}{{ message.tags }}{% endif %}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
 
-        {% if files %}
-        <div class="files-grid">
-            {% for f in files %}
-            <div class="file-item">
-                <div class="file-info">
-                    <div class="file-icon">{{ f.filename|file_type_icon }}</div>
-                    <div class="file-details">
-                        <span class="filename" title="{{ f.filename }}">{{ f.filename }}</span>
-                        <span class="filesize">{{ f.file_size|filesizeformat }} · {{ f.uploaded_at|date:"d.m.Y" }}</span>
+        <!-- Personal File List -->
+        <div class="card cloud-files-card">
+            <h2>Deine Dateien <span class="file-count">({{ files|length }})</span></h2>
+
+            {% if files %}
+            <div class="files-grid">
+                {% for f in files %}
+                <div class="file-item">
+                    <div class="file-info">
+                        <div class="file-icon">{{ f.filename|file_type_icon }}</div>
+                        <div class="file-details">
+                            <span class="filename" title="{{ f.filename }}">{{ f.filename }}</span>
+                            <span class="filesize">{{ f.file_size|filesizeformat }} · {{ f.uploaded_at|date:"d.m.Y" }}</span>
+                        </div>
+                    </div>
+
+                    <div class="file-actions">
+                        {% if f.filename|is_editable %}
+                        <a href="/cloud/edit/{{ f.id }}/" class="action-btn edit-btn" title="Bearbeiten">✏️</a>
+                        {% endif %}
+                        <a href="{{ f.file.url }}" class="action-btn download-btn" title="Herunterladen" download="{{ f.filename }}">⬇️</a>
+                        <a href="{{ f.file.url }}" target="_blank" class="action-btn view-btn" title="Ansehen">👁️</a>
+
+                        <!-- Share Button -->
+                        <button type="button" class="action-btn share-btn" title="Teilen"
+                            onclick="openShareModal({{ f.id }}, '{{ f.filename|escapejs }}')">🔗</button>
+
+                        <form action="{% url 'cloud' %}" method="POST" class="delete-form"
+                            onsubmit="return confirm('Möchtest du diese Datei wirklich löschen?');">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="file_id" value="{{ f.id }}">
+                            <button type="submit" class="action-btn delete-btn" title="Löschen">❌</button>
+                        </form>
                     </div>
                 </div>
 
-                <div class="file-actions">
-                    {% if f.filename|is_editable %}
-                    <a href="/cloud/edit/{{ f.id }}/" class="action-btn edit-btn" title="Bearbeiten">✏️</a>
-                    {% endif %}
-                    <a href="{{ f.file.url }}" class="action-btn download-btn" title="Herunterladen" download="{{ f.filename }}">⬇️</a>
-                    <a href="{{ f.file.url }}" target="_blank" class="action-btn view-btn" title="Ansehen">👁️</a>
-
-                    <form action="{% url 'cloud' %}" method="POST" class="delete-form"
-                        onsubmit="return confirm('Möchtest du diese Datei wirklich löschen?');">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="delete">
-                        <input type="hidden" name="file_id" value="{{ f.id }}">
-                        <button type="submit" class="action-btn delete-btn" title="Löschen">❌</button>
-                    </form>
+                <!-- Active Shares for this file -->
+                {% if f.share_links.count > 0 %}
+                <div class="file-shares-info" data-file-id="{{ f.id }}">
+                    {% for share in f.share_links.all %}
+                    <div class="share-badge" id="share-badge-{{ share.id }}">
+                        <span class="share-target">
+                            {% if share.shared_with %}👤 {{ share.shared_with.username }}{% else %}🌐 Öffentlicher Link{% endif %}
+                        </span>
+                        <button class="share-revoke" onclick="revokeShare({{ share.id }})" title="Freigabe aufheben">✕</button>
+                    </div>
+                    {% endfor %}
                 </div>
+                {% endif %}
+
+                {% endfor %}
             </div>
-            {% endfor %}
+            {% else %}
+            <div class="empty-state">
+                <p>Du hast noch keine Dateien hochgeladen.</p>
+            </div>
+            {% endif %}
         </div>
-        {% else %}
-        <div class="empty-state">
-            <p>Du hast noch keine Dateien hochgeladen.</p>
+
+        {% elif active_tab == 'shared' %}
+        <!-- Shared with me -->
+        <div class="card cloud-files-card">
+            <h2>Geteilte Dateien <span class="file-count">({{ shared_files|length }})</span></h2>
+
+            {% if shared_files %}
+            <div class="files-grid">
+                {% for share in shared_files %}
+                <div class="file-item shared-file-item">
+                    <div class="file-info">
+                        <div class="file-icon">{{ share.cloud_file.filename|file_type_icon }}</div>
+                        <div class="file-details">
+                            <span class="filename" title="{{ share.cloud_file.filename }}">{{ share.cloud_file.filename }}</span>
+                            <span class="filesize">{{ share.cloud_file.file_size|filesizeformat }} · von {{ share.shared_by.username }}</span>
+                        </div>
+                    </div>
+
+                    <div class="file-actions">
+                        <a href="{{ share.cloud_file.file.url }}" class="action-btn download-btn" title="Herunterladen" download="{{ share.cloud_file.filename }}">⬇️</a>
+                        <a href="{{ share.cloud_file.file.url }}" target="_blank" class="action-btn view-btn" title="Ansehen">👁️</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <p>Noch keine Dateien mit dir geteilt.</p>
+            </div>
+            {% endif %}
         </div>
         {% endif %}
-    </div>
 
+    </div>
 </section>
+
+<!-- Share Modal -->
+<div class="modal-overlay" id="share-modal" style="display: none;">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3>Datei teilen</h3>
+            <button class="modal-close" onclick="closeShareModal()">✕</button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-filename" id="share-modal-filename"></p>
+
+            <!-- Public Link -->
+            <div class="share-section">
+                <h4>Öffentlicher Link</h4>
+                <p class="share-hint">Jeder mit dem Link kann die Datei herunterladen.</p>
+                <button class="share-action-btn" id="share-link-btn" onclick="createPublicLink()">
+                    🔗 Link erstellen
+                </button>
+                <div class="share-link-result" id="share-link-result" style="display: none;">
+                    <input type="text" id="share-link-input" readonly class="share-link-input">
+                    <button class="copy-btn" onclick="copyShareLink()">Kopieren</button>
+                </div>
+            </div>
+
+            <!-- Share with User -->
+            <div class="share-section">
+                <h4>Mit Benutzer teilen</h4>
+                <div class="share-user-row">
+                    <select id="share-user-select" class="share-user-select">
+                        <option value="">Benutzer wählen...</option>
+                        {% for u in all_users %}
+                        <option value="{{ u.id }}">{{ u.username }}</option>
+                        {% endfor %}
+                    </select>
+                    <button class="share-action-btn" onclick="shareWithUser()">Teilen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
+    // ====== File Upload (Drag & Drop) ======
     const dropArea = document.getElementById('drop-area');
     const fileInput = document.getElementById('file');
     const uploadBtn = document.getElementById('upload-btn');
@@ -118,7 +230,7 @@
     const previewName = document.getElementById('preview-name');
     const previewSize = document.getElementById('preview-size');
     const previewIcon = document.getElementById('preview-icon');
-    const MAX_SIZE = 50 * 1024 * 1024; // 50 MB
+    const MAX_SIZE = 50 * 1024 * 1024;
 
     const FILE_ICONS = {
         jpg: '🖼️', jpeg: '🖼️', png: '🖼️', gif: '🖼️', webp: '🖼️', svg: '🖼️',
@@ -144,7 +256,6 @@
 
     function handleFileSelect(file) {
         if (!file) return;
-
         if (file.size > MAX_SIZE) {
             if (typeof showToast === 'function') {
                 showToast('Datei ist zu groß. Maximum: 50 MB.', 'error');
@@ -154,7 +265,6 @@
             clearFileSelection();
             return;
         }
-
         previewIcon.textContent = getFileIcon(file.name);
         previewName.textContent = file.name;
         previewSize.textContent = formatSize(file.size);
@@ -170,36 +280,152 @@
         uploadBtn.disabled = true;
     }
 
-    // Click to select
-    dropArea.addEventListener('click', () => fileInput.click());
+    if (dropArea) {
+        dropArea.addEventListener('click', () => fileInput.click());
 
-    fileInput.addEventListener('change', function(e) {
-        if (e.target.files[0]) handleFileSelect(e.target.files[0]);
-    });
-
-    // Drag & drop
-    ['dragenter', 'dragover'].forEach(eventName => {
-        dropArea.addEventListener(eventName, (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            dropArea.classList.add('drag-over');
+        fileInput.addEventListener('change', function(e) {
+            if (e.target.files[0]) handleFileSelect(e.target.files[0]);
         });
-    });
 
-    ['dragleave', 'drop'].forEach(eventName => {
-        dropArea.addEventListener(eventName, (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            dropArea.classList.remove('drag-over');
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropArea.classList.add('drag-over');
+            });
         });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropArea.classList.remove('drag-over');
+            });
+        });
+
+        dropArea.addEventListener('drop', (e) => {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleFileSelect(files[0]);
+            }
+        });
+    }
+
+    // ====== Share Modal ======
+    let currentShareFileId = null;
+
+    function openShareModal(fileId, filename) {
+        currentShareFileId = fileId;
+        document.getElementById('share-modal-filename').textContent = filename;
+        document.getElementById('share-link-result').style.display = 'none';
+        document.getElementById('share-link-btn').style.display = '';
+        document.getElementById('share-modal').style.display = 'flex';
+    }
+
+    function closeShareModal() {
+        document.getElementById('share-modal').style.display = 'none';
+        currentShareFileId = null;
+    }
+
+    // Close modal on overlay click
+    document.getElementById('share-modal').addEventListener('click', function(e) {
+        if (e.target === this) closeShareModal();
     });
 
-    dropArea.addEventListener('drop', (e) => {
-        const files = e.dataTransfer.files;
-        if (files.length > 0) {
-            fileInput.files = files;
-            handleFileSelect(files[0]);
+    async function createPublicLink() {
+        if (!currentShareFileId) return;
+        const csrfToken = getCsrfToken();
+
+        try {
+            const res = await fetch(`/cloud/share/${currentShareFileId}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({})
+            });
+            const data = await res.json();
+            if (data.success) {
+                const link = `${window.location.origin}/share/${data.token}/`;
+                document.getElementById('share-link-input').value = link;
+                document.getElementById('share-link-result').style.display = 'flex';
+                document.getElementById('share-link-btn').style.display = 'none';
+                showToast(data.message, 'success');
+            } else {
+                showToast(data.error || 'Fehler beim Erstellen des Links.', 'error');
+            }
+        } catch (err) {
+            showToast('Netzwerkfehler.', 'error');
         }
-    });
+    }
+
+    function copyShareLink() {
+        const input = document.getElementById('share-link-input');
+        input.select();
+        navigator.clipboard.writeText(input.value).then(() => {
+            showToast('Link kopiert!', 'success');
+        }).catch(() => {
+            document.execCommand('copy');
+            showToast('Link kopiert!', 'success');
+        });
+    }
+
+    async function shareWithUser() {
+        if (!currentShareFileId) return;
+        const select = document.getElementById('share-user-select');
+        const userId = select.value;
+        if (!userId) {
+            showToast('Bitte wähle einen Benutzer.', 'warning');
+            return;
+        }
+        const csrfToken = getCsrfToken();
+
+        try {
+            const res = await fetch(`/cloud/share/${currentShareFileId}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ share_with_id: parseInt(userId) })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(data.message, 'success');
+                select.value = '';
+            } else {
+                showToast(data.error || 'Fehler beim Teilen.', 'error');
+            }
+        } catch (err) {
+            showToast('Netzwerkfehler.', 'error');
+        }
+    }
+
+    async function revokeShare(shareId) {
+        if (!confirm('Freigabe wirklich aufheben?')) return;
+        const csrfToken = getCsrfToken();
+
+        try {
+            const res = await fetch(`/cloud/unshare/${shareId}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                }
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(data.message, 'success');
+                const badge = document.getElementById(`share-badge-${shareId}`);
+                if (badge) badge.remove();
+            } else {
+                showToast(data.error || 'Fehler.', 'error');
+            }
+        } catch (err) {
+            showToast('Netzwerkfehler.', 'error');
+        }
+    }
 </script>
 {% endblock %}
