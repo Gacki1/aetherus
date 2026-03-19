@@ -456,6 +456,18 @@ async function fetchAnalystSignal(symbol: string): Promise<{ rating: number; sou
 // ═══════════════════════════════════════════════════════════
 const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY || "";
 
+// Finnhub rate limiting: 60 calls/min on free tier, 30 calls/sec hard limit
+let finnhubLastRequestTime = 0;
+const FINNHUB_MIN_INTERVAL = 1100; // ~1 req/sec to stay well under limits
+
+async function finnhubThrottle(): Promise<void> {
+  const elapsed = Date.now() - finnhubLastRequestTime;
+  if (elapsed < FINNHUB_MIN_INTERVAL) {
+    await new Promise(r => setTimeout(r, FINNHUB_MIN_INTERVAL - elapsed));
+  }
+  finnhubLastRequestTime = Date.now();
+}
+
 async function fetchFinnhubNews(symbol: string): Promise<NewsSource[]> {
   if (!FINNHUB_API_KEY) return [];
   const sources: NewsSource[] = [];
@@ -467,6 +479,7 @@ async function fetchFinnhubNews(symbol: string): Promise<NewsSource[]> {
     const fromStr = from.toISOString().split("T")[0];
     const toStr = now.toISOString().split("T")[0];
 
+    await finnhubThrottle();
     const url = `https://finnhub.io/api/v1/company-news?symbol=${encodeURIComponent(symbol)}&from=${fromStr}&to=${toStr}&token=${FINNHUB_API_KEY}`;
     const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
     if (!res.ok) {
@@ -522,6 +535,7 @@ async function fetchFinnhubSentiment(symbol: string): Promise<number | null> {
   if (!FINNHUB_API_KEY) return null;
 
   try {
+    await finnhubThrottle();
     const url = `https://finnhub.io/api/v1/news-sentiment?symbol=${encodeURIComponent(symbol)}&token=${FINNHUB_API_KEY}`;
     const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
     if (!res.ok) return null;
@@ -543,6 +557,16 @@ async function fetchFinnhubSentiment(symbol: string): Promise<number | null> {
 // ═══════════════════════════════════════════════════════════
 const ALPHA_VANTAGE_KEY = process.env.ALPHA_VANTAGE_KEY || "";
 
+// Alpha Vantage rate limiting: 25 requests/day, 5 requests/min on free tier
+// We use a dedicated long-lived cache (1 hour) + daily request counter
+const avTechCache = new Map<string, { data: TechnicalSignals; timestamp: number }>();
+const AV_CACHE_TTL = 3600000; // 1 hour — technical indicators barely change intraday
+let avDailyRequests = 0;
+let avDailyResetTime = Date.now() + 86400000;
+const AV_DAILY_LIMIT = 22; // Leave 3 buffer out of 25
+let avLastRequestTime = 0;
+const AV_MIN_INTERVAL = 13000; // 13 seconds between requests (< 5/min)
+
 interface TechnicalSignals {
   rsi: number | null;       // 0-100 (>70 overbought, <30 oversold)
   smaShort: number | null;  // 20-day SMA
@@ -556,12 +580,37 @@ async function fetchAlphaVantageTechnicals(symbol: string, currentPrice: number)
   const empty: TechnicalSignals = { rsi: null, smaShort: null, smaLong: null, ema: null, overallSignal: 0, sources: [] };
   if (!ALPHA_VANTAGE_KEY || !currentPrice) return empty;
 
-  // For German stocks (.DE suffix), Alpha Vantage may not have data
-  // Try to use the base symbol for US stocks
-  const avSymbol = symbol.endsWith(".DE") ? symbol : symbol;
+  // Check long-lived cache first (1 hour)
+  const cached = avTechCache.get(symbol);
+  if (cached && Date.now() - cached.timestamp < AV_CACHE_TTL) {
+    return cached.data;
+  }
+
+  // Reset daily counter at midnight
+  if (Date.now() > avDailyResetTime) {
+    avDailyRequests = 0;
+    avDailyResetTime = Date.now() + 86400000;
+    console.log(`[AlphaVantage] Daily request counter reset`);
+  }
+
+  // Check daily limit — save budget for important requests
+  if (avDailyRequests >= AV_DAILY_LIMIT) {
+    console.log(`[AlphaVantage] Daily limit reached (${avDailyRequests}/${AV_DAILY_LIMIT}), skipping ${symbol}`);
+    return empty;
+  }
+
+  // Rate limit: wait if we're calling too fast
+  const timeSinceLastRequest = Date.now() - avLastRequestTime;
+  if (timeSinceLastRequest < AV_MIN_INTERVAL) {
+    await new Promise(r => setTimeout(r, AV_MIN_INTERVAL - timeSinceLastRequest));
+  }
+
+  const avSymbol = symbol;
 
   try {
     // Fetch RSI (14-day, daily) — most impactful single indicator
+    avLastRequestTime = Date.now();
+    avDailyRequests++;
     const rsiUrl = `https://www.alphavantage.co/query?function=RSI&symbol=${encodeURIComponent(avSymbol)}&interval=daily&time_period=14&series_type=close&apikey=${ALPHA_VANTAGE_KEY}`;
     const rsiRes = await fetch(rsiUrl, { signal: AbortSignal.timeout(10000) });
     if (!rsiRes.ok) return empty;
@@ -569,7 +618,7 @@ async function fetchAlphaVantageTechnicals(symbol: string, currentPrice: number)
 
     // Check for rate limit / error messages
     if (rsiData["Note"] || rsiData["Error Message"] || rsiData["Information"]) {
-      console.warn(`[AlphaVantage] Rate limited or error for ${symbol}`);
+      console.warn(`[AlphaVantage] Rate limited or error for ${symbol}: ${rsiData["Note"] || rsiData["Information"] || rsiData["Error Message"]}`);
       return empty;
     }
 
@@ -580,10 +629,12 @@ async function fetchAlphaVantageTechnicals(symbol: string, currentPrice: number)
       if (latestDate) rsi = parseFloat(rsiTimeSeries[latestDate]["RSI"]);
     }
 
-    // Brief pause to respect rate limit (5/min on free tier)
-    await new Promise(r => setTimeout(r, 1200));
+    // Wait before second request
+    await new Promise(r => setTimeout(r, AV_MIN_INTERVAL));
 
     // Fetch SMA (20-day)
+    avLastRequestTime = Date.now();
+    avDailyRequests++;
     const sma20Url = `https://www.alphavantage.co/query?function=SMA&symbol=${encodeURIComponent(avSymbol)}&interval=daily&time_period=20&series_type=close&apikey=${ALPHA_VANTAGE_KEY}`;
     const sma20Res = await fetch(sma20Url, { signal: AbortSignal.timeout(10000) });
     let smaShort: number | null = null;
@@ -597,6 +648,8 @@ async function fetchAlphaVantageTechnicals(symbol: string, currentPrice: number)
         if (latestDate) smaShort = parseFloat(sma20Series[latestDate]["SMA"]);
       }
     }
+
+    console.log(`[AlphaVantage] ${symbol}: RSI=${rsi?.toFixed(1) || "n/a"}, SMA20=${smaShort?.toFixed(2) || "n/a"} (${avDailyRequests}/${AV_DAILY_LIMIT} daily)`);
 
     // Compute signals from available data
     let signalSum = 0;
@@ -652,7 +705,12 @@ async function fetchAlphaVantageTechnicals(symbol: string, currentPrice: number)
       sourceType: "technical" as const,
     }] : [];
 
-    return { rsi, smaShort, smaLong, ema: null, overallSignal, sources };
+    const result: TechnicalSignals = { rsi, smaShort, smaLong, ema: null, overallSignal, sources };
+
+    // Store in long-lived cache (1 hour)
+    avTechCache.set(symbol, { data: result, timestamp: Date.now() });
+
+    return result;
   } catch (e) {
     console.warn(`[AlphaVantage] Technical fetch failed for ${symbol}:`, (e as Error).message?.slice(0, 80));
     return empty;
@@ -966,15 +1024,25 @@ async function fetchFullPrediction(symbol: string): Promise<StockPrediction | nu
     const needsConversion = rawCurrency !== "EUR";
     const currentPriceEur = needsConversion ? convertToEur(quote.regularMarketPrice, eurRate) : quote.regularMarketPrice;
 
-    // Phase 2: Fetch ALL sources in parallel
+    // Phase 2: Fetch all sources in parallel
+    // Alpha Vantage is rate-limited (25/day) — only include if already cached,
+    // otherwise fire a background fetch for next time
+    const avCached = avTechCache.get(symbol);
+    const avReady = avCached && Date.now() - avCached.timestamp < AV_CACHE_TTL;
+
     const [webNews, analystData, finnhubNews, finnhubSentiment, technicals, fearGreed] = await Promise.all([
       fetchWebNews(companyName, symbol),
       fetchAnalystSignal(symbol),
       fetchFinnhubNews(symbol),
       fetchFinnhubSentiment(symbol),
-      fetchAlphaVantageTechnicals(symbol, currentPriceEur),
+      avReady ? Promise.resolve(avCached!.data) : Promise.resolve({ rsi: null, smaShort: null, smaLong: null, ema: null, overallSignal: 0, sources: [] } as TechnicalSignals),
       fetchFearGreedIndex(),
     ]);
+
+    // If AV data wasn't cached, fetch it in the background for next prediction
+    if (!avReady && ALPHA_VANTAGE_KEY) {
+      fetchAlphaVantageTechnicals(symbol, currentPriceEur).catch(() => {});
+    }
 
     const allSources = [
       ...webNews,
@@ -1439,7 +1507,7 @@ export async function registerRoutes(
 
       if (force) {
         // Wipe individual prediction caches so fetchFullPrediction re-fetches
-        for (const s of symbols) cache.delete(`v3:${s}`);
+        for (const s of symbols) cache.delete(`v4:${s}`);
         cache.delete(cacheKey);
       }
 
@@ -1743,7 +1811,7 @@ export async function registerRoutes(
 
       if (force) {
         cache.delete(cacheKey);
-        cache.delete(`v3:${symbol}`); // also clear prediction cache for this symbol
+        cache.delete(`v4:${symbol}`); // also clear prediction cache for this symbol
       }
 
       const cached = !force ? getCached<any>(cacheKey, 300000) : null; // 5 min (was 10 min)
@@ -1784,7 +1852,7 @@ export async function registerRoutes(
 
       // Generate projection based on prediction, scaled to the selected range
       // Check prediction cache (3 min TTL — matches batch prediction TTL)
-      const predCacheKey = `v3:${symbol}`;
+      const predCacheKey = `v4:${symbol}`;
       let prediction = getCached<StockPrediction>(predCacheKey, 180000);
 
       // If no cached prediction, fetch one on-the-fly so the chart always has a projection
