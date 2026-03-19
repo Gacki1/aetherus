@@ -35,6 +35,8 @@ urlpatterns = [
     path("api/auth/logout/", auth.SessionLogoutView.as_view(), name="api_logout"),
     path("api/auth/me/", auth.UserProfileView.as_view(), name="user_me"),
     path("api/auth/change-password/", auth.ChangePasswordView.as_view(), name="change_password"),
+    path("api/auth/change-username/", auth.ChangeUsernameView.as_view(), name="change_username"),
+    path("api/auth/change-email/", auth.ChangeEmailView.as_view(), name="change_email"),
     path("api/auth/password-reset/", auth.PasswordResetRequestView.as_view(), name="password_reset"),
     path("api/auth/password-reset/confirm/", auth.PasswordResetConfirmView.as_view(), name="password_reset_confirm"),
 

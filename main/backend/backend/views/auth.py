@@ -249,6 +249,67 @@ class ChangePasswordView(APIView):
         return Response({"message": "Passwort erfolgreich geändert."})
 
 
+class ChangeUsernameView(APIView):
+    """Change the authenticated user's username."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        new_username = request.data.get("new_username", "").strip()
+        password = request.data.get("password", "")
+
+        if not new_username or not password:
+            return Response({"error": "Alle Felder sind erforderlich."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not request.user.check_password(password):
+            return Response({"error": "Passwort ist falsch."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if len(new_username) < 3 or len(new_username) > 30:
+            return Response({"error": "Benutzername muss zwischen 3 und 30 Zeichen lang sein."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if new_username == request.user.username:
+            return Response({"error": "Das ist bereits dein Benutzername."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if User.objects.filter(username=new_username).exists():
+            return Response({"error": "Benutzername bereits vergeben."}, status=status.HTTP_400_BAD_REQUEST)
+
+        old_username = request.user.username
+        request.user.username = new_username
+        request.user.save()
+        update_session_auth_hash(request, request.user)  # keep session alive
+        logger.info(f"User '{old_username}' changed username to '{new_username}'")
+        return Response({"message": "Benutzername erfolgreich geändert.", "new_username": new_username})
+
+
+class ChangeEmailView(APIView):
+    """Change the authenticated user's email address."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        new_email = request.data.get("new_email", "").strip()
+        password = request.data.get("password", "")
+
+        if not new_email or not password:
+            return Response({"error": "Alle Felder sind erforderlich."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not request.user.check_password(password):
+            return Response({"error": "Passwort ist falsch."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Basic email validation
+        if '@' not in new_email or '.' not in new_email.split('@')[-1]:
+            return Response({"error": "Ungültige E-Mail-Adresse."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if new_email.lower() == request.user.email.lower():
+            return Response({"error": "Das ist bereits deine E-Mail-Adresse."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if User.objects.filter(email=new_email).exists():
+            return Response({"error": "E-Mail-Adresse wird bereits verwendet."}, status=status.HTTP_400_BAD_REQUEST)
+
+        request.user.email = new_email
+        request.user.save()
+        logger.info(f"User '{request.user.username}' changed email to '{new_email}'")
+        return Response({"message": "E-Mail-Adresse erfolgreich geändert.", "new_email": new_email})
+
+
 class PasswordResetRequestView(APIView):
     """Send a password reset email."""
     permission_classes = [AllowAny]

@@ -4,7 +4,7 @@
 {% block title %}Aetherus - Profil{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/profile.css' %}?v=2">
+<link rel="stylesheet" href="{% static 'css/profile.css' %}?v=3">
 {% endblock %}
 
 {% block content %}
@@ -54,11 +54,11 @@
             <!-- Account Info -->
             <div class="profile-field">
                 <label>Benutzername</label>
-                <span class="profile-value">{{ user.username }}</span>
+                <span class="profile-value" id="display-username">{{ user.username }}</span>
             </div>
             <div class="profile-field">
                 <label>E-Mail</label>
-                <span class="profile-value">{{ user.email }}</span>
+                <span class="profile-value" id="display-email">{{ user.email }}</span>
             </div>
             <div class="profile-field">
                 <label>Mitglied seit</label>
@@ -78,6 +78,46 @@
                     {% endif %}
                 </span>
             </div>
+        </div>
+    </div>
+
+    <!-- Change Username -->
+    <div class="profile-card">
+        <div class="profile-card-header">
+            <h2>Benutzername ändern</h2>
+        </div>
+        <div class="profile-card-body">
+            <form id="change-username-form" class="profile-form">
+                <div class="form-group">
+                    <label for="new-username">Neuer Benutzername</label>
+                    <input type="text" id="new-username" required minlength="3" maxlength="30" autocomplete="username" placeholder="{{ user.username }}">
+                </div>
+                <div class="form-group">
+                    <label for="username-password">Passwort bestätigen</label>
+                    <input type="password" id="username-password" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="profile-btn">Benutzername ändern</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Change Email -->
+    <div class="profile-card">
+        <div class="profile-card-header">
+            <h2>E-Mail ändern</h2>
+        </div>
+        <div class="profile-card-body">
+            <form id="change-email-form" class="profile-form">
+                <div class="form-group">
+                    <label for="new-email">Neue E-Mail-Adresse</label>
+                    <input type="email" id="new-email" required autocomplete="email" placeholder="{{ user.email }}">
+                </div>
+                <div class="form-group">
+                    <label for="email-password">Passwort bestätigen</label>
+                    <input type="password" id="email-password" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="profile-btn">E-Mail ändern</button>
+            </form>
         </div>
     </div>
 
@@ -224,6 +264,85 @@ function updateNavAvatar(url) {
         navAvatar.innerHTML = '{{ user.username|make_list|first|upper }}';
     }
 }
+
+// ====== Change Username ======
+document.getElementById('change-username-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const newUsername = document.getElementById('new-username').value.trim();
+    const password = document.getElementById('username-password').value;
+
+    if (newUsername.length < 3 || newUsername.length > 30) {
+        showToast('Benutzername muss zwischen 3 und 30 Zeichen lang sein.', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/auth/change-username/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({ new_username: newUsername, password: password })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            showToast(data.message, 'success');
+            this.reset();
+            // Update displayed username everywhere on page
+            document.getElementById('display-username').textContent = data.new_username;
+            document.querySelector('.avatar-username').textContent = data.new_username;
+            // Update nav username
+            const navUsername = document.querySelector('.user-name');
+            if (navUsername) navUsername.textContent = data.new_username;
+        } else {
+            showToast(data.error || 'Fehler beim Ändern des Benutzernamens.', 'error');
+        }
+    } catch (error) {
+        showToast('Verbindung zum Server fehlgeschlagen.', 'error');
+    }
+});
+
+// ====== Change Email ======
+document.getElementById('change-email-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const newEmail = document.getElementById('new-email').value.trim();
+    const password = document.getElementById('email-password').value;
+
+    if (!newEmail.includes('@')) {
+        showToast('Bitte eine gültige E-Mail-Adresse eingeben.', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/auth/change-email/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({ new_email: newEmail, password: password })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            showToast(data.message, 'success');
+            this.reset();
+            // Update displayed email
+            document.getElementById('display-email').textContent = data.new_email;
+            document.querySelector('.avatar-email').textContent = data.new_email;
+        } else {
+            showToast(data.error || 'Fehler beim Ändern der E-Mail.', 'error');
+        }
+    } catch (error) {
+        showToast('Verbindung zum Server fehlgeschlagen.', 'error');
+    }
+});
 
 // ====== Password Change ======
 document.getElementById('change-password-form').addEventListener('submit', async function(e) {
