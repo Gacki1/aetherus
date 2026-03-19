@@ -33,12 +33,13 @@ type ViewTab = "trending" | "browse" | "watchlist";
 type BrowseCategory = "most_actives" | "day_gainers" | "day_losers";
 type BrowseSort = "default" | "name" | "change-desc" | "change-asc" | "volume" | "marketcap";
 
-// Extract the Aetherus username from the page URL (?user=xxx)
-// This is set by the Django template when embedding Stoxview.
+// Extract the Aetherus user ID from the page URL (?uid=N)
+// Uses a stable numeric ID so username changes don't reset data.
+// Falls back to legacy ?user= param for backwards compatibility.
 const STOXVIEW_USER = (() => {
   try {
     const params = new URLSearchParams(window.location.search);
-    return params.get("user") || "_default";
+    return params.get("uid") || params.get("user") || "_default";
   } catch { return "_default"; }
 })();
 
@@ -123,10 +124,9 @@ export default function Dashboard() {
     refetchInterval: 300000,
   });
 
-  const { data: _trendingMarketSummary } = useQuery<any>({
-    queryKey: ["/api/market-summary"],
-    refetchInterval: 300000,
-  });
+  // Market summary is now computed client-side from predictions data
+  // to avoid race conditions where the summary endpoint returns empty
+  // data before predictions have loaded into the server cache.
 
   // === Watchlist (per-user) ===
   const { data: watchlistItems = [] } = useQuery<WatchlistItem[]>({
@@ -285,7 +285,6 @@ export default function Dashboard() {
 
       // 2. Invalidate every client-side query so React-Query refetches
       queryClient.invalidateQueries({ queryKey: ["/api/predictions"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/market-summary"] });
       queryClient.invalidateQueries({ queryKey: ["/api/watchlist", STOXVIEW_USER] });
       queryClient.invalidateQueries({ queryKey: ["/api/history"] });
       setAutoRefreshCountdown(300);
@@ -407,8 +406,6 @@ export default function Dashboard() {
 
   const activeSummary = useMemo(() => {
     if (activeTab === "trending") {
-      // Use server summary only for default short-term view, otherwise compute locally
-      if (signalTimeframe === "short" && _trendingMarketSummary) return _trendingMarketSummary;
       return computeSummaryFromPredictions(predictions);
     }
     if (activeTab === "watchlist") {
@@ -418,7 +415,7 @@ export default function Dashboard() {
       return computeSummaryFromBrowse(browseStocks);
     }
     return null;
-  }, [activeTab, signalTimeframe, _trendingMarketSummary, predictions, watchlistPredictions, browseStocks, computeSummaryFromPredictions, computeSummaryFromBrowse]);
+  }, [activeTab, signalTimeframe, predictions, watchlistPredictions, browseStocks, computeSummaryFromPredictions, computeSummaryFromBrowse]);
 
   // Localized filter label helper
   const signalLabel = (f: FilterOption) => {
