@@ -4,20 +4,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aetherus - Willkommen</title>
-    <link rel="stylesheet" href="{% static 'css/start.css' %}">
+    <title>Aetherus</title>
+    <link rel="icon" type="image/x-icon" href="{% static 'img/favicon.ico' %}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'img/favicon-32.png' %}">
+    <link rel="stylesheet" href="{% static 'css/start.css' %}?v=2">
 </head>
 <body>
-    <div class="bg-glow-center"></div>
-    <div class="container">
-        <div class="main">
-            <div class="logo-text">AETHERUS</div>
-            <p>Dein persönlicher Hub. Chat, Cloud, Dashboard - alles an einem Ort.</p>
-        </div>
+    <!-- Animated background particles -->
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+    <div class="bg-glow bg-glow-3"></div>
 
-        <div class="login_register">
-            <button class="btn-login" onclick="window.location.href='/login'">Login</button>
-            <button class="btn-register" onclick="window.location.href='/register'">Registrieren</button>
+    <div class="start-wrapper">
+        <div class="start-card">
+            <div class="start-logo-section">
+                <img src="{% static 'img/logo.png' %}" alt="Aetherus" class="start-logo-img">
+                <h1 class="start-title">AETHERUS</h1>
+            </div>
+
+            <p class="start-tagline">Dein persönlicher Hub. Chat, Cloud, Dashboard &mdash; alles an einem Ort.</p>
+
+            <div class="start-features">
+                <div class="start-feature">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    <span>Echtzeit-Chat</span>
+                </div>
+                <div class="start-feature">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+                    <span>Cloud-Speicher</span>
+                </div>
+                <div class="start-feature">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                    <span>Stoxview</span>
+                </div>
+            </div>
+
+            <div class="start-buttons">
+                <button class="btn-login" onclick="window.location.href='/login'">Login</button>
+                <button class="btn-register" onclick="window.location.href='/register'">Registrieren</button>
+            </div>
         </div>
     </div>
 </body>

@@ -7,13 +7,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Aetherus{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=4">
+    <link rel="icon" type="image/x-icon" href="{% static 'img/favicon.ico' %}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'img/favicon-32.png' %}">
+    <link rel="apple-touch-icon" sizes="192x192" href="{% static 'img/logo-192.png' %}">
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=5">
     {% block extra_css %}{% endblock %}
 </head>
 
 <body>
     <nav class="navbar">
-        <a href="/main" class="nav-logo">AETHERUS</a>
+        <a href="/main" class="nav-logo">
+                <img src="{% static 'img/logo.png' %}" alt="Aetherus" class="nav-logo-img">
+                <span>AETHERUS</span>
+            </a>
 
         <!-- Navigation Dropdown (replaces static pills) -->
         <div class="nav-dropdown" id="nav-dropdown">
@@ -24,19 +30,24 @@
             </button>
             <div class="nav-dropdown-menu" id="nav-dropdown-menu">
                 <a href="/main" class="nav-dropdown-item {% if '/main' in request.path %}active{% endif %}">
-                    <span>🏠</span> Dashboard
+                    <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                    Dashboard
                 </a>
                 <a href="/chat" class="nav-dropdown-item {% if '/chat' in request.path %}active{% endif %}">
-                    <span>💬</span> Chat
+                    <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    Chat
                 </a>
                 <a href="/cloud" class="nav-dropdown-item {% if '/cloud' in request.path %}active{% endif %}">
-                    <span>☁️</span> Cloud
+                    <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+                    Cloud
                 </a>
                 <a href="/stoxview" class="nav-dropdown-item {% if '/stoxview' in request.path %}active{% endif %}">
-                    <span>📈</span> Stoxview
+                    <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                    Stoxview
                 </a>
                 <a href="/profile" class="nav-dropdown-item {% if '/profile' in request.path %}active{% endif %}">
-                    <span>👤</span> Profil
+                    <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    Profil
                 </a>
             </div>
         </div>
@@ -70,14 +81,17 @@
                 </div>
                 <div class="dropdown-divider"></div>
                 <a href="/profile" class="dropdown-item">
-                    <span>👤</span> Profil bearbeiten
+                    <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    Profil bearbeiten
                 </a>
                 <a href="/cloud" class="dropdown-item">
-                    <span>☁️</span> Cloud-Speicher
+                    <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+                    Cloud-Speicher
                 </a>
                 <div class="dropdown-divider"></div>
                 <button class="dropdown-item dropdown-logout" onclick="logoutUser()">
-                    <span>🚪</span> Abmelden
+                    <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    Abmelden
                 </button>
             </div>
         </div>

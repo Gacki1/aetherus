@@ -45,17 +45,37 @@ body {
 }
 
 .nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     font-size: 1.6rem;
     font-weight: 800;
     letter-spacing: 2px;
+    cursor: pointer;
+    text-decoration: none;
+    flex-shrink: 0;
+}
+
+.nav-logo span {
     background: linear-gradient(90deg, var(--accent-blue), var(--neon-cyan));
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
     color: transparent;
-    cursor: pointer;
-    text-decoration: none;
+}
+
+.nav-logo-img {
+    height: 34px;
+    width: auto;
+    object-fit: contain;
+}
+
+/* SVG menu icons */
+.menu-icon {
+    width: 18px;
+    height: 18px;
     flex-shrink: 0;
+    vertical-align: middle;
 }
 
 /* =========================================
