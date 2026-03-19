@@ -73,6 +73,12 @@ const translations = {
   "browse.loadMore": { en: "Load More", de: "Mehr laden" },
   "browse.loading": { en: "Loading...", de: "Laden..." },
   "browse.remaining": { en: "remaining", de: "verbleibend" },
+  "browse.viewTable": { en: "Table view", de: "Tabellenansicht" },
+  "browse.viewCards": { en: "Card view", de: "Kartenansicht" },
+  "browse.marketCap": { en: "Market Cap", de: "Marktkapital." },
+  "browse.52wHigh": { en: "52W High", de: "52W Hoch" },
+  "browse.52wLow": { en: "52W Low", de: "52W Tief" },
+  "browse.avgVolume": { en: "Avg Vol", de: "Ø Volumen" },
 
   // ── Browse table headers ──
   "table.symbol": { en: "Symbol", de: "Symbol" },

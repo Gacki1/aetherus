@@ -235,7 +235,41 @@ function lookupIsin(ticker: string): string | undefined {
     || undefined;
 }
 
-/** Fire-and-forget ISIN resolution via web search. Populates dynamicIsinCache. */
+/** Validate ISIN checksum (Luhn on letter→number expanded string). */
+function isValidIsin(isin: string): boolean {
+  if (!/^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(isin)) return false;
+  // Convert letters to numbers: A=10, B=11, ..., Z=35
+  const digits = isin.split("").map(c => {
+    const code = c.charCodeAt(0);
+    return code >= 65 ? String(code - 55) : c; // A-Z → 10-35
+  }).join("");
+  // Luhn check on the digit string
+  let sum = 0;
+  let alt = false;
+  for (let i = digits.length - 1; i >= 0; i--) {
+    let n = parseInt(digits[i], 10);
+    if (alt) { n *= 2; if (n > 9) n -= 9; }
+    sum += n;
+    alt = !alt;
+  }
+  return sum % 10 === 0;
+}
+
+const VALID_ISIN_COUNTRIES = new Set(["US", "DE", "GB", "NL", "FR", "CH", "CA", "IE", "LU", "BE", "AT", "DK", "SE", "NO", "FI", "ES", "IT", "JP", "AU", "KR", "TW", "HK", "CN", "SG", "BR", "IN", "ZA", "IL", "MX", "CL", "CO", "AR", "NZ", "PT"]);
+
+/** Extract the best ISIN from a blob of text. Validates checksum and picks the most frequent. */
+function extractBestIsin(html: string): string | null {
+  const raw = html.match(/\b([A-Z]{2}[A-Z0-9]{9}[0-9])\b/g);
+  if (!raw) return null;
+  // Filter: valid country code + valid Luhn checksum
+  const valid = raw.filter(m => VALID_ISIN_COUNTRIES.has(m.substring(0, 2)) && isValidIsin(m));
+  if (valid.length === 0) return null;
+  // Pick the most frequently appearing ISIN (more mentions = more likely correct)
+  const freq = new Map<string, number>();
+  for (const v of valid) freq.set(v, (freq.get(v) || 0) + 1);
+  return [...freq.entries()].sort((a, b) => b[1] - a[1])[0][0];
+}
+
 async function resolveIsinAsync(ticker: string, companyName: string): Promise<void> {
   const key = ticker.toUpperCase();
   // Already resolved (or attempted)
@@ -244,9 +278,9 @@ async function resolveIsinAsync(ticker: string, companyName: string): Promise<vo
   dynamicIsinCache.set(key, null);
 
   try {
-    // Strategy 1: Search DuckDuckGo for "<companyName> ISIN" and extract from boerse.de or other URLs
+    // Strategy 1: Search DuckDuckGo for "<ticker> ISIN" with company name for context
     const queries = [
-      `${companyName} ISIN aktie`,
+      `${ticker} ${companyName} ISIN`,
       `${ticker} ISIN stock`,
     ];
 
@@ -260,17 +294,11 @@ async function resolveIsinAsync(ticker: string, companyName: string): Promise<vo
         if (!res.ok) continue;
         const html = await res.text();
 
-        // Look for ISIN patterns in the HTML: 2 uppercase letters + 9 alphanumeric + 1 digit
-        const isinMatches = html.match(/\b([A-Z]{2}[A-Z0-9]{9}[0-9])\b/g);
-        if (isinMatches && isinMatches.length > 0) {
-          // Filter out false positives — valid ISINs start with country codes
-          const validCountryCodes = ["US", "DE", "GB", "NL", "FR", "CH", "CA", "IE", "LU", "BE", "AT", "DK", "SE", "NO", "FI", "ES", "IT", "JP", "AU", "KR", "TW", "HK", "CN", "SG", "BR", "IN", "ZA", "IL", "MX", "CL", "CO", "AR", "NZ", "PT"];
-          const validIsin = isinMatches.find(m => validCountryCodes.includes(m.substring(0, 2)));
-          if (validIsin) {
-            dynamicIsinCache.set(key, validIsin);
-            console.log(`[ISIN] Resolved ${key} → ${validIsin}`);
-            return;
-          }
+        const bestIsin = extractBestIsin(html);
+        if (bestIsin) {
+          dynamicIsinCache.set(key, bestIsin);
+          console.log(`[ISIN] Resolved ${key} → ${bestIsin}`);
+          return;
         }
 
         await new Promise((r) => setTimeout(r, 300));
@@ -288,12 +316,10 @@ async function resolveIsinAsync(ticker: string, companyName: string): Promise<vo
       });
       if (boerseRes.ok) {
         const boerseHtml = await boerseRes.text();
-        // boerse.de URLs contain ISINs like /aktien/Apple-Aktie/US0378331005
-        const boerseIsinMatch = boerseHtml.match(/\/([A-Z]{2}[A-Z0-9]{9}[0-9])(?:["'\/\s<]|$)/);
-        if (boerseIsinMatch) {
-          const isin = boerseIsinMatch[1];
-          dynamicIsinCache.set(key, isin);
-          console.log(`[ISIN] Resolved ${key} → ${isin} (via boerse.de)`);
+        const bestIsin = extractBestIsin(boerseHtml);
+        if (bestIsin) {
+          dynamicIsinCache.set(key, bestIsin);
+          console.log(`[ISIN] Resolved ${key} → ${bestIsin} (via boerse.de)`);
           return;
         }
       }

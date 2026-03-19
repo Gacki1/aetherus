@@ -22,6 +22,8 @@ import {
   Globe,
   Languages,
   Clock,
+  LayoutGrid,
+  LayoutList,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -60,6 +62,7 @@ export default function Dashboard() {
   const [browseCategory, setBrowseCategory] = useState<BrowseCategory>("most_actives");
   const [browseSort, setBrowseSort] = useState<BrowseSort>("default");
   const [browseMarket, setBrowseMarket] = useState<ExchangeFilter>("all");
+  const [browseViewMode, setBrowseViewMode] = useState<"table" | "cards">("table");
   const [browseStocks, setBrowseStocks] = useState<BrowseStock[]>([]);
   const [browseOffset, setBrowseOffset] = useState(0);
   const [browseTotal, setBrowseTotal] = useState(0);
@@ -675,6 +678,22 @@ export default function Dashboard() {
               <div className="flex items-center gap-2 text-xs text-muted-foreground ml-auto">
                 <Activity className="w-3.5 h-3.5" />
                 <span>{filteredBrowseStocks.length} {t("filter.ofStocks")} {browseTotal} {t("filter.stocks")}</span>
+                <div className="flex items-center border border-border rounded-md overflow-hidden ml-2">
+                  <button
+                    onClick={() => setBrowseViewMode("table")}
+                    className={`p-1.5 transition-colors ${browseViewMode === "table" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                    title={t("browse.viewTable")}
+                  >
+                    <LayoutList className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setBrowseViewMode("cards")}
+                    className={`p-1.5 transition-colors ${browseViewMode === "cards" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                    title={t("browse.viewCards")}
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             </div>
           ) : (
@@ -787,7 +806,105 @@ export default function Dashboard() {
                   <p className="text-sm font-medium">{t("browse.noStocks")}</p>
                   <p className="text-xs text-muted-foreground mt-1">{t("browse.tryDifferent")}</p>
                 </div>
+              ) : browseViewMode === "cards" ? (
+                /* ── Browse: card grid view ── */
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                    {filteredBrowseStocks.map((stock) => {
+                      const positive = stock.changePercent >= 0;
+                      const fmtVol = (v: number) => v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v);
+                      const fmtMcap = (v: number) => v >= 1_000_000_000 ? `${(v / 1_000_000_000).toFixed(1)}B` : v >= 1_000_000 ? `${(v / 1_000_000).toFixed(0)}M` : v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v);
+                      return (
+                        <div
+                          key={stock.symbol}
+                          className={`rounded-lg border border-border bg-card p-4 hover:bg-muted/30 transition-colors cursor-pointer ${
+                            selectedStock === stock.symbol ? "ring-1 ring-primary border-primary/40" : ""
+                          }`}
+                          onClick={() => handleSelectSearchResult(stock.symbol)}
+                          data-testid={`browse-card-${stock.symbol}`}
+                        >
+                          {/* Header: symbol, name, watchlist */}
+                          <div className="flex items-start justify-between gap-2 mb-3">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-sm">{stock.symbol}</span>
+                                <span className="px-1.5 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">{stock.exchange}</span>
+                              </div>
+                              <p className="text-xs text-muted-foreground truncate mt-0.5">{stock.shortName || stock.name}</p>
+                            </div>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); toggleWatchlist(stock.symbol, stock.name); }}
+                              className={`p-1 rounded transition-colors shrink-0 ${
+                                isInWatchlist(stock.symbol)
+                                  ? "text-amber-400 hover:text-amber-300"
+                                  : "text-muted-foreground/40 hover:text-muted-foreground"
+                              }`}
+                              title={isInWatchlist(stock.symbol) ? t("watchlist.remove") : t("watchlist.add")}
+                            >
+                              <Star className={`w-4 h-4 ${isInWatchlist(stock.symbol) ? "fill-current" : ""}`} />
+                            </button>
+                          </div>
+                          {/* Price + change */}
+                          <div className="flex items-baseline gap-3 mb-3">
+                            <span className="text-lg font-semibold tabular-nums">€{stock.price.toFixed(2)}</span>
+                            <span className={`text-sm font-medium tabular-nums ${positive ? "text-emerald-400" : "text-red-400"}`}>
+                              {positive ? "+" : ""}{stock.changePercent.toFixed(2)}%
+                            </span>
+                          </div>
+                          {/* Data grid */}
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">{t("table.volume")}</span>
+                              <span className="tabular-nums font-medium">{fmtVol(stock.volume)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">{t("browse.avgVolume")}</span>
+                              <span className="tabular-nums font-medium">{stock.avgVolume ? fmtVol(stock.avgVolume) : "—"}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">{t("browse.52wHigh")}</span>
+                              <span className="tabular-nums font-medium">{stock.fiftyTwoWeekHigh ? `€${stock.fiftyTwoWeekHigh.toFixed(2)}` : "—"}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">{t("browse.52wLow")}</span>
+                              <span className="tabular-nums font-medium">{stock.fiftyTwoWeekLow ? `€${stock.fiftyTwoWeekLow.toFixed(2)}` : "—"}</span>
+                            </div>
+                            {stock.marketCap != null && stock.marketCap > 0 && (
+                              <div className="flex justify-between col-span-2">
+                                <span className="text-muted-foreground">{t("browse.marketCap")}</span>
+                                <span className="tabular-nums font-medium">€{fmtMcap(stock.marketCap)}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* Load More button */}
+                  {browseHasMore && (
+                    <div className="flex justify-center py-4">
+                      <button
+                        onClick={handleLoadMore}
+                        disabled={isBrowseLoadingMore}
+                        className="flex items-center gap-2 px-6 py-2 text-sm font-medium rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors disabled:opacity-50"
+                        data-testid="btn-load-more-cards"
+                      >
+                        {isBrowseLoadingMore ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            {t("browse.loading")}
+                          </>
+                        ) : (
+                          <>
+                            {t("browse.loadMore")} ({browseTotal - browseOffset} {t("browse.remaining")})
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </>
               ) : (
+                /* ── Browse: compact scrollable table ── */
                 <div className="rounded-lg border border-border overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
