@@ -553,19 +553,11 @@ async function fetchFinnhubSentiment(symbol: string): Promise<number | null> {
 }
 
 // ═══════════════════════════════════════════════════════════
-// SOURCE 4: ALPHA VANTAGE TECHNICAL INDICATORS (requires free API key)
+// SOURCE 4: SELF-CALCULATED TECHNICAL INDICATORS (from Yahoo price data)
+// No external API needed — RSI, SMA, EMA computed from daily close prices
 // ═══════════════════════════════════════════════════════════
-const ALPHA_VANTAGE_KEY = process.env.ALPHA_VANTAGE_KEY || "";
-
-// Alpha Vantage rate limiting: 25 requests/day, 5 requests/min on free tier
-// We use a dedicated long-lived cache (1 hour) + daily request counter
-const avTechCache = new Map<string, { data: TechnicalSignals; timestamp: number }>();
-const AV_CACHE_TTL = 3600000; // 1 hour — technical indicators barely change intraday
-let avDailyRequests = 0;
-let avDailyResetTime = Date.now() + 86400000;
-const AV_DAILY_LIMIT = 22; // Leave 3 buffer out of 25
-let avLastRequestTime = 0;
-const AV_MIN_INTERVAL = 13000; // 13 seconds between requests (< 5/min)
+const techCache = new Map<string, { data: TechnicalSignals; timestamp: number }>();
+const TECH_CACHE_TTL = 1800000; // 30 min — refresh twice per hour
 
 interface TechnicalSignals {
   rsi: number | null;       // 0-100 (>70 overbought, <30 oversold)
@@ -576,80 +568,82 @@ interface TechnicalSignals {
   sources: NewsSource[];
 }
 
-async function fetchAlphaVantageTechnicals(symbol: string, currentPrice: number): Promise<TechnicalSignals> {
-  const empty: TechnicalSignals = { rsi: null, smaShort: null, smaLong: null, ema: null, overallSignal: 0, sources: [] };
-  if (!ALPHA_VANTAGE_KEY || !currentPrice) return empty;
+// Calculate RSI from closing prices (standard 14-period Wilder's RSI)
+function calculateRSI(closes: number[], period = 14): number | null {
+  if (closes.length < period + 1) return null;
+  let gainSum = 0, lossSum = 0;
+  for (let i = 1; i <= period; i++) {
+    const change = closes[i] - closes[i - 1];
+    if (change > 0) gainSum += change; else lossSum += Math.abs(change);
+  }
+  let avgGain = gainSum / period;
+  let avgLoss = lossSum / period;
+  // Wilder's smoothing for remaining data
+  for (let i = period + 1; i < closes.length; i++) {
+    const change = closes[i] - closes[i - 1];
+    avgGain = (avgGain * (period - 1) + Math.max(change, 0)) / period;
+    avgLoss = (avgLoss * (period - 1) + Math.max(-change, 0)) / period;
+  }
+  if (avgLoss === 0) return 100;
+  const rs = avgGain / avgLoss;
+  return 100 - (100 / (1 + rs));
+}
 
-  // Check long-lived cache first (1 hour)
-  const cached = avTechCache.get(symbol);
-  if (cached && Date.now() - cached.timestamp < AV_CACHE_TTL) {
+// Calculate Simple Moving Average
+function calculateSMA(closes: number[], period: number): number | null {
+  if (closes.length < period) return null;
+  const slice = closes.slice(closes.length - period);
+  return slice.reduce((sum, v) => sum + v, 0) / period;
+}
+
+// Calculate Exponential Moving Average
+function calculateEMA(closes: number[], period: number): number | null {
+  if (closes.length < period) return null;
+  const k = 2 / (period + 1);
+  // Seed with SMA of first `period` values
+  let ema = closes.slice(0, period).reduce((s, v) => s + v, 0) / period;
+  for (let i = period; i < closes.length; i++) {
+    ema = closes[i] * k + ema * (1 - k);
+  }
+  return ema;
+}
+
+async function fetchTechnicals(symbol: string, currentPrice: number): Promise<TechnicalSignals> {
+  const empty: TechnicalSignals = { rsi: null, smaShort: null, smaLong: null, ema: null, overallSignal: 0, sources: [] };
+  if (!currentPrice) return empty;
+
+  // Check cache
+  const cached = techCache.get(symbol);
+  if (cached && Date.now() - cached.timestamp < TECH_CACHE_TTL) {
     return cached.data;
   }
 
-  // Reset daily counter at midnight
-  if (Date.now() > avDailyResetTime) {
-    avDailyRequests = 0;
-    avDailyResetTime = Date.now() + 86400000;
-    console.log(`[AlphaVantage] Daily request counter reset`);
-  }
-
-  // Check daily limit — save budget for important requests
-  if (avDailyRequests >= AV_DAILY_LIMIT) {
-    console.log(`[AlphaVantage] Daily limit reached (${avDailyRequests}/${AV_DAILY_LIMIT}), skipping ${symbol}`);
-    return empty;
-  }
-
-  // Rate limit: wait if we're calling too fast
-  const timeSinceLastRequest = Date.now() - avLastRequestTime;
-  if (timeSinceLastRequest < AV_MIN_INTERVAL) {
-    await new Promise(r => setTimeout(r, AV_MIN_INTERVAL - timeSinceLastRequest));
-  }
-
-  const avSymbol = symbol;
-
   try {
-    // Fetch RSI (14-day, daily) — most impactful single indicator
-    avLastRequestTime = Date.now();
-    avDailyRequests++;
-    const rsiUrl = `https://www.alphavantage.co/query?function=RSI&symbol=${encodeURIComponent(avSymbol)}&interval=daily&time_period=14&series_type=close&apikey=${ALPHA_VANTAGE_KEY}`;
-    const rsiRes = await fetch(rsiUrl, { signal: AbortSignal.timeout(10000) });
-    if (!rsiRes.ok) return empty;
-    const rsiData = await rsiRes.json();
+    // Fetch 120 trading days (~6 months) of daily data from Yahoo
+    // We need >= 51 days for SMA50, plus buffer for RSI warm-up
+    const yf = await getYahoo();
+    const chartResult = await yf.chart(symbol, {
+      period1: daysAgo(180),
+      interval: "1d",
+    });
 
-    // Check for rate limit / error messages
-    if (rsiData["Note"] || rsiData["Error Message"] || rsiData["Information"]) {
-      console.warn(`[AlphaVantage] Rate limited or error for ${symbol}: ${rsiData["Note"] || rsiData["Information"] || rsiData["Error Message"]}`);
+    const quotes = chartResult?.quotes || [];
+    const closes: number[] = quotes
+      .filter((q: any) => q.close != null)
+      .map((q: any) => q.close as number);
+
+    if (closes.length < 15) {
+      console.log(`[Technicals] ${symbol}: Not enough data (${closes.length} days)`);
       return empty;
     }
 
-    const rsiTimeSeries = rsiData["Technical Analysis: RSI"];
-    let rsi: number | null = null;
-    if (rsiTimeSeries) {
-      const latestDate = Object.keys(rsiTimeSeries)[0];
-      if (latestDate) rsi = parseFloat(rsiTimeSeries[latestDate]["RSI"]);
-    }
+    // Calculate all indicators
+    const rsi = calculateRSI(closes, 14);
+    const smaShort = calculateSMA(closes, 20);
+    const smaLong = calculateSMA(closes, 50);
+    const ema = calculateEMA(closes, 20);
 
-    // Wait before second request
-    await new Promise(r => setTimeout(r, AV_MIN_INTERVAL));
-
-    // Fetch SMA (20-day)
-    avLastRequestTime = Date.now();
-    avDailyRequests++;
-    const sma20Url = `https://www.alphavantage.co/query?function=SMA&symbol=${encodeURIComponent(avSymbol)}&interval=daily&time_period=20&series_type=close&apikey=${ALPHA_VANTAGE_KEY}`;
-    const sma20Res = await fetch(sma20Url, { signal: AbortSignal.timeout(10000) });
-    let smaShort: number | null = null;
-    let smaLong: number | null = null;
-
-    if (sma20Res.ok) {
-      const sma20Data = await sma20Res.json();
-      const sma20Series = sma20Data["Technical Analysis: SMA"];
-      if (sma20Series) {
-        const latestDate = Object.keys(sma20Series)[0];
-        if (latestDate) smaShort = parseFloat(sma20Series[latestDate]["SMA"]);
-      }
-    }
-
-    console.log(`[AlphaVantage] ${symbol}: RSI=${rsi?.toFixed(1) || "n/a"}, SMA20=${smaShort?.toFixed(2) || "n/a"} (${avDailyRequests}/${AV_DAILY_LIMIT} daily)`);
+    console.log(`[Technicals] ${symbol}: RSI=${rsi?.toFixed(1) || "n/a"}, SMA20=${smaShort?.toFixed(2) || "n/a"}, SMA50=${smaLong?.toFixed(2) || "n/a"}, EMA20=${ema?.toFixed(2) || "n/a"} (${closes.length} days)`);
 
     // Compute signals from available data
     let signalSum = 0;
@@ -659,10 +653,10 @@ async function fetchAlphaVantageTechnicals(symbol: string, currentPrice: number)
     // RSI signal
     if (rsi !== null && !isNaN(rsi)) {
       if (rsi > 70) {
-        signalSum -= 0.6; // Overbought → bearish
+        signalSum -= 0.6;
         summaryParts.push(`RSI ${rsi.toFixed(1)} (überkauft)`);
       } else if (rsi < 30) {
-        signalSum += 0.6; // Oversold → bullish
+        signalSum += 0.6;
         summaryParts.push(`RSI ${rsi.toFixed(1)} (überverkauft)`);
       } else if (rsi > 55) {
         signalSum += 0.2;
@@ -691,12 +685,37 @@ async function fetchAlphaVantageTechnicals(symbol: string, currentPrice: number)
       signalCount++;
     }
 
+    // SMA50 trend — golden/death cross signal
+    if (smaShort !== null && smaLong !== null && !isNaN(smaShort) && !isNaN(smaLong)) {
+      if (smaShort > smaLong * 1.01) {
+        signalSum += 0.25;
+        summaryParts.push(`SMA20 > SMA50 (Aufwärtstrend)`);
+      } else if (smaShort < smaLong * 0.99) {
+        signalSum -= 0.25;
+        summaryParts.push(`SMA20 < SMA50 (Abwärtstrend)`);
+      }
+      signalCount++;
+    }
+
+    // EMA vs price — short-term momentum
+    if (ema !== null && !isNaN(ema) && currentPrice > 0) {
+      const priceEmaRatio = (currentPrice - ema) / ema;
+      if (priceEmaRatio > 0.02) {
+        signalSum += 0.2;
+        summaryParts.push(`Kurs über EMA20 (+${(priceEmaRatio * 100).toFixed(1)}%)`);
+      } else if (priceEmaRatio < -0.02) {
+        signalSum -= 0.2;
+        summaryParts.push(`Kurs unter EMA20 (${(priceEmaRatio * 100).toFixed(1)}%)`);
+      }
+      signalCount++;
+    }
+
     const overallSignal = signalCount > 0 ? Math.max(-1, Math.min(1, signalSum / signalCount)) : 0;
     const sentiment = classifySentiment(overallSignal);
 
     const sources: NewsSource[] = summaryParts.length > 0 ? [{
-      name: "Alpha Vantage Technicals",
-      url: `https://www.alphavantage.co/query?function=RSI&symbol=${avSymbol}`,
+      name: "Technische Analyse",
+      url: `https://finance.yahoo.com/quote/${symbol}`,
       title: `${symbol} Technische Analyse: ${sentiment === "positive" ? "Bullisch" : sentiment === "negative" ? "Bärisch" : "Neutral"}`,
       summary: summaryParts.join(" · "),
       sentiment,
@@ -705,14 +724,14 @@ async function fetchAlphaVantageTechnicals(symbol: string, currentPrice: number)
       sourceType: "technical" as const,
     }] : [];
 
-    const result: TechnicalSignals = { rsi, smaShort, smaLong, ema: null, overallSignal, sources };
+    const result: TechnicalSignals = { rsi, smaShort, smaLong, ema, overallSignal, sources };
 
-    // Store in long-lived cache (1 hour)
-    avTechCache.set(symbol, { data: result, timestamp: Date.now() });
+    // Cache result
+    techCache.set(symbol, { data: result, timestamp: Date.now() });
 
     return result;
   } catch (e) {
-    console.warn(`[AlphaVantage] Technical fetch failed for ${symbol}:`, (e as Error).message?.slice(0, 80));
+    console.warn(`[Technicals] Calculation failed for ${symbol}:`, (e as Error).message?.slice(0, 80));
     return empty;
   }
 }
@@ -1025,24 +1044,15 @@ async function fetchFullPrediction(symbol: string): Promise<StockPrediction | nu
     const currentPriceEur = needsConversion ? convertToEur(quote.regularMarketPrice, eurRate) : quote.regularMarketPrice;
 
     // Phase 2: Fetch all sources in parallel
-    // Alpha Vantage is rate-limited (25/day) — only include if already cached,
-    // otherwise fire a background fetch for next time
-    const avCached = avTechCache.get(symbol);
-    const avReady = avCached && Date.now() - avCached.timestamp < AV_CACHE_TTL;
-
+    // Technical indicators are self-calculated from Yahoo price data — no external API needed
     const [webNews, analystData, finnhubNews, finnhubSentiment, technicals, fearGreed] = await Promise.all([
       fetchWebNews(companyName, symbol),
       fetchAnalystSignal(symbol),
       fetchFinnhubNews(symbol),
       fetchFinnhubSentiment(symbol),
-      avReady ? Promise.resolve(avCached!.data) : Promise.resolve({ rsi: null, smaShort: null, smaLong: null, ema: null, overallSignal: 0, sources: [] } as TechnicalSignals),
+      fetchTechnicals(symbol, currentPriceEur),
       fetchFearGreedIndex(),
     ]);
-
-    // If AV data wasn't cached, fetch it in the background for next prediction
-    if (!avReady && ALPHA_VANTAGE_KEY) {
-      fetchAlphaVantageTechnicals(symbol, currentPriceEur).catch(() => {});
-    }
 
     const allSources = [
       ...webNews,
