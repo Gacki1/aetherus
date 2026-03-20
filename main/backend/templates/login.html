@@ -14,7 +14,9 @@
         <h2>Aetherus-Login</h2>
         <div id="message-box" class="message" style="display:none;"></div>
 
-        <form id="login-form">
+        <form id="login-form" action="/login{% if request.GET.next %}?next={{ request.GET.next|urlencode }}{% endif %}" method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.GET.next|default:'' }}">
             <label for="username">Benutzername</label>
             <input type="text" id="username" name="username" required autocomplete="username">
 
@@ -29,12 +31,16 @@
             </label>
         </form>
 
+        {% if error %}
+        <script>document.getElementById('message-box').textContent = '{{ error }}'; document.getElementById('message-box').className = 'message error'; document.getElementById('message-box').style.display = 'block';</script>
+        {% endif %}
+
         <div class="login-links">
             <p><a href="/password-reset">Passwort vergessen?</a></p>
             <p>Noch keinen Account? <a href="/register">Hier registrieren</a></p>
         </div>
     </div>
 
-    <script src="{% static 'js/login.js' %}?v=2" defer></script>
+    <script src="{% static 'js/login.js' %}?v=3" defer></script>
 </body>
 </html>

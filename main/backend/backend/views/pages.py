@@ -4,6 +4,7 @@ from django.shortcuts import redirect, render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.contrib import messages
+from django.contrib.auth import authenticate, login as auth_login
 from django.db.models import Sum, Count
 from django.conf import settings
 from django.http import JsonResponse, HttpResponseRedirect
@@ -14,6 +15,7 @@ from urllib.parse import quote
 from ..models import CloudFile, ChatMessage, FileShare, UserProfile, ChatGroup, ChatGroupMembership
 import logging
 import json
+import re
 import uuid
 
 logger = logging.getLogger(__name__)
@@ -94,13 +96,36 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
 @ensure_csrf_cookie
 def login_page_view(request):
+    """Login page: serves the form (GET) and handles form-POST login as fallback."""
+
+    def _get_redirect_target(req):
+        """Return a safe redirect URL from ?next= or POST data, or /main."""
+        next_url = req.POST.get('next', '') or req.GET.get('next', '')
+        if next_url and re.match(r'^https://[a-z0-9-]+\.aetherus\.net(/.*)?(\?.*)?$', next_url):
+            return next_url
+        return '/main'
+
+    # Already authenticated → redirect straight away
     if request.user.is_authenticated:
-        # If ?next= points to a valid subdomain, redirect there
-        import re
-        next_url = request.GET.get('next', '')
-        if next_url and re.match(r'^https://[a-z0-9-]+\.aetherus\.net', next_url):
-            return HttpResponseRedirect(next_url)
-        return redirect("/main")
+        return HttpResponseRedirect(_get_redirect_target(request))
+
+    # Handle traditional form POST (progressive-enhancement fallback)
+    if request.method == 'POST':
+        username = request.POST.get('username', '')
+        password = request.POST.get('password', '')
+        remember_me = request.POST.get('remember_me') == 'on'
+
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            auth_login(request, user)
+            if remember_me:
+                request.session.set_expiry(2592000)  # 30 days
+            else:
+                request.session.set_expiry(0)
+            return HttpResponseRedirect(_get_redirect_target(request))
+        else:
+            return render(request, 'login.html', {'error': 'Ungültige Anmeldedaten.'})
+
     return render(request, "login.html")
 
 
