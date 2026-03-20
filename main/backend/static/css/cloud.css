@@ -503,7 +503,7 @@
     border-radius: 16px;
     width: 100%;
     max-width: 460px;
-    overflow: hidden;
+    overflow: visible;
     animation: modalIn 0.25s ease;
 }
 
@@ -518,6 +518,8 @@
     align-items: center;
     padding: 1.2rem 1.5rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background: var(--card-bg);
+    border-radius: 16px 16px 0 0;
 }
 
 .modal-header h3 {
@@ -543,6 +545,8 @@
 
 .modal-body {
     padding: 1.5rem;
+    background: var(--card-bg);
+    border-radius: 0 0 16px 16px;
 }
 
 .modal-filename {
@@ -675,7 +679,10 @@
 }
 
 .suggestion-item {
-    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
     cursor: pointer;
     font-size: 0.85rem;
     color: var(--text-white);
@@ -684,6 +691,30 @@
 
 .suggestion-item:hover {
     background: rgba(0, 136, 255, 0.15);
+}
+
+.suggestion-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.suggestion-avatar-placeholder {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #00d2ff 0%, #0088ff 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #0d1117;
+    flex-shrink: 0;
+    text-transform: uppercase;
 }
 
 .suggestion-empty {

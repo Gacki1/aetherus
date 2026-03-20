@@ -6,7 +6,7 @@
 {% block title %}Aetherus - Cloud{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/cloud.css' %}?v=4">
+<link rel="stylesheet" href="{% static 'css/cloud.css' %}?v=5">
 {% endblock %}
 
 {% block content %}
@@ -571,7 +571,21 @@
             data.users.forEach(u => {
                 const item = document.createElement('div');
                 item.className = 'suggestion-item';
-                item.textContent = u.username;
+                if (u.avatar) {
+                    const img = document.createElement('img');
+                    img.className = 'suggestion-avatar';
+                    img.src = u.avatar;
+                    img.alt = u.username;
+                    item.appendChild(img);
+                } else {
+                    const placeholder = document.createElement('div');
+                    placeholder.className = 'suggestion-avatar-placeholder';
+                    placeholder.textContent = u.username.charAt(0);
+                    item.appendChild(placeholder);
+                }
+                const name = document.createElement('span');
+                name.textContent = u.username;
+                item.appendChild(name);
                 item.addEventListener('click', () => {
                     userInput.value = u.username;
                     userIdField.value = u.id;

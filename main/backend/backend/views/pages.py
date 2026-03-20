@@ -423,11 +423,19 @@ def user_search_view(request):
         username__istartswith=q
     ).exclude(
         id=request.user.id
-    ).order_by('username')[:5]
+    ).select_related('profile').order_by('username')[:5]
 
-    return JsonResponse({
-        'users': [{'id': u.id, 'username': u.username} for u in users]
-    })
+    result = []
+    for u in users:
+        avatar_url = None
+        try:
+            if hasattr(u, 'profile') and u.profile.avatar:
+                avatar_url = u.profile.avatar.url
+        except Exception:
+            pass
+        result.append({'id': u.id, 'username': u.username, 'avatar': avatar_url})
+
+    return JsonResponse({'users': result})
 
 
 # ====== Cloud File Sharing ======
