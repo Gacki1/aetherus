@@ -345,49 +345,65 @@ async function resolveIsinAsync(ticker: string, companyName: string, exchange?: 
   console.log(`[ISIN] Resolving ${key} (company: ${companyName}, exchange: ${exchange || "?"}, expectedCountry: ${expectedCountry || "?"})`);
 
   try {
-    // Strategy 1: Search DuckDuckGo for "<ticker> <company> ISIN" with exchange context
-    const exchangeLabel = expectedCountry === "US" ? "NYSE NASDAQ" : expectedCountry === "DE" ? "XETRA" : "";
-    const queries = [
-      `"${companyName}" ISIN ${exchangeLabel}`.trim(),
-      `${ticker} ${companyName} ISIN`,
+    // Strategy 1 (PRIMARY): Query onvista.de API — structured JSON with verified ISINs
+    // Try multiple search queries: ticker first, then company name
+    const onvistaQueries = [
+      ticker,
+      `${ticker} ${companyName}`,
+      companyName,
     ];
 
-    for (const query of queries) {
+    for (const q of onvistaQueries) {
       try {
-        const encoded = encodeURIComponent(query);
-        const url = `https://html.duckduckgo.com/html/?q=${encoded}`;
-        const res = await fetch(url, {
+        const onvistaUrl = `https://api.onvista.de/api/v1/instruments/search?searchValue=${encodeURIComponent(q)}`;
+        const onvistaRes = await fetch(onvistaUrl, {
           headers: { "User-Agent": "Mozilla/5.0 (compatible; Stoxview/3.0)" },
+          signal: AbortSignal.timeout(8000),
         });
-        if (!res.ok) continue;
-        const html = await res.text();
+        if (!onvistaRes.ok) continue;
+        const onvistaData = await onvistaRes.json() as any;
+        const stocks = (onvistaData.list || []).filter(
+          (item: any) => item.entityType === "STOCK" && item.isin
+        );
 
-        const bestIsin = extractBestIsin(html, expectedCountry);
-        if (bestIsin) {
-          dynamicIsinCache.set(key, bestIsin);
-          console.log(`[ISIN] Resolved ${key} → ${bestIsin} (via DuckDuckGo, expected: ${expectedCountry})`);
-          return;
+        // Find the best match: prefer matching homeSymbol, then matching expected country
+        let bestMatch = stocks.find((s: any) =>
+          s.homeSymbol?.toUpperCase() === key && (!expectedCountry || s.isin.startsWith(expectedCountry))
+        );
+        if (!bestMatch) {
+          bestMatch = stocks.find((s: any) => s.homeSymbol?.toUpperCase() === key);
+        }
+        if (!bestMatch && expectedCountry) {
+          bestMatch = stocks.find((s: any) => s.isin.startsWith(expectedCountry));
+        }
+        if (!bestMatch && stocks.length > 0) {
+          bestMatch = stocks[0];
         }
 
-        await new Promise((r) => setTimeout(r, 300));
+        if (bestMatch && bestMatch.isin && isValidIsin(bestMatch.isin) && !INDEX_ISINS.has(bestMatch.isin)) {
+          dynamicIsinCache.set(key, bestMatch.isin);
+          console.log(`[ISIN] Resolved ${key} → ${bestMatch.isin} (via onvista, name: ${bestMatch.name})`);
+          return;
+        }
       } catch {
         // ignore individual query failures
       }
     }
 
-    // Strategy 2: Try fetching boerse.de search directly
+    // Strategy 2 (FALLBACK): Search onvista HTML page for ISINs
     try {
-      const boerseUrl = `https://www.boerse.de/suche/?suchbegriff=${encodeURIComponent(companyName)}`;
-      const boerseRes = await fetch(boerseUrl, {
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; Stoxview/3.0)" },
+      const searchUrl = `https://www.onvista.de/aktien/suche?searchValue=${encodeURIComponent(`${ticker} ${companyName}`)}`;
+      const searchRes = await fetch(searchUrl, {
+        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
         redirect: "follow",
+        signal: AbortSignal.timeout(10000),
       });
-      if (boerseRes.ok) {
-        const boerseHtml = await boerseRes.text();
-        const bestIsin = extractBestIsin(boerseHtml, expectedCountry);
+      if (searchRes.ok) {
+        const html = await searchRes.text();
+        const bestIsin = extractBestIsin(html, expectedCountry);
         if (bestIsin) {
           dynamicIsinCache.set(key, bestIsin);
-          console.log(`[ISIN] Resolved ${key} → ${bestIsin} (via boerse.de, expected: ${expectedCountry})`);
+          console.log(`[ISIN] Resolved ${key} → ${bestIsin} (via onvista HTML, expected: ${expectedCountry})`);
           return;
         }
       }
