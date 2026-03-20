@@ -38,6 +38,7 @@ class GuestRestrictionMiddleware:
         allowed_prefixes = [
             '/start',
             '/login',
+            '/logout',
             '/register',
             '/password-reset',
             '/static/',

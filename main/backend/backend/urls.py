@@ -32,6 +32,7 @@ urlpatterns = [
     path("stoxview", pages.stoxview_page_view, name="stoxview"),
 
     path("login", pages.login_page_view, name="login_page"),
+    path("logout", pages.logout_page_view, name="logout"),
     path("register", pages.register_page_view, name="register_page"),
     path("profile", pages.profile_page_view, name="profile"),
     path("profile/avatar/upload/", pages.avatar_upload_view, name="avatar_upload"),

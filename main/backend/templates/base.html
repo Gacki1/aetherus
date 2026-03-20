@@ -89,10 +89,13 @@
                     Profil bearbeiten
                 </a>
                 <div class="dropdown-divider"></div>
-                <button class="dropdown-item dropdown-logout" onclick="logoutUser()">
-                    <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                    Abmelden
-                </button>
+                <form method="POST" action="/logout" style="margin:0;">
+                    {% csrf_token %}
+                    <button type="submit" class="dropdown-item dropdown-logout">
+                        <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                        Abmelden
+                    </button>
+                </form>
             </div>
         </div>
     </nav>
@@ -127,32 +130,6 @@
                 toast.classList.add('toast-hiding');
                 setTimeout(() => toast.remove(), 300);
             }, duration);
-        }
-
-        // ====== Logout ======
-        async function logoutUser() {
-            const csrfToken = document.cookie
-                .split('; ')
-                .find(row => row.startsWith('csrftoken='))
-                ?.split('=')[1];
-
-            try {
-                const response = await fetch('/api/auth/logout/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
-                    }
-                });
-                if (response.ok) {
-                    localStorage.removeItem('auth_mode');
-                    window.location.href = 'https://aetherus.net/start';
-                } else {
-                    showToast('Abmeldung fehlgeschlagen.', 'error');
-                }
-            } catch (error) {
-                showToast('Abmeldung fehlgeschlagen.', 'error');
-            }
         }
 
         // ====== Dropdowns ======

@@ -4,7 +4,7 @@ from django.shortcuts import redirect, render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.contrib import messages
-from django.contrib.auth import authenticate, login as auth_login
+from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
 from django.db.models import Sum, Count
 from django.conf import settings
 from django.http import JsonResponse, HttpResponseRedirect
@@ -127,6 +127,13 @@ def login_page_view(request):
             return render(request, 'login.html', {'error': 'Ungültige Anmeldedaten.'})
 
     return render(request, "login.html")
+
+
+def logout_page_view(request):
+    """Handle logout via form POST. Redirects to start page."""
+    if request.method == 'POST':
+        auth_logout(request)
+    return HttpResponseRedirect('https://aetherus.net/start')
 
 
 @login_required(login_url='/login')
