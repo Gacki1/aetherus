@@ -146,7 +146,9 @@
                 });
                 if (response.ok) {
                     localStorage.removeItem('auth_mode');
-                    window.location.href = '/';
+                    window.location.href = 'https://aetherus.net/start';
+                } else {
+                    showToast('Abmeldung fehlgeschlagen.', 'error');
                 }
             } catch (error) {
                 showToast('Abmeldung fehlgeschlagen.', 'error');
