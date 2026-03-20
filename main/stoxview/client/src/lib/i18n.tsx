@@ -144,6 +144,12 @@ const translations = {
   "detail.justNow": { en: "Just now", de: "Gerade eben" },
   "detail.hAgo": { en: "h ago", de: "Std. her" },
   "detail.dAgo": { en: "d ago", de: "T. her" },
+  "detail.delayed": { en: "Delayed", de: "Verzögert" },
+  "detail.postMarket": { en: "After hours", de: "Nachbörslich" },
+  "detail.preMarket": { en: "Pre-market", de: "Vorbörslich" },
+  "detail.marketClosed": { en: "Market closed", de: "Markt geschlossen" },
+  "detail.bid": { en: "Bid", de: "Geld" },
+  "detail.ask": { en: "Ask", de: "Brief" },
 
   // ── Timeframe signals ──
   "signal.bullish": { en: "Bullish", de: "Bullisch" },

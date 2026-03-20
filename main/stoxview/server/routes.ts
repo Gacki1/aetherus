@@ -1146,6 +1146,10 @@ function generatePrediction(
       total: allSources.length,
     },
     isin: lookupIsin(symbol),
+    // Market state & bid/ask for post-market display
+    marketState: (quote.marketState || "CLOSED") as "REGULAR" | "PRE" | "POST" | "PREPRE" | "POSTPOST" | "CLOSED",
+    bidPrice: quote.bid ? round2(toEur(quote.bid)) : undefined,
+    askPrice: quote.ask ? round2(toEur(quote.ask)) : undefined,
     lastUpdated: new Date().toISOString(),
   };
 }
@@ -1158,7 +1162,7 @@ function round2(n: number) { return Math.round(n * 100) / 100; }
 // ═══════════════════════════════════════════════════════════
 async function fetchFullPrediction(symbol: string): Promise<StockPrediction | null> {
   const cacheKey = `v4:${symbol}`;
-  const cached = getCached<StockPrediction>(cacheKey, 180000);
+  const cached = getCached<StockPrediction>(cacheKey, 60000); // 60s — fast refresh for price accuracy
   if (cached) return cached;
 
   try {
@@ -1655,7 +1659,7 @@ export async function registerRoutes(
         cache.delete(cacheKey);
       }
 
-      const cached = !force ? getCached<any>(cacheKey, 180000) : null;
+      const cached = !force ? getCached<any>(cacheKey, 60000) : null; // 60s
       if (cached) return res.json(cached);
 
       const user = (req.query.user as string) || "_default";
@@ -1689,12 +1693,11 @@ export async function registerRoutes(
 
       if (force) cache.delete(cacheKey);
 
-      const cached = !force ? getCached<any>(cacheKey, 180000) : null;
+      const cached = !force ? getCached<any>(cacheKey, 60000) : null; // 60s
       if (cached) return res.json(cached);
 
       const batchKey = `batch:${DEFAULT_SYMBOLS.join(",")}`;
-      // Use same TTL as batch predictions (3 min) instead of 10 min
-      const predictions = getCached<StockPrediction[]>(batchKey, 180000) || [];
+      const predictions = getCached<StockPrediction[]>(batchKey, 60000) || []; // 60s
 
       if (predictions.length === 0) {
         return res.json({
@@ -1762,7 +1765,7 @@ export async function registerRoutes(
   // Helper: batch-quote German stocks and format as BrowseStock[]
   async function fetchGermanStocks(category: string): Promise<any[]> {
     const cacheKey = `de_stocks_raw`;
-    let deQuotes = getCached<any[]>(cacheKey, 300000); // 5 min cache
+    let deQuotes = getCached<any[]>(cacheKey, 90000); // 90s cache
 
     if (!deQuotes) {
       const yf = await getYahoo();
@@ -1848,7 +1851,7 @@ export async function registerRoutes(
 
       // Cache the combined result per category+market
       const cacheKey = `browse:v2:${category}:${market}`;
-      let allStocks = getCached<any[]>(cacheKey, 300000); // 5 min cache
+      let allStocks = getCached<any[]>(cacheKey, 90000); // 90s cache
 
       if (!allStocks) {
         const yf = await getYahoo();
@@ -1958,7 +1961,7 @@ export async function registerRoutes(
         cache.delete(`v4:${symbol}`); // also clear prediction cache for this symbol
       }
 
-      const cached = !force ? getCached<any>(cacheKey, 300000) : null; // 5 min (was 10 min)
+      const cached = !force ? getCached<any>(cacheKey, 300000) : null; // 5 min for chart history is fine
       if (cached) return res.json(cached);
 
       const yf = await getYahoo();
@@ -1997,7 +2000,7 @@ export async function registerRoutes(
       // Generate projection based on prediction, scaled to the selected range
       // Check prediction cache (3 min TTL — matches batch prediction TTL)
       const predCacheKey = `v4:${symbol}`;
-      let prediction = getCached<StockPrediction>(predCacheKey, 180000);
+      let prediction = getCached<StockPrediction>(predCacheKey, 60000); // 60s
 
       // If no cached prediction, fetch one on-the-fly so the chart always has a projection
       if (!prediction) {

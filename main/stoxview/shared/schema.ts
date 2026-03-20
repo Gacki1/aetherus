@@ -60,6 +60,10 @@ export const stockPredictionSchema = z.object({
   }),
   // Identifiers
   isin: z.string().optional(),
+  // Market state & bid/ask
+  marketState: z.enum(["REGULAR", "PRE", "POST", "PREPRE", "POSTPOST", "CLOSED"]).optional(),
+  bidPrice: z.number().optional(),
+  askPrice: z.number().optional(),
   // Metadata
   lastUpdated: z.string(),
 });

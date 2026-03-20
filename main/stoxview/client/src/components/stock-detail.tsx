@@ -475,9 +475,17 @@ export function StockDetail({ prediction, isInWatchlist, onToggleWatchlist, onCl
 
         {/* Price row */}
         <div>
-          <p className="text-xl font-semibold tabular-nums">
-            {currencySymbol}{prediction.currentPrice.toFixed(2)}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-xl font-semibold tabular-nums">
+              {currencySymbol}{prediction.currentPrice.toFixed(2)}
+            </p>
+            <span className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20">
+              {prediction.marketState === "POST" ? t("detail.postMarket")
+                : prediction.marketState === "PRE" ? t("detail.preMarket")
+                : prediction.marketState === "CLOSED" ? t("detail.marketClosed")
+                : t("detail.delayed")}
+            </span>
+          </div>
           <div className="flex items-center gap-2 mt-0.5">
             <span className={`text-sm font-medium tabular-nums ${isPositive ? "text-emerald-400" : "text-red-400"}`}>
               {isPositive ? "+" : ""}{currencySymbol}{prediction.priceChange.toFixed(2)}
@@ -490,6 +498,13 @@ export function StockDetail({ prediction, isInWatchlist, onToggleWatchlist, onCl
             <span>O: {currencySymbol}{prediction.openPrice.toFixed(2)}</span>
             <span>H: {currencySymbol}{prediction.dayHigh.toFixed(2)}</span>
             <span>L: {currencySymbol}{prediction.dayLow.toFixed(2)}</span>
+            {prediction.bidPrice != null && prediction.askPrice != null && (
+              <>
+                <span className="text-muted-foreground/40">|</span>
+                <span>{t("detail.bid")}: {currencySymbol}{prediction.bidPrice.toFixed(2)}</span>
+                <span>{t("detail.ask")}: {currencySymbol}{prediction.askPrice.toFixed(2)}</span>
+              </>
+            )}
           </div>
         </div>
 
@@ -725,9 +740,17 @@ export function StockDetail({ prediction, isInWatchlist, onToggleWatchlist, onCl
 
       {/* Price */}
       <div>
-        <p className="text-xl font-semibold tabular-nums">
-          {currencySymbol}{prediction.currentPrice.toFixed(2)}
-        </p>
+        <div className="flex items-center gap-2">
+          <p className="text-xl font-semibold tabular-nums">
+            {currencySymbol}{prediction.currentPrice.toFixed(2)}
+          </p>
+          <span className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20">
+            {prediction.marketState === "POST" ? t("detail.postMarket")
+              : prediction.marketState === "PRE" ? t("detail.preMarket")
+              : prediction.marketState === "CLOSED" ? t("detail.marketClosed")
+              : t("detail.delayed")}
+          </span>
+        </div>
         <div className="flex items-center gap-2 mt-0.5">
           <span className={`text-sm font-medium tabular-nums ${isPositive ? "text-emerald-400" : "text-red-400"}`}>
             {isPositive ? "+" : ""}{currencySymbol}{prediction.priceChange.toFixed(2)}
@@ -740,6 +763,13 @@ export function StockDetail({ prediction, isInWatchlist, onToggleWatchlist, onCl
           <span>O: {currencySymbol}{prediction.openPrice.toFixed(2)}</span>
           <span>H: {currencySymbol}{prediction.dayHigh.toFixed(2)}</span>
           <span>L: {currencySymbol}{prediction.dayLow.toFixed(2)}</span>
+          {prediction.bidPrice != null && prediction.askPrice != null && (
+            <>
+              <span className="text-muted-foreground/40">|</span>
+              <span>{t("detail.bid")}: {currencySymbol}{prediction.bidPrice.toFixed(2)}</span>
+              <span>{t("detail.ask")}: {currencySymbol}{prediction.askPrice.toFixed(2)}</span>
+            </>
+          )}
         </div>
       </div>
 

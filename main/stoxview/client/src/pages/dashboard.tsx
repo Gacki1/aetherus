@@ -124,7 +124,7 @@ export default function Dashboard() {
   // Main predictions for default stocks
   const { data: predictions = [], isLoading } = useQuery<StockPrediction[]>({
     queryKey: ["/api/predictions"],
-    refetchInterval: 300000,
+    refetchInterval: 60000, // 60s — match server cache TTL for fresher prices
   });
 
   // Market summary is now computed client-side from predictions data
