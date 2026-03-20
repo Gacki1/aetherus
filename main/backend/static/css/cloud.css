@@ -1,4 +1,4 @@
-/* Cloud Storage Styles — v3 */
+/* Cloud Storage Styles — v6 */
 
 /* Storage Quota */
 .storage-quota {
@@ -273,6 +273,116 @@
 .upload-btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+}
+
+/* =========================================
+   FILES HEADER / BULK SELECT TOOLBAR
+   ========================================= */
+.files-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.files-header h2 {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.select-toolbar,
+.bulk-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+}
+
+.toolbar-btn {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-muted);
+    padding: 6px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 500;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.toolbar-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-white);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.toolbar-btn-danger {
+    color: #ff4d4d;
+    border-color: rgba(255, 77, 77, 0.25);
+}
+
+.toolbar-btn-danger:hover:not(:disabled) {
+    background: rgba(255, 77, 77, 0.12);
+    color: #ff6b6b;
+    border-color: rgba(255, 77, 77, 0.4);
+}
+
+.toolbar-btn-danger:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+/* Checkbox wrap inside each file-item */
+.file-checkbox-wrap {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    padding-right: 4px;
+    flex-shrink: 0;
+}
+
+.file-checkbox-wrap input[type="checkbox"] {
+    display: none;
+}
+
+.file-checkbox-custom {
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    position: relative;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.file-checkbox-wrap:hover .file-checkbox-custom {
+    border-color: var(--neon-cyan);
+    background: rgba(0, 210, 255, 0.06);
+}
+
+.file-checkbox-wrap input[type="checkbox"]:checked + .file-checkbox-custom {
+    background: var(--neon-cyan);
+    border-color: var(--neon-cyan);
+}
+
+.file-checkbox-wrap input[type="checkbox"]:checked + .file-checkbox-custom::after {
+    content: '✓';
+    color: #0d1117;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+/* Selected file item highlight */
+.file-item.selected {
+    border-color: rgba(0, 210, 255, 0.35);
+    background: rgba(0, 210, 255, 0.05);
 }
 
 /* Files List */
@@ -832,5 +942,17 @@
 
     .share-user-row {
         flex-direction: column;
+    }
+
+    .files-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .select-toolbar,
+    .bulk-toolbar {
+        margin-left: 0;
+        flex-wrap: wrap;
     }
 }

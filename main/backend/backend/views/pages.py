@@ -625,6 +625,43 @@ def remove_received_share_view(request, share_id):
 
 
 @login_required(login_url='/login')
+def cloud_bulk_delete_view(request):
+    """AJAX endpoint to delete multiple cloud files at once."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, AttributeError):
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+
+    file_ids = body.get('file_ids', [])
+    if not file_ids or not isinstance(file_ids, list):
+        return JsonResponse({'error': 'file_ids required'}, status=400)
+
+    # Only delete files owned by this user
+    files = CloudFile.objects.filter(id__in=file_ids, user=request.user)
+    deleted_count = 0
+    for f in files:
+        f.file.delete(save=False)
+        f.delete()
+        deleted_count += 1
+
+    storage_limit = settings.MAX_CLOUD_STORAGE_PER_USER
+    total_storage = CloudFile.objects.filter(user=request.user).aggregate(total=Sum('file_size'))['total'] or 0
+    storage_percent = round((total_storage / storage_limit) * 100, 1) if storage_limit > 0 else 0
+
+    return JsonResponse({
+        'success': True,
+        'deleted': deleted_count,
+        'message': f'{deleted_count} Datei(en) gel\u00f6scht.',
+        'storage_used': total_storage,
+        'storage_limit': storage_limit,
+        'storage_percent': min(storage_percent, 100),
+    })
+
+
+@login_required(login_url='/login')
 def cloud_delete_file_view(request, file_id):
     """AJAX endpoint to delete a personal cloud file. Returns JSON with updated storage info."""
     if request.method != 'POST':

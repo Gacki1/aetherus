@@ -6,7 +6,7 @@
 {% block title %}Aetherus - Cloud{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/cloud.css' %}?v=5">
+<link rel="stylesheet" href="{% static 'css/cloud.css' %}?v=6">
 {% endblock %}
 
 {% block content %}
@@ -78,12 +78,29 @@
 
         <!-- Personal File List -->
         <div class="card cloud-files-card">
-            <h2>Deine Dateien <span class="file-count">({{ files|length }})</span></h2>
+            <div class="files-header">
+                <h2>Deine Dateien <span class="file-count">({{ files|length }})</span></h2>
+                {% if files %}
+                <div class="select-toolbar" id="select-toolbar">
+                    <button type="button" class="toolbar-btn" id="btn-toggle-select" onclick="toggleSelectMode()" title="Auswählen">☐ Auswählen</button>
+                </div>
+                <div class="bulk-toolbar" id="bulk-toolbar" style="display:none">
+                    <button type="button" class="toolbar-btn" onclick="selectAllFiles()">Alle</button>
+                    <button type="button" class="toolbar-btn" onclick="deselectAllFiles()">Keine</button>
+                    <button type="button" class="toolbar-btn toolbar-btn-danger" id="btn-bulk-delete" onclick="bulkDelete()" disabled>🗑️ <span id="bulk-count">0</span> löschen</button>
+                    <button type="button" class="toolbar-btn" onclick="toggleSelectMode()">Abbrechen</button>
+                </div>
+                {% endif %}
+            </div>
 
             {% if files %}
             <div class="files-grid">
                 {% for f in files %}
-                <div class="file-item">
+                <div class="file-item" data-file-id="{{ f.id }}">
+                    <label class="file-checkbox-wrap select-mode-only" style="display:none">
+                        <input type="checkbox" class="file-checkbox" value="{{ f.id }}" onchange="updateBulkCount()">
+                        <span class="file-checkbox-custom"></span>
+                    </label>
                     <div class="file-info">
                         <div class="file-icon">{{ f.filename|file_type_icon }}</div>
                         <div class="file-details">
@@ -909,5 +926,135 @@
             deleteFile(parseInt(fileId, 10));
         });
     });
+
+    // ====== Bulk Select & Delete ======
+    let selectMode = false;
+
+    function toggleSelectMode() {
+        selectMode = !selectMode;
+        const checkboxes = document.querySelectorAll('.select-mode-only');
+        const bulkToolbar = document.getElementById('bulk-toolbar');
+        const selectToolbar = document.getElementById('select-toolbar');
+
+        if (selectMode) {
+            checkboxes.forEach(el => el.style.display = '');
+            bulkToolbar.style.display = 'flex';
+            selectToolbar.style.display = 'none';
+        } else {
+            checkboxes.forEach(el => {
+                el.style.display = 'none';
+                const cb = el.querySelector('input[type="checkbox"]');
+                if (cb) cb.checked = false;
+            });
+            bulkToolbar.style.display = 'none';
+            selectToolbar.style.display = '';
+            // Remove highlight from all
+            document.querySelectorAll('.file-item.selected').forEach(el => el.classList.remove('selected'));
+        }
+        updateBulkCount();
+    }
+
+    function selectAllFiles() {
+        document.querySelectorAll('.file-checkbox').forEach(cb => {
+            cb.checked = true;
+            const item = cb.closest('.file-item');
+            if (item) item.classList.add('selected');
+        });
+        updateBulkCount();
+    }
+
+    function deselectAllFiles() {
+        document.querySelectorAll('.file-checkbox').forEach(cb => {
+            cb.checked = false;
+            const item = cb.closest('.file-item');
+            if (item) item.classList.remove('selected');
+        });
+        updateBulkCount();
+    }
+
+    function updateBulkCount() {
+        const checked = document.querySelectorAll('.file-checkbox:checked');
+        const countEl = document.getElementById('bulk-count');
+        const deleteBtn = document.getElementById('btn-bulk-delete');
+        if (countEl) countEl.textContent = checked.length;
+        if (deleteBtn) deleteBtn.disabled = checked.length === 0;
+
+        // Toggle .selected class on file-items
+        document.querySelectorAll('.file-checkbox').forEach(cb => {
+            const item = cb.closest('.file-item');
+            if (item) {
+                if (cb.checked) item.classList.add('selected');
+                else item.classList.remove('selected');
+            }
+        });
+    }
+
+    async function bulkDelete() {
+        const checked = document.querySelectorAll('.file-checkbox:checked');
+        if (checked.length === 0) return;
+
+        const count = checked.length;
+        const msg = count === 1
+            ? 'M\u00f6chtest du diese Datei wirklich l\u00f6schen?'
+            : `M\u00f6chtest du diese ${count} Dateien wirklich l\u00f6schen?`;
+        if (!confirm(msg)) return;
+
+        const fileIds = Array.from(checked).map(cb => parseInt(cb.value, 10));
+        const csrfToken = getCsrfToken();
+
+        try {
+            const deleteBtn = document.getElementById('btn-bulk-delete');
+            if (deleteBtn) {
+                deleteBtn.disabled = true;
+                deleteBtn.innerHTML = '<span class="btn-spinner"></span>L\u00f6schen...';
+            }
+
+            const res = await fetch('/api/cloud/delete-bulk/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ file_ids: fileIds })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                showToast(data.message, 'success');
+
+                // Remove deleted file items from the DOM
+                fileIds.forEach(fid => {
+                    const item = document.querySelector(`.file-item[data-file-id="${fid}"]`);
+                    if (item) {
+                        // Also remove adjacent file-shares-info
+                        const next = item.nextElementSibling;
+                        if (next && next.classList.contains('file-shares-info') && next.dataset.fileId == fid) {
+                            next.remove();
+                        }
+                        item.remove();
+                    }
+                });
+
+                // Update counts and storage
+                updatePersonalTabCounts();
+                if (data.storage_used !== undefined) {
+                    updateStorageQuota(data.storage_used, data.storage_limit, data.storage_percent);
+                }
+
+                // Exit select mode
+                toggleSelectMode();
+            } else {
+                showToast(data.error || 'Fehler beim L\u00f6schen.', 'error');
+            }
+        } catch (err) {
+            showToast('Netzwerkfehler beim L\u00f6schen.', 'error');
+        }
+
+        const deleteBtn = document.getElementById('btn-bulk-delete');
+        if (deleteBtn) {
+            deleteBtn.disabled = false;
+            deleteBtn.innerHTML = '\ud83d\uddd1\ufe0f <span id="bulk-count">0</span> l\u00f6schen';
+        }
+    }
 </script>
 {% endblock %}

@@ -63,6 +63,7 @@ urlpatterns = [
     path("share/decline/<int:share_id>/", pages.decline_share_view, name="decline_share"),
     path("share/remove/<int:share_id>/", pages.remove_received_share_view, name="remove_received_share"),
     path("delete/<int:file_id>/", pages.cloud_delete_file_view, name="cloud_delete_file"),
+    path("api/cloud/delete-bulk/", pages.cloud_bulk_delete_view, name="cloud_bulk_delete"),
     path("shared/<str:token>/", pages.shared_download_view, name="shared_download"),
 
     # 8. Chat Group API
