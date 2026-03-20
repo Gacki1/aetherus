@@ -54,7 +54,8 @@ urlpatterns = [
     path("api/auth/", include("djoser.urls.authtoken")),
 
     # 6. Chat Group API
-    # 7. Cloud Sharing & User Search
+    # 7. Cloud Upload, Sharing & User Search
+    path("api/cloud/upload/", pages.cloud_upload_ajax_view, name="cloud_upload_ajax"),
     path("api/users/search/", pages.user_search_view, name="user_search"),
     path("share/<int:file_id>/", pages.share_file_view, name="share_file"),
     path("unshare/<int:share_id>/", pages.unshare_file_view, name="unshare_file"),

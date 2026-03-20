@@ -52,29 +52,19 @@
         {% if active_tab == 'personal' %}
         <!-- Upload Form with Drag & Drop -->
         <div class="card cloud-upload-card" id="drop-zone">
-            <h2>Datei hochladen</h2>
-            <form action="/" method="POST" enctype="multipart/form-data" class="cloud-upload-form" id="upload-form">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="upload">
-
+            <h2>Dateien hochladen</h2>
+            <div class="cloud-upload-form" id="upload-form">
                 <div class="drop-area" id="drop-area">
                     <div class="drop-icon">📁</div>
-                    <p class="drop-text">Datei hierher ziehen oder klicken</p>
-                    <p class="drop-hint">Maximal 50 MB pro Datei</p>
-                    <input type="file" name="file" id="file" required class="file-input">
+                    <p class="drop-text">Dateien hierher ziehen oder klicken</p>
+                    <p class="drop-hint">Maximal 50 MB pro Datei · Mehrere Dateien möglich</p>
+                    <input type="file" id="file" multiple class="file-input">
                 </div>
 
-                <div id="file-preview" class="file-preview" style="display: none;">
-                    <span id="preview-icon" class="preview-icon">📄</span>
-                    <div class="preview-info">
-                        <span id="preview-name" class="preview-name"></span>
-                        <span id="preview-size" class="preview-size"></span>
-                    </div>
-                    <button type="button" class="preview-remove" onclick="clearFileSelection()">✕</button>
-                </div>
+                <div id="file-list" class="file-list"></div>
 
-                <button type="submit" class="upload-btn" id="upload-btn" disabled>Hochladen</button>
-            </form>
+                <button type="button" class="upload-btn" id="upload-btn" disabled onclick="uploadFiles()">Hochladen</button>
+            </div>
         </div>
 
         <!-- Feedback messages -->
@@ -237,15 +227,13 @@
 
 {% block extra_js %}
 <script>
-    // ====== File Upload (Drag & Drop) ======
+    // ====== Multi-File Upload (Drag & Drop + AJAX) ======
     const dropArea = document.getElementById('drop-area');
     const fileInput = document.getElementById('file');
     const uploadBtn = document.getElementById('upload-btn');
-    const filePreview = document.getElementById('file-preview');
-    const previewName = document.getElementById('preview-name');
-    const previewSize = document.getElementById('preview-size');
-    const previewIcon = document.getElementById('preview-icon');
+    const fileListEl = document.getElementById('file-list');
     const MAX_SIZE = 50 * 1024 * 1024;
+    let selectedFiles = []; // Array of File objects
 
     const FILE_ICONS = {
         jpg: '🖼️', jpeg: '🖼️', png: '🖼️', gif: '🖼️', webp: '🖼️', svg: '🖼️',
@@ -269,37 +257,134 @@
         return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
     }
 
-    function handleFileSelect(file) {
-        if (!file) return;
-        if (file.size > MAX_SIZE) {
-            if (typeof showToast === 'function') {
-                showToast('Datei ist zu groß. Maximum: 50 MB.', 'error');
-            } else {
-                alert('Datei ist zu groß. Maximum: 50 MB.');
+    function addFiles(newFiles) {
+        for (const f of newFiles) {
+            if (f.size > MAX_SIZE) {
+                showToast(`"${f.name}" ist zu gro\u00df (max 50 MB).`, 'error');
+                continue;
             }
-            clearFileSelection();
-            return;
+            // Avoid duplicates by name+size
+            if (selectedFiles.some(s => s.name === f.name && s.size === f.size)) continue;
+            selectedFiles.push(f);
         }
-        previewIcon.textContent = getFileIcon(file.name);
-        previewName.textContent = file.name;
-        previewSize.textContent = formatSize(file.size);
-        filePreview.style.display = 'flex';
-        dropArea.classList.add('has-file');
-        uploadBtn.disabled = false;
+        renderFileList();
+    }
+
+    function removeFile(index) {
+        selectedFiles.splice(index, 1);
+        renderFileList();
     }
 
     function clearFileSelection() {
+        selectedFiles = [];
         fileInput.value = '';
-        filePreview.style.display = 'none';
-        dropArea.classList.remove('has-file');
+        renderFileList();
+    }
+
+    function renderFileList() {
+        fileListEl.innerHTML = '';
+        if (selectedFiles.length === 0) {
+            dropArea.classList.remove('has-file');
+            uploadBtn.disabled = true;
+            return;
+        }
+        dropArea.classList.add('has-file');
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = selectedFiles.length === 1
+            ? 'Hochladen'
+            : `${selectedFiles.length} Dateien hochladen`;
+
+        selectedFiles.forEach((f, i) => {
+            const row = document.createElement('div');
+            row.className = 'file-preview';
+            row.id = `file-row-${i}`;
+            row.innerHTML = `
+                <span class="preview-icon">${getFileIcon(f.name)}</span>
+                <div class="preview-info">
+                    <span class="preview-name">${f.name}</span>
+                    <span class="preview-size">${formatSize(f.size)}</span>
+                </div>
+                <div class="file-progress" id="file-progress-${i}" style="display:none">
+                    <div class="file-progress-bar" id="file-bar-${i}"></div>
+                </div>
+                <button type="button" class="preview-remove" onclick="removeFile(${i})">✕</button>`;
+            fileListEl.appendChild(row);
+        });
+    }
+
+    async function uploadFiles() {
+        if (selectedFiles.length === 0) return;
         uploadBtn.disabled = true;
+        uploadBtn.innerHTML = '<span class="btn-spinner"></span>Wird hochgeladen...';
+
+        // Remove all ✕ buttons during upload
+        document.querySelectorAll('.preview-remove').forEach(b => b.style.display = 'none');
+
+        const formData = new FormData();
+        selectedFiles.forEach(f => formData.append('files', f));
+
+        try {
+            const csrfToken = getCsrfToken();
+            const res = await fetch('/api/cloud/upload/', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrfToken },
+                body: formData
+            });
+            const data = await res.json();
+
+            if (data.results) {
+                let successCount = 0;
+                let failCount = 0;
+                data.results.forEach((r, i) => {
+                    const row = document.getElementById(`file-row-${i}`);
+                    if (row) {
+                        if (r.success) {
+                            row.classList.add('upload-success');
+                            successCount++;
+                        } else {
+                            row.classList.add('upload-error');
+                            const errEl = document.createElement('span');
+                            errEl.className = 'upload-error-text';
+                            errEl.textContent = r.error;
+                            row.querySelector('.preview-info').appendChild(errEl);
+                            failCount++;
+                        }
+                    }
+                });
+
+                if (successCount > 0) {
+                    const msg = successCount === 1
+                        ? '1 Datei hochgeladen.'
+                        : `${successCount} Dateien hochgeladen.`;
+                    showToast(msg, 'success');
+                }
+                if (failCount > 0) {
+                    showToast(`${failCount} Datei(en) fehlgeschlagen.`, 'error');
+                }
+
+                // Update storage bar
+                if (data.storage_used !== undefined) {
+                    updateStorageQuota(data.storage_used, data.storage_limit, data.storage_percent);
+                }
+
+                // Reload after a short delay to show the new files
+                setTimeout(() => window.location.reload(), 1200);
+            } else {
+                showToast(data.error || 'Upload fehlgeschlagen.', 'error');
+            }
+        } catch (err) {
+            showToast('Netzwerkfehler beim Upload.', 'error');
+        }
+
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = 'Hochladen';
     }
 
     if (dropArea) {
         dropArea.addEventListener('click', () => fileInput.click());
 
         fileInput.addEventListener('change', function(e) {
-            if (e.target.files[0]) handleFileSelect(e.target.files[0]);
+            if (e.target.files.length > 0) addFiles(e.target.files);
         });
 
         ['dragenter', 'dragover'].forEach(eventName => {
@@ -320,10 +405,7 @@
 
         dropArea.addEventListener('drop', (e) => {
             const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                fileInput.files = files;
-                handleFileSelect(files[0]);
-            }
+            if (files.length > 0) addFiles(files);
         });
     }
 

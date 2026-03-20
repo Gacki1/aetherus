@@ -410,6 +410,64 @@ def editor_save_view(request, file_id):
         return JsonResponse({'error': 'Speichern fehlgeschlagen'}, status=500)
 
 
+# ====== Cloud Multi-File Upload (AJAX) ======
+
+@login_required(login_url='/login')
+def cloud_upload_ajax_view(request):
+    """Handle multi-file upload via AJAX. Returns JSON results per file."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    user = request.user
+    storage_limit = settings.MAX_CLOUD_STORAGE_PER_USER
+    current_usage = CloudFile.objects.filter(user=user).aggregate(
+        total=Sum('file_size'))['total'] or 0
+
+    files = request.FILES.getlist('files')
+    if not files:
+        return JsonResponse({'error': 'Keine Dateien ausgewählt.'}, status=400)
+
+    results = []
+    for f in files:
+        if f.size > settings.DATA_UPLOAD_MAX_MEMORY_SIZE:
+            results.append({'name': f.name, 'success': False, 'error': 'Zu groß (max 50 MB)'})
+            continue
+
+        if current_usage + f.size > storage_limit:
+            results.append({'name': f.name, 'success': False, 'error': 'Speicherlimit erreicht'})
+            continue
+
+        try:
+            cloud_file = CloudFile.objects.create(
+                user=user,
+                file=f,
+                filename=f.name,
+                file_size=f.size
+            )
+            current_usage += f.size
+            results.append({
+                'name': f.name,
+                'success': True,
+                'id': cloud_file.id,
+                'size': f.size,
+            })
+        except Exception as e:
+            results.append({'name': f.name, 'success': False, 'error': str(e)[:100]})
+
+    succeeded = sum(1 for r in results if r['success'])
+    total_usage = current_usage
+    storage_percent = round((total_usage / storage_limit) * 100, 1) if storage_limit > 0 else 0
+
+    return JsonResponse({
+        'results': results,
+        'succeeded': succeeded,
+        'total': len(results),
+        'storage_used': total_usage,
+        'storage_limit': storage_limit,
+        'storage_percent': min(storage_percent, 100),
+    })
+
+
 # ====== Cloud User Search ======
 
 @login_required(login_url='/login')
