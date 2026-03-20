@@ -32,10 +32,9 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-al@57g9r$c=t!%d&j2k
 DEBUG = os.getenv('DJANGO_DEBUG', 'False').lower() in ('true', '1', 'yes')
 
 ALLOWED_HOSTS = [
-    "aetherus.net",
-    "www.aetherus.net", 
+    ".aetherus.net",
+    ".localhost",
     "login-backend", 
-    "localhost", 
     "127.0.0.1",  
     '91.99.59.168'
     ]
@@ -60,6 +59,7 @@ INSTALLED_APPS = [
     "channels",
     "storages",
     "django.contrib.humanize",
+    "django_hosts",
 ]
 
 from datetime import timedelta
@@ -120,6 +120,7 @@ SESSION_COOKIE_SECURE = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 
 MIDDLEWARE = [
+    "django_hosts.middleware.HostsRequestMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -129,9 +130,12 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'backend.middleware.GuestRestrictionMiddleware',
+    "django_hosts.middleware.HostsResponseMiddleware",
 ]
 
 ROOT_URLCONF = 'backend.urls'
+ROOT_HOSTCONF = 'backend.hosts'
+DEFAULT_HOST = 'www'
 
 TEMPLATES = [
     {
@@ -239,9 +243,17 @@ SERVER_EMAIL = 'noreply@aetherus.net' # War vorher SERVER_MAIL
 SESSION_COOKIE_SECURE = True
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
+
+if DEBUG:
+    SESSION_COOKIE_DOMAIN = ".localhost"
+    CSRF_COOKIE_DOMAIN = ".localhost"
+else:
+    SESSION_COOKIE_DOMAIN = ".aetherus.net"
+    CSRF_COOKIE_DOMAIN = ".aetherus.net"
+
 CSRF_COOKIE_SECURE = True  # Sollte auf True sein, da aetherus.net HTTPS nutzt
 CSRF_COOKIE_HTTPONLY = False # Muss False sein, damit JS den Token lesen kann
-CSRF_TRUSTED_ORIGINS = ["https://aetherus.net"]
+CSRF_TRUSTED_ORIGINS = ["https://aetherus.net", "https://*.aetherus.net"]
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 

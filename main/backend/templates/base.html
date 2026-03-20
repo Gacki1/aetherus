@@ -1,5 +1,6 @@
 {% load static %}
 {% load humanize %}
+{% load hosts %}
 <!DOCTYPE html>
 <html lang="de">
 
@@ -16,7 +17,7 @@
 
 <body>
     <nav class="navbar">
-        <a href="/main" class="nav-logo">
+        <a href="{% host_url 'dashboard' host 'www' %}" class="nav-logo">
                 <img src="{% static 'img/logo.png' %}" alt="Aetherus" class="nav-logo-img">
                 <span>AETHERUS</span>
             </a>
@@ -29,23 +30,23 @@
                 <span class="nav-dropdown-arrow">▾</span>
             </button>
             <div class="nav-dropdown-menu" id="nav-dropdown-menu">
-                <a href="/main" class="nav-dropdown-item {% if '/main' in request.path %}active{% endif %}">
+                <a href="{% host_url 'dashboard' host 'www' %}" class="nav-dropdown-item {% if '/main' in request.path and request.get_host == 'www.aetherus.net' %}active{% endif %}">
                     <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
                     Dashboard
                 </a>
-                <a href="/chat" class="nav-dropdown-item {% if '/chat' in request.path %}active{% endif %}">
+                <a href="{% host_url 'chat' host 'www' %}" class="nav-dropdown-item {% if '/chat' in request.path %}active{% endif %}">
                     <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                     Chat
                 </a>
-                <a href="/cloud" class="nav-dropdown-item {% if '/cloud' in request.path %}active{% endif %}">
+                <a href="{% host_url 'cloud' host 'cloud' %}" class="nav-dropdown-item {% if request.resolver_match.view_name == 'cloud' or request.resolver_match.view_name == 'editor' %}active{% endif %}">
                     <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
                     Cloud
                 </a>
-                <a href="/stoxview" class="nav-dropdown-item {% if '/stoxview' in request.path %}active{% endif %}">
+                <a href="{% host_url 'stoxview' host 'stoxview' %}" class="nav-dropdown-item {% if request.resolver_match.view_name == 'stoxview' %}active{% endif %}">
                     <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                     Stoxview
                 </a>
-                <a href="/profile" class="nav-dropdown-item {% if '/profile' in request.path %}active{% endif %}">
+                <a href="{% host_url 'profile' host 'www' %}" class="nav-dropdown-item {% if '/profile' in request.path %}active{% endif %}">
                     <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                     Profil
                 </a>
@@ -80,11 +81,11 @@
                     </div>
                 </div>
                 <div class="dropdown-divider"></div>
-                <a href="/profile" class="dropdown-item">
+                <a href="{% host_url 'profile' host 'www' %}" class="dropdown-item">
                     <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                     Profil bearbeiten
                 </a>
-                <a href="/cloud" class="dropdown-item">
+                <a href="{% host_url 'cloud' host 'cloud' %}" class="dropdown-item">
                     <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
                     Cloud-Speicher
                 </a>

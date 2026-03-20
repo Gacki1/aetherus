@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load humanize %}
 {% load file_helpers %}
+{% load hosts %}
 
 {% block title %}Aetherus - Dashboard{% endblock %}
 
@@ -43,12 +44,12 @@
     <div class="widget-card">
         <div class="widget-header">
             <h2>📂 Letzte Dateien</h2>
-            <a href="/cloud" class="widget-action">Alle anzeigen →</a>
+            <a href="{% host_url 'cloud' host 'cloud' %}" class="widget-action">Alle anzeigen →</a>
         </div>
         <div class="widget-body">
             {% if recent_files %}
                 {% for f in recent_files %}
-                <a href="/cloud" class="recent-file-item">
+                <a href="{% host_url 'cloud' host 'cloud' %}" class="recent-file-item">
                     <span class="recent-file-icon">{{ f.filename|file_type_icon }}</span>
                     <span class="recent-file-name" title="{{ f.filename }}">{{ f.filename }}</span>
                     <span class="recent-file-size">{{ f.file_size|filesizeformat }}</span>
@@ -59,7 +60,7 @@
                 <div class="empty-hint">
                     <span class="empty-hint-icon">📁</span>
                     <p>Noch keine Dateien hochgeladen.</p>
-                    <a href="/cloud" class="empty-hint-link">Jetzt hochladen →</a>
+                    <a href="{% host_url 'cloud' host 'cloud' %}" class="empty-hint-link">Jetzt hochladen →</a>
                 </div>
             {% endif %}
         </div>
@@ -69,7 +70,7 @@
     <div class="widget-card">
         <div class="widget-header">
             <h2>💬 Chat-Aktivität</h2>
-            <a href="/chat" class="widget-action">Zum Chat →</a>
+            <a href="{% host_url 'chat' host 'www' %}" class="widget-action">Zum Chat →</a>
         </div>
         <div class="widget-body">
             <div class="chat-stats-row">
@@ -90,7 +91,7 @@
     <div class="widget-card">
         <div class="widget-header">
             <h2>🔐 Dein Account</h2>
-            <a href="/profile" class="widget-action">Bearbeiten →</a>
+            <a href="{% host_url 'profile' host 'www' %}" class="widget-action">Bearbeiten →</a>
         </div>
         <div class="widget-body">
             <div class="account-info-item">

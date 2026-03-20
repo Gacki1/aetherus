@@ -104,7 +104,7 @@
 
                     <div class="file-actions">
                         {% if f.filename|is_editable %}
-                        <a href="/cloud/edit/{{ f.id }}/" class="action-btn edit-btn" title="Bearbeiten">✏️</a>
+                        <a href="/edit/{{ f.id }}/" class="action-btn edit-btn" title="Bearbeiten">✏️</a>
                         {% endif %}
                         <a href="{{ f.file.url }}" class="action-btn download-btn" title="Herunterladen" download="{{ f.filename }}">⬇️</a>
                         <a href="{{ f.file.url }}" target="_blank" class="action-btn view-btn" title="Ansehen">👁️</a>
@@ -470,7 +470,7 @@
         const csrfToken = getCsrfToken();
 
         try {
-            const res = await fetch(`/cloud/share/${currentShareFileId}/`, {
+            const res = await fetch(`/share/${currentShareFileId}/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -544,7 +544,7 @@
         const csrfToken = getCsrfToken();
 
         try {
-            const res = await fetch(`/cloud/share/${currentShareFileId}/`, {
+            const res = await fetch(`/share/${currentShareFileId}/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -597,7 +597,7 @@
         const csrfToken = getCsrfToken();
 
         try {
-            const res = await fetch(`/cloud/unshare/${shareId}/`, {
+            const res = await fetch(`/unshare/${shareId}/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -622,7 +622,7 @@
     async function acceptShare(shareId) {
         const csrfToken = getCsrfToken();
         try {
-            const res = await fetch(`/cloud/share/accept/${shareId}/`, {
+            const res = await fetch(`/share/accept/${shareId}/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
             });
@@ -659,7 +659,7 @@
         if (!confirm('Freigabeanfrage wirklich ablehnen?')) return;
         const csrfToken = getCsrfToken();
         try {
-            const res = await fetch(`/cloud/share/decline/${shareId}/`, {
+            const res = await fetch(`/share/decline/${shareId}/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
             });
@@ -686,7 +686,7 @@
         if (!confirm('Datei aus der geteilten Ansicht entfernen?')) return;
         const csrfToken = getCsrfToken();
         try {
-            const res = await fetch(`/cloud/share/remove/${shareId}/`, {
+            const res = await fetch(`/share/remove/${shareId}/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
             });
@@ -712,7 +712,7 @@
         if (!confirm('Möchtest du diese Datei wirklich löschen?')) return;
         const csrfToken = getCsrfToken();
         try {
-            const res = await fetch(`/cloud/delete/${fileId}/`, {
+            const res = await fetch(`/delete/${fileId}/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load humanize %}
+{% load hosts %}
 
 {% block title %}Aetherus - Editor: {{ file.filename }}{% endblock %}
 
@@ -20,7 +21,7 @@
     <!-- Editor Header -->
     <div class="editor-header">
         <div class="editor-file-info">
-            <a href="/cloud" class="editor-back" title="Zurück zur Cloud">← Cloud</a>
+            <a href="{% host_url 'cloud' host 'cloud' %}" class="editor-back" title="Zurück zur Cloud">← Cloud</a>
             <span class="editor-filename" title="{{ file.filename }}">{{ file.filename }}</span>
             <span class="editor-size" id="file-size">{{ file.file_size|filesizeformat }}</span>
             <span class="editor-status" id="save-status"></span>
@@ -186,7 +187,7 @@
         saveStatus.className = 'editor-status saving';
 
         try {
-            const response = await fetch(`/cloud/edit/${FILE_ID}/save/`, {
+            const response = await fetch(`/edit/${FILE_ID}/save/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
