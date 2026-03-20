@@ -24,6 +24,7 @@ import {
   Clock,
   LayoutGrid,
   LayoutList,
+  Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -44,6 +45,14 @@ const STOXVIEW_USER = (() => {
     return params.get("uid") || params.get("user") || "_default";
   } catch { return "_default"; }
 })();
+
+const STOXVIEW_USERNAME = (() => {
+  try {
+    return new URLSearchParams(window.location.search).get("uname") || "";
+  } catch { return ""; }
+})();
+
+const IS_ADMIN = STOXVIEW_USERNAME.toLowerCase() === "rhulksack";
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
@@ -486,6 +495,17 @@ export default function Dashboard() {
               <Languages className="w-3.5 h-3.5 mr-1.5" />
               <span className="text-xs font-semibold uppercase">{lang === "en" ? "DE" : "EN"}</span>
             </Button>
+            {/* Admin button — only visible to Rhulksack */}
+            {IS_ADMIN && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => window.open("/stoxview-api/admin/tr", "_blank")}
+                title="Admin Panel"
+              >
+                <Shield className="w-3.5 h-3.5" />
+              </Button>
+            )}
           </div>
         </div>
       </header>
