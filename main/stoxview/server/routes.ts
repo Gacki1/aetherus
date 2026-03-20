@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import type { NewsSource, StockPrediction } from "@shared/schema";
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
 import { join } from "path";
+import { getPriceProvider } from "./price-provider";
 
 // ═══════════════════════════════════════════════════════════
 // CACHING LAYER
@@ -1217,6 +1218,25 @@ async function fetchFullPrediction(symbol: string): Promise<StockPrediction | nu
       if (resolved) prediction.isin = resolved;
     }
 
+    // Phase 4: Enhance with Trade Republic / Polygon data if available
+    const isin = prediction.isin;
+    const provider = getPriceProvider();
+    if (isin) {
+      // Auto-subscribe to TR for this ISIN (non-blocking)
+      provider.subscribeToTR(isin);
+    }
+    const enhanced = provider.getEnhancedQuote(isin, quote, symbol);
+    if (enhanced.source === "trade-republic") {
+      // Override bid/ask with TR real-time data
+      if (enhanced.bidPrice != null) prediction.bidPrice = round2(needsConversion ? convertToEur(enhanced.bidPrice, eurRate) : enhanced.bidPrice);
+      if (enhanced.askPrice != null) prediction.askPrice = round2(needsConversion ? convertToEur(enhanced.askPrice, eurRate) : enhanced.askPrice);
+      // TR prices are already from LSX (EUR) — but TR shows all prices in EUR,
+      // so we only convert if the underlying is USD-denominated
+    }
+    // Tag the data source in the prediction
+    (prediction as any).priceSource = enhanced.source;
+    (prediction as any).isRealtime = enhanced.isRealtime;
+
     setCache(cacheKey, prediction);
     return prediction;
   } catch (e) {
@@ -2022,6 +2042,67 @@ export async function registerRoutes(
     } catch (err: any) {
       console.error("History error:", err.message);
       res.status(500).json({ error: "Failed to fetch history." });
+    }
+  });
+
+  // --- Data Source Status ---
+  app.get("/api/data-sources", (_req, res) => {
+    const provider = getPriceProvider();
+    res.json(provider.getStatus());
+  });
+
+  // --- Trade Republic Login (interactive 2FA) ---
+  // Step 1: Initiate login — returns processId, triggers 2FA code to phone
+  app.post("/api/tr/login", async (req, res) => {
+    try {
+      const { phoneNumber, pin } = req.body;
+      if (!phoneNumber || !pin) {
+        return res.status(400).json({ error: "phoneNumber and pin required" });
+      }
+
+      const trRes = await fetch("https://api.traderepublic.com/api/v1/auth/web/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phoneNumber, pin }),
+        signal: AbortSignal.timeout(10_000),
+      });
+
+      if (!trRes.ok) {
+        return res.status(trRes.status).json({ error: "TR login failed" });
+      }
+
+      const data = await trRes.json();
+      res.json({ processId: data.processId, message: "2FA code sent to your phone" });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Step 2: Verify 2FA code and establish session
+  app.post("/api/tr/verify", async (req, res) => {
+    try {
+      const { processId, code, phoneNumber, pin } = req.body;
+      if (!processId || !code) {
+        return res.status(400).json({ error: "processId and code required" });
+      }
+
+      const trRes = await fetch(
+        `https://api.traderepublic.com/api/v1/auth/web/login/${processId}/${code}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: AbortSignal.timeout(10_000),
+        }
+      );
+
+      if (!trRes.ok) {
+        return res.status(trRes.status).json({ error: "2FA verification failed" });
+      }
+
+      // For now, we log success. Full session management is in the PriceProvider.
+      res.json({ success: true, message: "Trade Republic connected" });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
     }
   });
 
