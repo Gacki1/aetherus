@@ -1,5 +1,5 @@
 # --- 1. HAUPTDOMAIN (Django & Frontend) ---
-aetherus.net, www.aetherus.net {
+aetherus.net, www.aetherus.net, cloud.aetherus.net, stoxview.aetherus.net {
 
     # A. Statische Dateien (CSS, JS, Bilder)
     # Caddy liefert diese direkt aus dem Volume, das wir teilen
