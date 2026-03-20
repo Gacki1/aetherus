@@ -4,7 +4,47 @@ Full development history of Aetherus — all changes documented by date and phas
 
 **Repository:** [github.com/Gacki1/aetherus](https://github.com/Gacki1/aetherus)  
 **Live:** [aetherus.net](https://aetherus.net)  
-**Stats:** 309 commits · ~10,000 lines of code · 16 pages · 8 migrations
+**Stats:** 311 commits · ~10,000 lines of code · 16 pages · 8 migrations
+
+---
+
+## [2026-03-20] Faster Price Refresh, Delayed Badge & Bid/Ask Display
+
+Stock prices now refresh much faster and clearly indicate when data is delayed.
+
+### Cache TTL reductions
+
+| Data | Old TTL | New TTL |
+|------|---------|---------|
+| Individual stock prediction | 3 min | 60 sec |
+| Batch predictions | 3 min | 60 sec |
+| Market summary | 3 min | 60 sec |
+| Browse page | 5 min | 90 sec |
+| German stock quotes | 5 min | 90 sec |
+| Client auto-refresh | 5 min | 60 sec |
+
+### Delayed price badge
+
+A badge now appears next to every stock price showing the market state:
+- **Verzögert** — during regular hours (Yahoo data is ~15 min delayed)
+- **Nachbörslich** — after XETRA closes (17:30 CET)
+- **Vorbörslich** — before market opens
+- **Markt geschlossen** — weekends/holidays
+
+### Bid/Ask prices
+
+When Yahoo provides bid/ask data, it's displayed alongside the O/H/L row:
+- **Geld** (Bid) / **Brief** (Ask) shown in the stock detail view
+- Values are converted to EUR like all other prices
+- Visible in both normal sidebar and expanded layout
+
+### Files changed
+
+- `main/stoxview/server/routes.ts` — Cache TTL reductions, added marketState/bid/ask to prediction output
+- `main/stoxview/shared/schema.ts` — Added `marketState`, `bidPrice`, `askPrice` fields
+- `main/stoxview/client/src/components/stock-detail.tsx` — Delayed badge + bid/ask display
+- `main/stoxview/client/src/lib/i18n.tsx` — 6 new translations (DE + EN)
+- `main/stoxview/client/src/pages/dashboard.tsx` — 60s auto-refresh interval
 
 ---
 
@@ -564,4 +604,4 @@ Project creation.
 | 2026-01-10 | 2 | Optimization attempt (reverted) |
 | 2026-03-17 | 5 | Hetzner storage, cloud files, new deploy pipeline |
 | 2026-03-19 | 52 | Major update: cloud, profile, StoxView, logo, chat groups, sharing, predictions, rate limits, technicals |
-| 2026-03-20 | 3 | ISIN fixes: onvista API, blocking resolution, suffix strip |
+| 2026-03-20 | 4 | ISIN fixes, faster price refresh, delayed badge, bid/ask display |
