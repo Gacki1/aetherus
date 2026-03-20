@@ -340,17 +340,21 @@ async function resolveIsinAsync(ticker: string, companyName: string, exchange?: 
   // Mark as in-progress (null = attempted but not found)
   dynamicIsinCache.set(key, null);
 
+  // Strip Yahoo suffix (.DE, .F, .L, .SW, .TO, etc.) for cleaner API queries
+  const baseTicker = key.replace(/\.[A-Z]{1,3}$/, "");
+
   // Determine expected ISIN country from exchange (e.g. NYQ→US, GER→DE)
   const expectedCountry = exchangeToIsinCountry(exchange || "");
-  console.log(`[ISIN] Resolving ${key} (company: ${companyName}, exchange: ${exchange || "?"}, expectedCountry: ${expectedCountry || "?"})`);
+  console.log(`[ISIN] Resolving ${key} (base: ${baseTicker}, company: ${companyName}, exchange: ${exchange || "?"}, expectedCountry: ${expectedCountry || "?"})`);
 
   try {
     // Strategy 1 (PRIMARY): Query onvista.de API — structured JSON with verified ISINs
-    // Try multiple search queries: ticker first, then company name
+    // Try multiple search queries: base ticker, full ticker, company name
     const onvistaQueries = [
-      ticker,
-      `${ticker} ${companyName}`,
+      baseTicker,
+      ...(baseTicker !== key ? [key] : []),
       companyName,
+      `${baseTicker} ${companyName}`,
     ];
 
     for (const q of onvistaQueries) {
@@ -366,18 +370,21 @@ async function resolveIsinAsync(ticker: string, companyName: string, exchange?: 
           (item: any) => item.entityType === "STOCK" && item.isin
         );
 
-        // Find the best match: prefer matching homeSymbol, then matching expected country
-        let bestMatch = stocks.find((s: any) =>
-          s.homeSymbol?.toUpperCase() === key && (!expectedCountry || s.isin.startsWith(expectedCountry))
-        );
-        if (!bestMatch) {
-          bestMatch = stocks.find((s: any) => s.homeSymbol?.toUpperCase() === key);
-        }
-        if (!bestMatch && expectedCountry) {
-          bestMatch = stocks.find((s: any) => s.isin.startsWith(expectedCountry));
+        // Find the best match: prefer matching homeSymbol (compare against both key and baseTicker)
+        const matchesTicker = (s: any) => {
+          const hs = s.homeSymbol?.toUpperCase() || "";
+          return hs === key || hs === baseTicker;
+        };
+
+        let bestMatch = stocks.find((s: any) => matchesTicker(s));
+        if (!bestMatch && stocks.length === 1) {
+          bestMatch = stocks[0]; // Only one stock result — likely correct
         }
         if (!bestMatch && stocks.length > 0) {
-          bestMatch = stocks[0];
+          // Multiple results: prefer one matching expected country (or related countries)
+          bestMatch = stocks.find((s: any) =>
+            expectedCountry && s.isin.startsWith(expectedCountry)
+          ) || stocks[0];
         }
 
         if (bestMatch && bestMatch.isin && isValidIsin(bestMatch.isin) && !INDEX_ISINS.has(bestMatch.isin)) {
@@ -392,7 +399,7 @@ async function resolveIsinAsync(ticker: string, companyName: string, exchange?: 
 
     // Strategy 2 (FALLBACK): Search onvista HTML page for ISINs
     try {
-      const searchUrl = `https://www.onvista.de/aktien/suche?searchValue=${encodeURIComponent(`${ticker} ${companyName}`)}`;
+      const searchUrl = `https://www.onvista.de/aktien/suche?searchValue=${encodeURIComponent(`${baseTicker} ${companyName}`)}`;
       const searchRes = await fetch(searchUrl, {
         headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
         redirect: "follow",
@@ -400,10 +407,11 @@ async function resolveIsinAsync(ticker: string, companyName: string, exchange?: 
       });
       if (searchRes.ok) {
         const html = await searchRes.text();
-        const bestIsin = extractBestIsin(html, expectedCountry);
+        // Don't filter by country here — onvista HTML results are already relevant
+        const bestIsin = extractBestIsin(html);
         if (bestIsin) {
           dynamicIsinCache.set(key, bestIsin);
-          console.log(`[ISIN] Resolved ${key} → ${bestIsin} (via onvista HTML, expected: ${expectedCountry})`);
+          console.log(`[ISIN] Resolved ${key} → ${bestIsin} (via onvista HTML)`);
           return;
         }
       }
