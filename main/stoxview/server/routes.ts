@@ -2051,28 +2051,43 @@ export async function registerRoutes(
     res.json(provider.getStatus());
   });
 
-  // --- Trade Republic Login (interactive 2FA) ---
-  // Step 1: Initiate login — returns processId, triggers 2FA code to phone
+  // ═══════════════════════════════════════════════════════════
+  // TRADE REPUBLIC ADMIN PANEL
+  // Protected by admin password (env: TR_ADMIN_PASSWORD, default: STOXVIEW_DATA_DIR-based)
+  // ═══════════════════════════════════════════════════════════
+  const TR_ADMIN_PASSWORD = process.env.TR_ADMIN_PASSWORD || "stoxview-admin-2024";
+
+  function checkAdminAuth(req: any, res: any): boolean {
+    const auth = req.headers.authorization;
+    if (!auth || auth !== `Bearer ${TR_ADMIN_PASSWORD}`) {
+      res.status(401).json({ error: "Unauthorized" });
+      return false;
+    }
+    return true;
+  }
+
+  // Admin page — serves the TR login UI
+  app.get("/admin/tr", (_req, res) => {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.send(getTRAdminHTML());
+  });
+
+  // Step 1: Initiate TR login — triggers 2FA to phone
   app.post("/api/tr/login", async (req, res) => {
+    if (!checkAdminAuth(req, res)) return;
     try {
-      const { phoneNumber, pin } = req.body;
-      if (!phoneNumber || !pin) {
-        return res.status(400).json({ error: "phoneNumber and pin required" });
+      const provider = getPriceProvider();
+      const trClient = provider.getTRClient();
+      if (!trClient) {
+        return res.status(400).json({ error: "Trade Republic nicht konfiguriert. TR_PHONE und TR_PIN Umgebungsvariablen setzen." });
       }
 
-      const trRes = await fetch("https://api.traderepublic.com/api/v1/auth/web/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phoneNumber, pin }),
-        signal: AbortSignal.timeout(10_000),
-      });
-
-      if (!trRes.ok) {
-        return res.status(trRes.status).json({ error: "TR login failed" });
+      const result = await trClient.initiateLogin();
+      if (!result) {
+        return res.status(500).json({ error: "TR Login fehlgeschlagen. Überprüfe Telefonnummer und PIN." });
       }
 
-      const data = await trRes.json();
-      res.json({ processId: data.processId, message: "2FA code sent to your phone" });
+      res.json({ processId: result.processId, message: "2FA-Code wurde an dein Handy gesendet" });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -2080,27 +2095,29 @@ export async function registerRoutes(
 
   // Step 2: Verify 2FA code and establish session
   app.post("/api/tr/verify", async (req, res) => {
+    if (!checkAdminAuth(req, res)) return;
     try {
-      const { processId, code, phoneNumber, pin } = req.body;
+      const { processId, code } = req.body;
       if (!processId || !code) {
-        return res.status(400).json({ error: "processId and code required" });
+        return res.status(400).json({ error: "processId und Code erforderlich" });
       }
 
-      const trRes = await fetch(
-        `https://api.traderepublic.com/api/v1/auth/web/login/${processId}/${code}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          signal: AbortSignal.timeout(10_000),
-        }
-      );
-
-      if (!trRes.ok) {
-        return res.status(trRes.status).json({ error: "2FA verification failed" });
+      const provider = getPriceProvider();
+      const trClient = provider.getTRClient();
+      if (!trClient) {
+        return res.status(400).json({ error: "Trade Republic nicht konfiguriert" });
       }
 
-      // For now, we log success. Full session management is in the PriceProvider.
-      res.json({ success: true, message: "Trade Republic connected" });
+      const success = await trClient.completeLogin(processId, code);
+      if (!success) {
+        return res.status(401).json({ error: "2FA-Verifizierung fehlgeschlagen. Code falsch oder abgelaufen." });
+      }
+
+      // Reset provider state so it picks up the new session
+      provider.resetTRState();
+      await provider.initTradeRepublic();
+
+      res.json({ success: true, message: "Trade Republic verbunden!" });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -2219,4 +2236,341 @@ function generateProjection(
   }
 
   return projection;
+}
+
+// ═══════════════════════════════════════════════════════════
+// TRADE REPUBLIC ADMIN PAGE HTML
+// ═══════════════════════════════════════════════════════════
+function getTRAdminHTML(): string {
+  return `<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StoxView Admin — Trade Republic</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .container {
+      width: 100%;
+      max-width: 440px;
+      padding: 24px;
+    }
+    .card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 32px;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .logo-icon {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, #00d2ff 0%, #0088ff 100%);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 700; color: #0d1117;
+    }
+    .logo h1 { font-size: 18px; font-weight: 600; }
+    .logo h1 span { color: #00d2ff; }
+    .subtitle { color: #8b949e; font-size: 13px; margin-bottom: 24px; }
+    .status-bar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 14px;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 13px;
+    }
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .status-dot.connected { background: #3fb950; box-shadow: 0 0 6px #3fb950; }
+    .status-dot.disconnected { background: #f85149; }
+    .status-dot.pending { background: #d29922; }
+    .status-text { flex: 1; }
+    .status-label { color: #8b949e; }
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: #8b949e;
+      margin-bottom: 6px;
+    }
+    input {
+      width: 100%;
+      padding: 10px 14px;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      color: #e6edf3;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+      margin-bottom: 16px;
+    }
+    input:focus { border-color: #00d2ff; }
+    input::placeholder { color: #484f58; }
+    button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #00d2ff 0%, #0088ff 100%);
+      color: #0d1117;
+    }
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-primary:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .message {
+      margin-top: 16px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      display: none;
+    }
+    .message.success { background: #0d2818; border: 1px solid #238636; color: #3fb950; display: block; }
+    .message.error { background: #2d1117; border: 1px solid #f85149; color: #f85149; display: block; }
+    .message.info { background: #0d1d30; border: 1px solid #1f6feb; color: #58a6ff; display: block; }
+    .step { display: none; }
+    .step.active { display: block; }
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid transparent;
+      border-top-color: #0d1117;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .session-info {
+      margin-top: 20px;
+      padding: 12px 14px;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      font-size: 12px;
+      color: #8b949e;
+    }
+    .session-info strong { color: #e6edf3; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="logo">
+        <div class="logo-icon">S</div>
+        <h1>Stox<span>View</span> Admin</h1>
+      </div>
+      <p class="subtitle">Trade Republic Verbindung verwalten</p>
+
+      <div class="status-bar" id="statusBar">
+        <div class="status-dot disconnected" id="statusDot"></div>
+        <span class="status-text" id="statusText">Status wird geladen...</span>
+      </div>
+
+      <!-- Step 0: Admin Password -->
+      <div class="step active" id="step0">
+        <label for="adminPw">Admin-Passwort</label>
+        <input type="password" id="adminPw" placeholder="Passwort eingeben" autocomplete="off">
+        <button class="btn-primary" id="btnAuth" onclick="authenticate()">Anmelden</button>
+      </div>
+
+      <!-- Step 1: Initiate Login -->
+      <div class="step" id="step1">
+        <p style="color:#8b949e;font-size:13px;margin-bottom:16px">
+          Klicke auf "Login starten" um einen 2FA-Code an dein Handy zu senden.
+          Deine TR-Zugangsdaten werden aus den Umgebungsvariablen gelesen.
+        </p>
+        <button class="btn-primary" id="btnLogin" onclick="initiateLogin()">Login starten</button>
+      </div>
+
+      <!-- Step 2: Enter 2FA Code -->
+      <div class="step" id="step2">
+        <label for="code2fa">2FA-Code</label>
+        <input type="text" id="code2fa" placeholder="4-stelliger Code" maxlength="4"
+               pattern="[0-9]*" inputmode="numeric" autocomplete="one-time-code">
+        <button class="btn-primary" id="btnVerify" onclick="verifyCode()">Verifizieren</button>
+      </div>
+
+      <div class="message" id="msg"></div>
+
+      <div class="session-info" id="sessionInfo" style="display:none">
+        <strong>Session-Info:</strong><br>
+        <span id="sessionDetails"></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let adminToken = '';
+    let processId = '';
+
+    // Detect base path: if served under /stoxview-api/, API calls need that prefix
+    const basePath = window.location.pathname.replace(/\/admin\/tr\/?$/, '').replace(/\/$/, '');
+    function apiUrl(path) { return basePath + path; }
+
+    // Check status on load
+    fetchStatus();
+
+    async function fetchStatus() {
+      try {
+        const res = await fetch(apiUrl('/api/data-sources'));
+        const data = await res.json();
+        const dot = document.getElementById('statusDot');
+        const text = document.getElementById('statusText');
+        const info = document.getElementById('sessionInfo');
+        const details = document.getElementById('sessionDetails');
+
+        if (data.tradeRepublic.connected) {
+          dot.className = 'status-dot connected';
+          text.innerHTML = '<span class="status-label">Trade Republic:</span> Verbunden';
+          info.style.display = 'block';
+          details.textContent = 'WebSocket aktiv \u2022 ' + data.tradeRepublic.subscribedIsins + ' ISINs abonniert';
+        } else if (data.tradeRepublic.hasSession) {
+          dot.className = 'status-dot pending';
+          text.innerHTML = '<span class="status-label">Trade Republic:</span> Session vorhanden (nicht verbunden)';
+        } else {
+          dot.className = 'status-dot disconnected';
+          text.innerHTML = '<span class="status-label">Trade Republic:</span> Nicht verbunden';
+        }
+      } catch {
+        document.getElementById('statusText').textContent = 'Status nicht verf\u00fcgbar';
+      }
+    }
+
+    function showMsg(text, type) {
+      const el = document.getElementById('msg');
+      el.textContent = text;
+      el.className = 'message ' + type;
+    }
+
+    function hideMsg() {
+      document.getElementById('msg').className = 'message';
+    }
+
+    function showStep(n) {
+      document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+      document.getElementById('step' + n).classList.add('active');
+    }
+
+    function authenticate() {
+      adminToken = document.getElementById('adminPw').value.trim();
+      if (!adminToken) { showMsg('Bitte Passwort eingeben', 'error'); return; }
+      hideMsg();
+      showStep(1);
+    }
+
+    // Enter-key on password field
+    document.getElementById('adminPw').addEventListener('keydown', e => {
+      if (e.key === 'Enter') authenticate();
+    });
+    document.getElementById('code2fa').addEventListener('keydown', e => {
+      if (e.key === 'Enter') verifyCode();
+    });
+
+    async function initiateLogin() {
+      const btn = document.getElementById('btnLogin');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>Wird gesendet...';
+      hideMsg();
+
+      try {
+        const res = await fetch(apiUrl('/api/tr/login'), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + adminToken
+          },
+          body: '{}'
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          showMsg(data.error || 'Login fehlgeschlagen', 'error');
+          btn.disabled = false;
+          btn.textContent = 'Login starten';
+          return;
+        }
+
+        processId = data.processId;
+        showMsg(data.message, 'info');
+        showStep(2);
+        document.getElementById('code2fa').focus();
+      } catch (err) {
+        showMsg('Netzwerkfehler: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Login starten';
+      }
+    }
+
+    async function verifyCode() {
+      const code = document.getElementById('code2fa').value.trim();
+      if (!code) { showMsg('Bitte Code eingeben', 'error'); return; }
+
+      const btn = document.getElementById('btnVerify');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>Wird verifiziert...';
+      hideMsg();
+
+      try {
+        const res = await fetch(apiUrl('/api/tr/verify'), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + adminToken
+          },
+          body: JSON.stringify({ processId, code })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          showMsg(data.error || 'Verifizierung fehlgeschlagen', 'error');
+          btn.disabled = false;
+          btn.textContent = 'Verifizieren';
+          return;
+        }
+
+        showMsg(data.message, 'success');
+        btn.disabled = false;
+        btn.textContent = 'Verifizieren';
+
+        // Refresh status after short delay
+        setTimeout(fetchStatus, 1500);
+      } catch (err) {
+        showMsg('Netzwerkfehler: ' + err.message, 'error');
+        btn.disabled = false;
+        btn.textContent = 'Verifizieren';
+      }
+    }
+  </script>
+</body>
+</html>`;
 }

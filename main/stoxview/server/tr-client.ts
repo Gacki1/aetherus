@@ -226,6 +226,73 @@ export class TradeRepublicClient {
     }
   }
 
+  /**
+   * Two-step login for admin page flow:
+   * Step 1: initiateLogin() → returns processId, triggers 2FA
+   * Step 2: completeLogin(processId, code) → saves session, connects WS
+   */
+  async initiateLogin(): Promise<{ processId: string } | null> {
+    try {
+      const res = await fetch(`${TR_HOST}/api/v1/auth/web/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phoneNumber: this.phoneNo, pin: this.pin }),
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!res.ok) {
+        console.error("[TR] initiateLogin failed:", res.status);
+        return null;
+      }
+      const data = await res.json() as { processId?: string };
+      return data.processId ? { processId: data.processId } : null;
+    } catch (e) {
+      console.error("[TR] initiateLogin error:", (e as Error).message?.slice(0, 100));
+      return null;
+    }
+  }
+
+  async completeLogin(processId: string, code: string): Promise<boolean> {
+    try {
+      const verifyRes = await fetch(
+        `${TR_HOST}/api/v1/auth/web/login/${processId}/${code}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: AbortSignal.timeout(10_000),
+        }
+      );
+      if (!verifyRes.ok) {
+        console.error("[TR] completeLogin failed:", verifyRes.status);
+        return false;
+      }
+
+      const setCookies = verifyRes.headers.getSetCookie?.() || [];
+      const sessionToken = this.extractCookie(setCookies, "tr_session");
+      const refreshToken = this.extractCookie(setCookies, "tr_refresh");
+
+      if (!sessionToken) {
+        console.error("[TR] No tr_session cookie in verify response");
+        return false;
+      }
+
+      this.session = {
+        trSessionToken: sessionToken,
+        trRefreshToken: refreshToken,
+        rawCookies: setCookies,
+        savedAt: new Date().toISOString(),
+      };
+
+      this.saveSession();
+      await this.connectWebSocket();
+
+      console.log("[TR] completeLogin successful, WebSocket connected.");
+      return true;
+    } catch (e) {
+      console.error("[TR] completeLogin error:", (e as Error).message?.slice(0, 100));
+      return false;
+    }
+  }
+
   /** Disconnect and clean up */
   async disconnect(): Promise<void> {
     this.stopEcho();

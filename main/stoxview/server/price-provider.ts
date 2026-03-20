@@ -208,6 +208,17 @@ export class PriceProvider {
     };
   }
 
+  /** Get the underlying TR client (for admin login flow) */
+  getTRClient(): TradeRepublicClient | null {
+    return this.trClient;
+  }
+
+  /** Reset TR state so init can be retried after a successful login */
+  resetTRState(): void {
+    this.trInitialized = false;
+    this.trInitFailed = false;
+  }
+
   /** Clean up all connections */
   async shutdown(): Promise<void> {
     if (this.trClient) {
