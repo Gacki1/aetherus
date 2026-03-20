@@ -54,6 +54,17 @@ urlpatterns = [
     path("api/auth/", include("djoser.urls.authtoken")),
 
     # 6. Chat Group API
+    # 7. Cloud Sharing & User Search
+    path("api/users/search/", pages.user_search_view, name="user_search"),
+    path("share/<int:file_id>/", pages.share_file_view, name="share_file"),
+    path("unshare/<int:share_id>/", pages.unshare_file_view, name="unshare_file"),
+    path("share/accept/<int:share_id>/", pages.accept_share_view, name="accept_share"),
+    path("share/decline/<int:share_id>/", pages.decline_share_view, name="decline_share"),
+    path("share/remove/<int:share_id>/", pages.remove_received_share_view, name="remove_received_share"),
+    path("delete/<int:file_id>/", pages.cloud_delete_file_view, name="cloud_delete_file"),
+    path("shared/<str:token>/", pages.shared_download_view, name="shared_download"),
+
+    # 8. Chat Group API
     path("api/chat/groups/", pages.chat_groups_list_view, name="chat_groups_list"),
     path("api/chat/groups/create/", pages.chat_group_create_view, name="chat_group_create"),
     path("api/chat/groups/<int:group_id>/invite/", pages.chat_group_invite_view, name="chat_group_invite"),

@@ -235,7 +235,7 @@ def cloud_page_view(request):
             "storage_used": total_storage,
             "storage_limit": storage_limit,
             "storage_percent": min(storage_percent, 100),
-            "all_users": User.objects.exclude(id=user.id).order_by('username'),
+            # all_users removed — user search is now via /api/users/search/
         })
     except Exception as e:
         logger.warning(f"Cloud page error: {e}")
@@ -247,7 +247,7 @@ def cloud_page_view(request):
             "storage_used": 0,
             "storage_limit": storage_limit,
             "storage_percent": 0,
-            "all_users": [],
+            # all_users removed — user search is now via /api/users/search/
         })
 
 
@@ -408,6 +408,26 @@ def editor_save_view(request, file_id):
     except Exception as e:
         logger.error(f"Could not save file {cloud_file.filename}: {e}")
         return JsonResponse({'error': 'Speichern fehlgeschlagen'}, status=500)
+
+
+# ====== Cloud User Search ======
+
+@login_required(login_url='/login')
+def user_search_view(request):
+    """Search users by username prefix. Returns max 5 matches, excludes self."""
+    q = request.GET.get('q', '').strip()
+    if len(q) < 1:
+        return JsonResponse({'users': []})
+
+    users = User.objects.filter(
+        username__istartswith=q
+    ).exclude(
+        id=request.user.id
+    ).order_by('username')[:5]
+
+    return JsonResponse({
+        'users': [{'id': u.id, 'username': u.username} for u in users]
+    })
 
 
 # ====== Cloud File Sharing ======

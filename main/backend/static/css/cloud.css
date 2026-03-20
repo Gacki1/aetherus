@@ -636,8 +636,13 @@
     gap: 8px;
 }
 
-.share-user-select {
+.share-user-input-wrap {
     flex: 1;
+    position: relative;
+}
+
+.share-user-input {
+    width: 100%;
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px;
@@ -645,17 +650,46 @@
     color: var(--text-white);
     font-size: 0.85rem;
     outline: none;
-    appearance: none;
-    cursor: pointer;
 }
 
-.share-user-select option {
-    background: #1a1f26;
-    color: var(--text-white);
+.share-user-input::placeholder {
+    color: rgba(255, 255, 255, 0.3);
 }
 
-.share-user-select:focus {
+.share-user-input:focus {
     border-color: var(--accent-blue);
+}
+
+.share-user-suggestions {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: #1a1f26;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    overflow: hidden;
+    z-index: 50;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.suggestion-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--text-white);
+    transition: background 0.15s;
+}
+
+.suggestion-item:hover {
+    background: rgba(0, 136, 255, 0.15);
+}
+
+.suggestion-empty {
+    padding: 10px 14px;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.35);
 }
 
 /* Feedback messages */

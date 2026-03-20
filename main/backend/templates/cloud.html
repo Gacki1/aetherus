@@ -6,7 +6,7 @@
 {% block title %}Aetherus - Cloud{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/cloud.css' %}?v=3">
+<link rel="stylesheet" href="{% static 'css/cloud.css' %}?v=4">
 {% endblock %}
 
 {% block content %}
@@ -220,12 +220,12 @@
             <div class="share-section">
                 <h4>Mit Benutzer teilen</h4>
                 <div class="share-user-row">
-                    <select id="share-user-select" class="share-user-select">
-                        <option value="">Benutzer wählen...</option>
-                        {% for u in all_users %}
-                        <option value="{{ u.id }}">{{ u.username }}</option>
-                        {% endfor %}
-                    </select>
+                    <div class="share-user-input-wrap">
+                        <input type="text" id="share-user-input" class="share-user-input"
+                               placeholder="Benutzername eingeben..." autocomplete="off">
+                        <input type="hidden" id="share-user-id">
+                        <div class="share-user-suggestions" id="share-user-suggestions"></div>
+                    </div>
                     <button class="share-action-btn" onclick="shareWithUser()">Teilen</button>
                 </div>
             </div>
@@ -533,12 +533,64 @@
         });
     }
 
+    // ====== User Search Autocomplete ======
+    let searchTimeout = null;
+    const userInput = document.getElementById('share-user-input');
+    const userIdField = document.getElementById('share-user-id');
+    const suggestionsBox = document.getElementById('share-user-suggestions');
+
+    userInput.addEventListener('input', function() {
+        const q = this.value.trim();
+        userIdField.value = '';
+        if (q.length < 1) {
+            suggestionsBox.style.display = 'none';
+            suggestionsBox.innerHTML = '';
+            return;
+        }
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => searchUsers(q), 250);
+    });
+
+    // Close suggestions on click outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.share-user-input-wrap')) {
+            suggestionsBox.style.display = 'none';
+        }
+    });
+
+    async function searchUsers(query) {
+        try {
+            const res = await fetch(`/api/users/search/?q=${encodeURIComponent(query)}`);
+            const data = await res.json();
+            suggestionsBox.innerHTML = '';
+            if (data.users.length === 0) {
+                suggestionsBox.innerHTML = '<div class="suggestion-empty">Kein Benutzer gefunden</div>';
+                suggestionsBox.style.display = 'block';
+                return;
+            }
+            data.users.forEach(u => {
+                const item = document.createElement('div');
+                item.className = 'suggestion-item';
+                item.textContent = u.username;
+                item.addEventListener('click', () => {
+                    userInput.value = u.username;
+                    userIdField.value = u.id;
+                    suggestionsBox.style.display = 'none';
+                });
+                suggestionsBox.appendChild(item);
+            });
+            suggestionsBox.style.display = 'block';
+        } catch {
+            suggestionsBox.style.display = 'none';
+        }
+    }
+
     async function shareWithUser() {
         if (!currentShareFileId) return;
-        const select = document.getElementById('share-user-select');
-        const userId = select.value;
-        if (!userId) {
-            showToast('Bitte wähle einen Benutzer.', 'warning');
+        const userId = userIdField.value;
+        const username = userInput.value.trim();
+        if (!userId || !username) {
+            showToast('Bitte gib einen Benutzernamen ein und w\u00e4hle ihn aus.', 'warning');
             return;
         }
         const csrfToken = getCsrfToken();
@@ -555,7 +607,8 @@
             const data = await res.json();
             if (data.success) {
                 showToast(data.message, 'success');
-                select.value = '';
+                userInput.value = '';
+                userIdField.value = '';
 
                 // Add a user share badge under the file in the personal tab
                 const fileId = currentShareFileId;
