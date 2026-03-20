@@ -19,7 +19,36 @@ aetherus.net, www.aetherus.net, cloud.aetherus.net, stoxview.aetherus.net {
     reverse_proxy backend:8000
 }
 
-# --- 2. MAILCOW (Subdomain) ---
+# --- 2. CLOUD SUBDOMAIN ---
+cloud.aetherus.net {
+    # Statische Dateien
+    handle_path /static/* {
+        root * /app/staticfiles
+        file_server
+    }
+
+    # Alles andere -> Django Backend
+    reverse_proxy backend:8000
+}
+
+# --- 3. STOXVIEW SUBDOMAIN ---
+stoxview.aetherus.net {
+    # Statische Dateien
+    handle_path /static/* {
+        root * /app/staticfiles
+        file_server
+    }
+
+    # Stoxview API -> Node.js container
+    handle_path /stoxview-api/* {
+        reverse_proxy stoxview:5000
+    }
+
+    # Alles andere -> Django Backend
+    reverse_proxy backend:8000
+}
+
+# --- 4. MAILCOW (Subdomain) ---
 mail.aetherus.net {
     reverse_proxy nginx-mailcow:8080 {
         header_up Host {host}

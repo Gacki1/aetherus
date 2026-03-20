@@ -6,16 +6,46 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.contrib import messages
 from django.db.models import Sum, Count
 from django.conf import settings
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseRedirect
 from django.core.files.base import ContentFile
 from django.contrib.auth.models import User
 from django.db import models as db_models
+from urllib.parse import quote
 from ..models import CloudFile, ChatMessage, FileShare, UserProfile, ChatGroup, ChatGroupMembership
 import logging
 import json
 import uuid
 
 logger = logging.getLogger(__name__)
+
+# ====== Subdomain Helpers ======
+
+MAIN_DOMAIN = "aetherus.net"
+
+
+def _is_subdomain(request):
+    """Check if request is coming from a subdomain (e.g. cloud.aetherus.net)."""
+    host = request.get_host().split(':')[0]  # strip port
+    return host != MAIN_DOMAIN and host != f"www.{MAIN_DOMAIN}" and host.endswith(f".{MAIN_DOMAIN}")
+
+
+def _subdomain_login_redirect(request):
+    """Redirect to main domain login with ?next= pointing back to the subdomain URL."""
+    scheme = 'https' if request.is_secure() else 'http'
+    host = request.get_host()
+    next_url = f"{scheme}://{host}{request.get_full_path()}"
+    return HttpResponseRedirect(f"https://{MAIN_DOMAIN}/login?next={quote(next_url)}")
+
+
+def subdomain_login_required(view_func):
+    """Like @login_required, but redirects to main domain login for subdomains."""
+    def wrapper(request, *args, **kwargs):
+        if request.user.is_authenticated:
+            return view_func(request, *args, **kwargs)
+        if _is_subdomain(request):
+            return _subdomain_login_redirect(request)
+        return redirect('/login')
+    return wrapper
 
 
 class DashboardView(LoginRequiredMixin, TemplateView):
@@ -65,6 +95,11 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 @ensure_csrf_cookie
 def login_page_view(request):
     if request.user.is_authenticated:
+        # If ?next= points to a valid subdomain, redirect there
+        import re
+        next_url = request.GET.get('next', '')
+        if next_url and re.match(r'^https://[a-z0-9-]+\.aetherus\.net', next_url):
+            return HttpResponseRedirect(next_url)
         return redirect("/main")
     return render(request, "login.html")
 
@@ -95,7 +130,7 @@ def register_page_view(request):
     return render(request, "register.html")
 
 
-@login_required(login_url='/login')
+@subdomain_login_required
 def cloud_page_view(request):
     user = request.user
     storage_limit = settings.MAX_CLOUD_STORAGE_PER_USER
@@ -181,7 +216,7 @@ def cloud_page_view(request):
         })
 
 
-@login_required(login_url='/login')
+@subdomain_login_required
 def stoxview_page_view(request):
     return render(request, "stoxview.html")
 

@@ -59,7 +59,6 @@ INSTALLED_APPS = [
     "channels",
     "storages",
     "django.contrib.humanize",
-    "django_hosts",
 ]
 
 from datetime import timedelta
@@ -120,7 +119,6 @@ SESSION_COOKIE_SECURE = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 
 MIDDLEWARE = [
-    "django_hosts.middleware.HostsRequestMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -130,12 +128,9 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'backend.middleware.GuestRestrictionMiddleware',
-    "django_hosts.middleware.HostsResponseMiddleware",
 ]
 
 ROOT_URLCONF = 'backend.urls'
-ROOT_HOSTCONF = 'backend.hosts'
-DEFAULT_HOST = 'root'
 
 TEMPLATES = [
     {
@@ -223,6 +218,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOWED_ORIGINS = [
     "https://aetherus.net",
+    "https://cloud.aetherus.net",
+    "https://stoxview.aetherus.net",
     "http://localhost:8000",
 ]
 
@@ -258,6 +255,10 @@ else:
 CSRF_COOKIE_SECURE = True  # Sollte auf True sein, da aetherus.net HTTPS nutzt
 CSRF_COOKIE_HTTPONLY = False # Muss False sein, damit JS den Token lesen kann
 CSRF_TRUSTED_ORIGINS = ["https://aetherus.net", "https://*.aetherus.net"]
+
+# Share session cookies across all subdomains
+SESSION_COOKIE_DOMAIN = ".aetherus.net"
+CSRF_COOKIE_DOMAIN = ".aetherus.net"
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 

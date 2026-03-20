@@ -1,6 +1,16 @@
 // login.js
 
-const REDIRECT_URL = "/main";
+// Determine redirect URL: honour ?next= param (for subdomain login flow)
+function getRedirectUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const next = params.get('next');
+    // Only allow redirects to aetherus.net subdomains (prevent open redirect)
+    if (next && /^https:\/\/[a-z0-9-]+\.aetherus\.net(\/.*)?(\?.*)?$/i.test(next)) {
+        return next;
+    }
+    return '/main';
+}
+const REDIRECT_URL = getRedirectUrl();
 
 // Show activation/reset messages from URL params
 document.addEventListener('DOMContentLoaded', function() {
@@ -25,9 +35,12 @@ document.addEventListener('DOMContentLoaded', function() {
         messageBox.style.display = 'block';
     }
 
-    // Clean URL params without page reload
-    if (params.toString()) {
-        window.history.replaceState({}, '', '/login');
+    // Clean URL params without page reload (keep ?next= intact)
+    const cleanParams = new URLSearchParams(window.location.search);
+    const nextParam = cleanParams.get('next');
+    if (cleanParams.toString()) {
+        const keepUrl = nextParam ? `/login?next=${encodeURIComponent(nextParam)}` : '/login';
+        window.history.replaceState({}, '', keepUrl);
     }
 });
 

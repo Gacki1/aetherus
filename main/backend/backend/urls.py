@@ -3,8 +3,19 @@ from django.urls import path, include
 from django.views.generic import RedirectView
 from .views import pages, auth
 
+
+def subdomain_root_view(request):
+    """Route the root URL based on the subdomain."""
+    host = request.get_host().split(':')[0]
+    if host == 'cloud.aetherus.net':
+        return pages.cloud_page_view(request)
+    elif host == 'stoxview.aetherus.net':
+        return pages.stoxview_page_view(request)
+    return RedirectView.as_view(url='/start', permanent=False)(request)
+
+
 urlpatterns = [
-    path('', RedirectView.as_view(url='/start', permanent=False)),
+    path('', subdomain_root_view),
 
     # 1. API Registration & Activation
     path("api/auth/register/", auth.RegisterAPIView.as_view(), name="api_register"),

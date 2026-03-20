@@ -16,7 +16,7 @@
     <meta property="og:url" content="https://aetherus.net">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Aetherus">
-    <link rel="stylesheet" href="{% static 'css/start.css' %}?v=3">
+    <link rel="stylesheet" href="{% static 'css/start.css' %}?v=4">
 </head>
 <body>
     <!-- Animated background particles -->
@@ -24,35 +24,71 @@
     <div class="bg-glow bg-glow-2"></div>
     <div class="bg-glow bg-glow-3"></div>
 
-    <div class="start-wrapper">
-        <div class="start-card">
-            <div class="start-logo-section">
-                <img src="{% static 'img/logo.png' %}" alt="Aetherus" class="start-logo-img">
-                <h1 class="start-title">AETHERUS</h1>
-            </div>
-
-            <p class="start-tagline">Dein persönlicher Hub. Chat, Cloud, Dashboard &mdash; alles an einem Ort.</p>
-
-            <div class="start-features">
-                <div class="start-feature">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                    <span>Echtzeit-Chat</span>
-                </div>
-                <div class="start-feature">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
-                    <span>Cloud-Speicher</span>
-                </div>
-                <div class="start-feature">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                    <span>Stoxview</span>
-                </div>
-            </div>
-
-            <div class="start-buttons">
-                <button class="btn-login" onclick="window.location.href='/login'">Login</button>
-                <button class="btn-register" onclick="window.location.href='/register'">Registrieren</button>
-            </div>
+    <!-- Top bar -->
+    <header class="start-topbar">
+        <a href="/" class="start-topbar-brand">
+            <img src="{% static 'img/logo.png' %}" alt="Aetherus" class="start-topbar-logo">
+            <span class="start-topbar-name">AETHERUS</span>
+        </a>
+        <div class="start-topbar-actions">
+            <a href="/login" class="topbar-btn topbar-btn-login">Login</a>
+            <a href="/register" class="topbar-btn topbar-btn-register">Registrieren</a>
         </div>
+    </header>
+
+    <!-- Main content -->
+    <div class="start-wrapper">
+        <!-- Hero section -->
+        <div class="start-hero">
+            <img src="{% static 'img/logo.png' %}" alt="Aetherus" class="start-hero-logo">
+            <h1 class="start-hero-title">AETHERUS</h1>
+            <p class="start-hero-tagline">Dein persönlicher Hub. Chat, Cloud, Dashboard &mdash; alles an einem Ort.</p>
+        </div>
+
+        <!-- Services section -->
+        <section class="start-services">
+            <h2 class="start-section-title">Verfügbare Dienste</h2>
+            <div class="start-services-grid">
+                <!-- Cloud -->
+                <div class="start-service-card">
+                    <div class="service-card-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+                    </div>
+                    <h3 class="service-card-title">Cloud-Speicher</h3>
+                    <p class="service-card-desc">Dateien sicher speichern, teilen und von überall darauf zugreifen.</p>
+                    <a href="https://cloud.aetherus.net" class="service-card-btn">
+                        Cloud öffnen
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                    </a>
+                </div>
+
+                <!-- StoxView -->
+                <div class="start-service-card">
+                    <div class="service-card-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                    </div>
+                    <h3 class="service-card-title">StoxView</h3>
+                    <p class="service-card-desc">Aktien verfolgen, KI-Prognosen und Echtzeit-Marktdaten einsehen.</p>
+                    <a href="https://stoxview.aetherus.net" class="service-card-btn">
+                        StoxView öffnen
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                    </a>
+                </div>
+
+                <!-- Chat -->
+                <div class="start-service-card">
+                    <div class="service-card-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    </div>
+                    <h3 class="service-card-title">Echtzeit-Chat</h3>
+                    <p class="service-card-desc">Sofortnachrichten, Gruppenchats und Dateiaustausch in Echtzeit.</p>
+                    <a href="/login" class="service-card-btn">
+                        Chat öffnen
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                    </a>
+                </div>
+            </div>
+        </section>
     </div>
 </body>
 </html>
