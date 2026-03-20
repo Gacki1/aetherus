@@ -135,7 +135,7 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'backend.urls'
 ROOT_HOSTCONF = 'backend.hosts'
-DEFAULT_HOST = 'www'
+DEFAULT_HOST = 'root'
 
 TEMPLATES = [
     {
@@ -247,9 +247,13 @@ SESSION_COOKIE_SAMESITE = "Lax"
 if DEBUG:
     SESSION_COOKIE_DOMAIN = ".localhost"
     CSRF_COOKIE_DOMAIN = ".localhost"
+    PARENT_HOST = "localhost:8000"
+    HOST_SCHEME = "http"
 else:
     SESSION_COOKIE_DOMAIN = ".aetherus.net"
     CSRF_COOKIE_DOMAIN = ".aetherus.net"
+    PARENT_HOST = "aetherus.net"
+    HOST_SCHEME = "https"
 
 CSRF_COOKIE_SECURE = True  # Sollte auf True sein, da aetherus.net HTTPS nutzt
 CSRF_COOKIE_HTTPONLY = False # Muss False sein, damit JS den Token lesen kann

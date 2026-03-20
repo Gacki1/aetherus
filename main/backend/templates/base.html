@@ -17,7 +17,7 @@
 
 <body>
     <nav class="navbar">
-        <a href="{% host_url 'dashboard' host 'www' %}" class="nav-logo">
+        <a href="{% host_url 'dashboard' host 'root' %}" class="nav-logo">
                 <img src="{% static 'img/logo.png' %}" alt="Aetherus" class="nav-logo-img">
                 <span>AETHERUS</span>
             </a>
@@ -30,11 +30,11 @@
                 <span class="nav-dropdown-arrow">▾</span>
             </button>
             <div class="nav-dropdown-menu" id="nav-dropdown-menu">
-                <a href="{% host_url 'dashboard' host 'www' %}" class="nav-dropdown-item {% if '/main' in request.path and request.get_host == 'www.aetherus.net' %}active{% endif %}">
+                <a href="{% host_url 'dashboard' host 'root' %}" class="nav-dropdown-item {% if '/main' in request.path and request.get_host == 'www.aetherus.net' %}active{% endif %}">
                     <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
                     Dashboard
                 </a>
-                <a href="{% host_url 'chat' host 'www' %}" class="nav-dropdown-item {% if '/chat' in request.path %}active{% endif %}">
+                <a href="{% host_url 'chat' host 'root' %}" class="nav-dropdown-item {% if '/chat' in request.path %}active{% endif %}">
                     <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                     Chat
                 </a>
@@ -46,7 +46,7 @@
                     <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                     Stoxview
                 </a>
-                <a href="{% host_url 'profile' host 'www' %}" class="nav-dropdown-item {% if '/profile' in request.path %}active{% endif %}">
+                <a href="{% host_url 'profile' host 'root' %}" class="nav-dropdown-item {% if '/profile' in request.path %}active{% endif %}">
                     <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                     Profil
                 </a>
@@ -81,7 +81,7 @@
                     </div>
                 </div>
                 <div class="dropdown-divider"></div>
-                <a href="{% host_url 'profile' host 'www' %}" class="dropdown-item">
+                <a href="{% host_url 'profile' host 'root' %}" class="dropdown-item">
                     <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                     Profil bearbeiten
                 </a>
