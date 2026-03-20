@@ -132,6 +132,9 @@ def register_page_view(request):
 
 @subdomain_login_required
 def cloud_page_view(request):
+    # Redirect main domain /cloud to cloud.aetherus.net
+    if not _is_subdomain(request):
+        return HttpResponseRedirect('https://cloud.aetherus.net')
     user = request.user
     storage_limit = settings.MAX_CLOUD_STORAGE_PER_USER
 
@@ -218,6 +221,9 @@ def cloud_page_view(request):
 
 @subdomain_login_required
 def stoxview_page_view(request):
+    # Redirect main domain /stoxview to stoxview.aetherus.net
+    if not _is_subdomain(request):
+        return HttpResponseRedirect('https://stoxview.aetherus.net')
     return render(request, "stoxview.html")
 
 

@@ -241,24 +241,13 @@ SESSION_COOKIE_SECURE = True
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 
-if DEBUG:
-    SESSION_COOKIE_DOMAIN = ".localhost"
-    CSRF_COOKIE_DOMAIN = ".localhost"
-    PARENT_HOST = "localhost:8000"
-    HOST_SCHEME = "http"
-else:
-    SESSION_COOKIE_DOMAIN = ".aetherus.net"
-    CSRF_COOKIE_DOMAIN = ".aetherus.net"
-    PARENT_HOST = "aetherus.net"
-    HOST_SCHEME = "https"
+# Share session cookies across all subdomains
+SESSION_COOKIE_DOMAIN = ".aetherus.net"
+CSRF_COOKIE_DOMAIN = ".aetherus.net"
 
 CSRF_COOKIE_SECURE = True  # Sollte auf True sein, da aetherus.net HTTPS nutzt
 CSRF_COOKIE_HTTPONLY = False # Muss False sein, damit JS den Token lesen kann
 CSRF_TRUSTED_ORIGINS = ["https://aetherus.net", "https://*.aetherus.net"]
-
-# Share session cookies across all subdomains
-SESSION_COOKIE_DOMAIN = ".aetherus.net"
-CSRF_COOKIE_DOMAIN = ".aetherus.net"
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
