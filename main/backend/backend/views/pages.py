@@ -148,14 +148,14 @@ def cloud_page_view(request):
                     # Check file size limit (50 MB per file)
                     if uploaded_file.size > settings.DATA_UPLOAD_MAX_MEMORY_SIZE:
                         messages.error(request, "Datei ist zu groß. Maximum: 50 MB pro Datei.")
-                        return redirect("cloud")
+                        return redirect("/")
 
                     # Check storage quota
                     current_usage = CloudFile.objects.filter(user=user).aggregate(
                         total=Sum('file_size'))['total'] or 0
                     if current_usage + uploaded_file.size > storage_limit:
                         messages.error(request, "Speicherlimit erreicht. Lösche zuerst einige Dateien.")
-                        return redirect("cloud")
+                        return redirect("/")
 
                     CloudFile.objects.create(
                         user=user,
@@ -175,7 +175,7 @@ def cloud_page_view(request):
                     cloud_file.delete()
                     messages.success(request, f"Datei \"{cloud_file.filename}\" wurde gelöscht.")
 
-            return redirect("cloud")
+            return redirect("/")
 
         # GET request - determine active tab
         tab = request.GET.get('tab', 'personal')

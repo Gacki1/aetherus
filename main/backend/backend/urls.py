@@ -28,6 +28,8 @@ urlpatterns = [
     path("start", pages.start_page_view, name="start"),
     path("chat", pages.chat_page_view, name="chat"),
     path("main", pages.DashboardView.as_view(), name="dashboard"),
+    path("cloud", pages.cloud_page_view, name="cloud"),
+    path("stoxview", pages.stoxview_page_view, name="stoxview"),
 
     path("login", pages.login_page_view, name="login_page"),
     path("register", pages.register_page_view, name="register_page"),

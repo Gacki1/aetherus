@@ -53,7 +53,7 @@
         <!-- Upload Form with Drag & Drop -->
         <div class="card cloud-upload-card" id="drop-zone">
             <h2>Datei hochladen</h2>
-            <form action="{% url 'cloud' %}" method="POST" enctype="multipart/form-data" class="cloud-upload-form" id="upload-form">
+            <form action="/" method="POST" enctype="multipart/form-data" class="cloud-upload-form" id="upload-form">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="upload">
 
@@ -113,7 +113,7 @@
                         <button type="button" class="action-btn share-btn" title="Teilen"
                             onclick="openShareModal({{ f.id }}, '{{ f.filename|escapejs }}')">🔗</button>
 
-                        <form action="{% url 'cloud' %}" method="POST" class="delete-form"
+                        <form action="/" method="POST" class="delete-form"
                             onsubmit="return confirm('Möchtest du diese Datei wirklich löschen?');">
                             {% csrf_token %}
                             <input type="hidden" name="action" value="delete">
