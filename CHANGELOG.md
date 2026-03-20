@@ -8,6 +8,39 @@ Full development history of Aetherus — all changes documented by date and phas
 
 ---
 
+## [2026-03-20] Subdomain Routing & Start Page Rework
+
+Cloud and StoxView are now accessible via dedicated subdomains. The start page has been redesigned with a service catalog.
+
+### Subdomain routing
+
+- **cloud.aetherus.net** — direct access to Cloud-Speicher
+- **stoxview.aetherus.net** — direct access to StoxView
+- Caddy reverse proxy entries added for both subdomains
+- Session cookies shared across all `*.aetherus.net` subdomains (`SESSION_COOKIE_DOMAIN`)
+- Unauthenticated subdomain visitors redirect to `aetherus.net/login?next=...` and return after login
+- Removed `django-hosts` dependency — subdomain routing handled via simple host detection in views and middleware
+
+### Start page redesign
+
+- Fixed top bar with Aetherus logo, name, Login/Registrieren buttons
+- Service cards for Cloud-Speicher, StoxView, and Echtzeit-Chat
+- Each card links to its subdomain (or login for chat)
+- Animated background glows retained, responsive layout
+
+### Navigation changes
+
+- Removed Cloud and StoxView from the main nav dropdown menu
+- Added "Dienste" (Services) section in nav dropdown with external links to `cloud.aetherus.net` and `stoxview.aetherus.net`
+- External link icon (↗) shown next to service links
+- Removed Cloud-Speicher from user dropdown menu
+
+### Files changed
+
+`caddy-setup/Caddyfile` · `settings.py` · `urls.py` · `views/pages.py` · `middleware.py` · `base.html` · `main.html` · `editor.html` · `start.html` · `start.css` · `dashboard.css` · `login.js` · `requirements.txt`
+
+---
+
 ## [2026-03-20] Faster Price Refresh, Delayed Badge & Bid/Ask Display
 
 Stock prices now refresh much faster and clearly indicate when data is delayed.
