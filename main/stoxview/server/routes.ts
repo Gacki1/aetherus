@@ -1166,8 +1166,12 @@ async function fetchFullPrediction(symbol: string): Promise<StockPrediction | nu
     const needsConversion = rawCurrency !== "EUR";
     const currentPriceEur = needsConversion ? convertToEur(quote.regularMarketPrice, eurRate) : quote.regularMarketPrice;
 
-    // Phase 2: Fetch all sources in parallel
+    // Phase 2: Fetch all sources + ISIN in parallel
     // Technical indicators are self-calculated from Yahoo price data — no external API needed
+    // ISIN resolution runs alongside other fetches so it's ready when prediction is built
+    const yahooExchange = quote.exchange || quote.fullExchangeName || "";
+    const needsIsin = !lookupIsin(symbol);
+
     const [webNews, analystData, finnhubNews, finnhubSentiment, technicals, fearGreed] = await Promise.all([
       fetchWebNews(companyName, symbol),
       fetchAnalystSignal(symbol),
@@ -1175,6 +1179,10 @@ async function fetchFullPrediction(symbol: string): Promise<StockPrediction | nu
       fetchFinnhubSentiment(symbol),
       fetchTechnicals(symbol, currentPriceEur),
       fetchFearGreedIndex(),
+      // ISIN resolution runs in parallel — resolves into dynamicIsinCache
+      needsIsin
+        ? resolveIsinAsync(symbol, companyName, yahooExchange).catch(() => {})
+        : Promise.resolve(),
     ]);
 
     const allSources = [
@@ -1191,16 +1199,10 @@ async function fetchFullPrediction(symbol: string): Promise<StockPrediction | nu
       finnhubSentiment, technicals.overallSignal, fearGreed.signal,
     );
 
-    // Phase 4: If ISIN is missing, fire async resolution (non-blocking)
+    // ISIN should now be resolved from the parallel fetch above
     if (!prediction.isin) {
-      const yahooExchange = quote.exchange || quote.fullExchangeName || "";
-      resolveIsinAsync(symbol, companyName, yahooExchange).then(() => {
-        const resolved = lookupIsin(symbol);
-        if (resolved) {
-          prediction.isin = resolved;
-          setCache(cacheKey, prediction);
-        }
-      }).catch(() => {});
+      const resolved = lookupIsin(symbol);
+      if (resolved) prediction.isin = resolved;
     }
 
     setCache(cacheKey, prediction);
