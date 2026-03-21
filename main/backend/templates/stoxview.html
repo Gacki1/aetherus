@@ -4,6 +4,12 @@
 
 {% block extra_css %}
 <style>
+    /* Kill double-scroll: body + iframe both scrollable = bad UX */
+    html, body {
+        overflow: hidden !important;
+        height: 100vh !important;
+    }
+
     /* Override dashboard-container padding for full-bleed iframe */
     .dashboard-container {
         padding: 0 !important;
