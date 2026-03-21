@@ -1009,6 +1009,7 @@ function generatePrediction(
   finnhubSentiment: number | null = null,
   technicalSignal: number = 0,
   fearGreedSignal: number = 0,
+  learnedWeights?: Record<SourceKey, number>,
 ): StockPrediction {
   const rawCurrency = (quote.currency || "USD").toUpperCase();
   const needsConversion = rawCurrency !== "EUR";
@@ -1042,23 +1043,23 @@ function generatePrediction(
 
   // ── Multi-source combined sentiment ──
   // Dynamic weighting: each available source gets its share
-  // Core sources (always available): Web search, Yahoo analyst
-  // Optional sources: Finnhub, AlphaVantage technicals, CNN Fear&Greed
+  // Weights come from the self-learning engine (or defaults if no history yet)
+  const w = learnedWeights || DEFAULT_WEIGHTS;
   let weightedSentiment = 0;
   let totalWeight = 0;
 
-  // Web search news: 25%
-  if (webSources.length > 0) { weightedSentiment += avgWeb * 0.25; totalWeight += 0.25; }
-  // Yahoo analyst consensus: 25%
-  if (analystRating !== 0) { weightedSentiment += analystRating * 0.25; totalWeight += 0.25; }
-  // Finnhub news sentiment: 20%
+  // Web search news
+  if (webSources.length > 0) { weightedSentiment += avgWeb * w.webSentiment; totalWeight += w.webSentiment; }
+  // Yahoo analyst consensus
+  if (analystRating !== 0) { weightedSentiment += analystRating * w.analystRating; totalWeight += w.analystRating; }
+  // Finnhub news sentiment
   if (finnhubSources.length > 0 || finnhubSentiment !== null) {
-    weightedSentiment += effectiveFinnhubSentiment * 0.20; totalWeight += 0.20;
+    weightedSentiment += effectiveFinnhubSentiment * w.finnhubSentiment; totalWeight += w.finnhubSentiment;
   }
-  // Technical indicators: 20%
-  if (technicalSignal !== 0) { weightedSentiment += technicalSignal * 0.20; totalWeight += 0.20; }
-  // Fear & Greed: 10% (market-wide, not stock-specific)
-  if (fearGreedSignal !== 0) { weightedSentiment += fearGreedSignal * 0.10; totalWeight += 0.10; }
+  // Technical indicators
+  if (technicalSignal !== 0) { weightedSentiment += technicalSignal * w.technicalSignal; totalWeight += w.technicalSignal; }
+  // Fear & Greed (market-wide, not stock-specific)
+  if (fearGreedSignal !== 0) { weightedSentiment += fearGreedSignal * w.fearGreedSignal; totalWeight += w.fearGreedSignal; }
 
   // Normalize if not all sources available
   const combinedSentiment = totalWeight > 0 ? weightedSentiment / totalWeight : 0;
@@ -1161,8 +1162,8 @@ function round2(n: number) { return Math.round(n * 100) / 100; }
 // ═══════════════════════════════════════════════════════════
 // MULTI-SOURCE ORCHESTRATOR
 // ═══════════════════════════════════════════════════════════
-async function fetchFullPrediction(symbol: string): Promise<StockPrediction | null> {
-  const cacheKey = `v4:${symbol}`;
+async function fetchFullPrediction(symbol: string, user?: string): Promise<StockPrediction | null> {
+  const cacheKey = user ? `v4:${symbol}:${safeUser(user)}` : `v4:${symbol}`;
   const cached = getCached<StockPrediction>(cacheKey, 60000); // 60s — fast refresh for price accuracy
   if (cached) return cached;
 
@@ -1206,11 +1207,36 @@ async function fetchFullPrediction(symbol: string): Promise<StockPrediction | nu
       ...(fearGreed.source ? [fearGreed.source] : []),
     ];
 
-    // Phase 3: Generate prediction with enriched multi-source data
+    // Phase 3: Get learned weights (self-learning engine) and generate prediction
+    const learnedW = user ? getLearnedWeights(user, symbol) : null;
     const prediction = generatePrediction(
       quote, allSources, analystData.rating, symbol, eurRate,
       finnhubSentiment, technicals.overallSignal, fearGreed.signal,
+      learnedW?.isAdaptive ? learnedW.weights : undefined,
     );
+
+    // Tag adaptive learning metadata on the prediction
+    if (learnedW?.isAdaptive) {
+      (prediction as any).isAdaptive = true;
+      (prediction as any).adaptiveSource = learnedW.source;
+      (prediction as any).adaptiveEvaluatedCount = learnedW.evaluatedCount;
+    }
+
+    // Tag raw source signals for the self-learning engine to store in history
+    const webSentimentAvg = webNews.length > 0
+      ? webNews.reduce((sum, s) => sum + s.sentimentScore, 0) / webNews.length : 0;
+    const effectiveFinnhub = finnhubSentiment !== null ? finnhubSentiment
+      : (finnhubNews.length > 0 ? finnhubNews.reduce((sum, s) => sum + s.sentimentScore, 0) / finnhubNews.length : 0);
+    const priceChange = quote.regularMarketPrice && quote.regularMarketPreviousClose
+      ? (quote.regularMarketPrice - quote.regularMarketPreviousClose) / quote.regularMarketPreviousClose : 0;
+    (prediction as any)._sourceSignals = {
+      webSentiment: round2(webSentimentAvg),
+      analystRating: round2(analystData.rating),
+      finnhubSentiment: round2(effectiveFinnhub),
+      technicalSignal: round2(technicals.overallSignal),
+      fearGreedSignal: round2(fearGreed.signal),
+      momentum: round2(priceChange),
+    };
 
     // ISIN should now be resolved from the parallel fetch above
     if (!prediction.isin) {
@@ -1346,6 +1372,274 @@ interface PredictionHistoryEntry {
   actualPriceShort?: number;  // Price 7 days later
   actualPriceMedium?: number; // Price 28 days later
   actualPriceLong?: number;   // Price 90 days later
+  // Source signals — stored for self-learning (which sources were right?)
+  sourceSignals?: {
+    webSentiment: number;       // average web-search sentiment (-1..1)
+    analystRating: number;      // Yahoo analyst signal (-1..1)
+    finnhubSentiment: number;   // Finnhub sentiment (-1..1)
+    technicalSignal: number;    // RSI/SMA/EMA-based signal (-1..1)
+    fearGreedSignal: number;    // CNN Fear & Greed (-1..1)
+    momentum: number;           // price momentum signal
+  };
+}
+
+// ═══════════════════════════════════════════════════════════
+// SELF-LEARNING ENGINE — adjusts prediction weights from history
+// ═══════════════════════════════════════════════════════════
+
+/** Default (hardcoded) weights used before learning kicks in. */
+const DEFAULT_WEIGHTS = {
+  webSentiment: 0.25,
+  analystRating: 0.25,
+  finnhubSentiment: 0.20,
+  technicalSignal: 0.20,
+  fearGreedSignal: 0.10,
+};
+
+type SourceKey = keyof typeof DEFAULT_WEIGHTS;
+const SOURCE_KEYS: SourceKey[] = ["webSentiment", "analystRating", "finnhubSentiment", "technicalSignal", "fearGreedSignal"];
+
+/** Learned weights structure — stored per-stock and globally. */
+interface LearnedWeights {
+  weights: Record<SourceKey, number>;
+  evaluatedCount: number;   // how many predictions contributed
+  lastUpdated: string;      // ISO date
+  adjustments: Record<SourceKey, number>; // delta from default (for transparency)
+}
+
+interface LearningState {
+  global: LearnedWeights | null;
+  perStock: Record<string, LearnedWeights>; // keyed by ticker
+}
+
+// In-memory learning state per user
+const userLearningStates = new Map<string, LearningState>();
+
+function learningPath(user: string): string {
+  if (!DATA_DIR) return "";
+  return join(DATA_DIR, `learning-weights-${safeUser(user)}.json`);
+}
+
+function getUserLearningState(user: string): LearningState {
+  const key = safeUser(user);
+  if (userLearningStates.has(key)) return userLearningStates.get(key)!;
+  const filePath = learningPath(user);
+  if (filePath) {
+    try {
+      if (existsSync(filePath)) {
+        const raw = readFileSync(filePath, "utf-8");
+        const data = JSON.parse(raw) as LearningState;
+        userLearningStates.set(key, data);
+        return data;
+      }
+    } catch (err) {
+      console.error(`[Learning] Failed to load for user '${key}':`, err);
+    }
+  }
+  const empty: LearningState = { global: null, perStock: {} };
+  userLearningStates.set(key, empty);
+  return empty;
+}
+
+function saveLearningState(user: string): void {
+  const filePath = learningPath(user);
+  if (!filePath) return;
+  const state = getUserLearningState(user);
+  try {
+    if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
+    writeFileSync(filePath, JSON.stringify(state, null, 2), "utf-8");
+  } catch (err) {
+    console.error(`[Learning] Failed to save for user '${safeUser(user)}':`, err);
+  }
+}
+
+/**
+ * Evaluate how accurate each source signal was at predicting direction.
+ * For each evaluated prediction, compute a "score" per source:
+ *   +1 if the source signal correctly predicted direction
+ *   -1 if it was wrong
+ *   0 if the source was neutral or near zero
+ * Returns average score per source.
+ */
+function evaluateSourceAccuracy(
+  entries: PredictionHistoryEntry[],
+  timeframe: "short" | "medium" | "long",
+): Record<SourceKey, { totalScore: number; count: number; avgScore: number }> {
+  const result: Record<SourceKey, { totalScore: number; count: number; avgScore: number }> = {} as any;
+  for (const key of SOURCE_KEYS) {
+    result[key] = { totalScore: 0, count: 0, avgScore: 0 };
+  }
+
+  for (const entry of entries) {
+    if (!entry.sourceSignals) continue;
+
+    // Determine actual price movement
+    let actualPrice: number | undefined;
+    if (timeframe === "short") actualPrice = entry.actualPriceShort;
+    else if (timeframe === "medium") actualPrice = entry.actualPriceMedium;
+    else actualPrice = entry.actualPriceLong;
+    if (actualPrice === undefined) continue;
+
+    const actualDirection = actualPrice > entry.priceAtPrediction ? 1
+      : actualPrice < entry.priceAtPrediction ? -1 : 0;
+    if (actualDirection === 0) continue; // flat — can't evaluate source signals
+
+    // Score each source: did it agree with the actual direction?
+    for (const key of SOURCE_KEYS) {
+      const signal = entry.sourceSignals[key];
+      if (signal === undefined || Math.abs(signal) < 0.02) continue; // source was absent or neutral
+      const sourceDirection = signal > 0 ? 1 : -1;
+      const score = sourceDirection === actualDirection ? 1 : -1;
+      result[key].totalScore += score;
+      result[key].count++;
+    }
+  }
+
+  // Calculate averages
+  for (const key of SOURCE_KEYS) {
+    const r = result[key];
+    r.avgScore = r.count > 0 ? r.totalScore / r.count : 0;
+  }
+
+  return result;
+}
+
+/**
+ * Compute adjusted weights from source accuracy data.
+ * Conservative: max ±30% shift from default, needs 5+ evaluated predictions.
+ */
+function computeLearnedWeights(
+  entries: PredictionHistoryEntry[],
+  minSamples: number = 5,
+): LearnedWeights | null {
+  // Only use entries that have source signals and at least one actual price
+  const evaluable = entries.filter(e =>
+    e.sourceSignals &&
+    (e.actualPriceShort !== undefined || e.actualPriceMedium !== undefined || e.actualPriceLong !== undefined)
+  );
+  if (evaluable.length < minSamples) return null;
+
+  // Evaluate accuracy across all three timeframes, then average
+  const shortAcc = evaluateSourceAccuracy(evaluable, "short");
+  const medAcc = evaluateSourceAccuracy(evaluable, "medium");
+  const longAcc = evaluateSourceAccuracy(evaluable, "long");
+
+  // Weighted average across timeframes (short most important for learning, it resolves fastest)
+  const combinedScores: Record<SourceKey, number> = {} as any;
+  for (const key of SOURCE_KEYS) {
+    const sCount = shortAcc[key].count;
+    const mCount = medAcc[key].count;
+    const lCount = longAcc[key].count;
+    const total = sCount + mCount + lCount;
+    if (total === 0) {
+      combinedScores[key] = 0;
+      continue;
+    }
+    // Weight by timeframe importance and sample count
+    combinedScores[key] = (
+      shortAcc[key].avgScore * sCount * 0.5 +
+      medAcc[key].avgScore * mCount * 0.35 +
+      longAcc[key].avgScore * lCount * 0.15
+    ) / total;
+  }
+
+  // Convert scores to weight adjustments (conservative: max ±30% of default weight)
+  const MAX_SHIFT = 0.30; // 30% max adjustment
+  const adjustments: Record<SourceKey, number> = {} as any;
+  const newWeights: Record<SourceKey, number> = {} as any;
+
+  for (const key of SOURCE_KEYS) {
+    const defaultW = DEFAULT_WEIGHTS[key];
+    // Score ranges from -1 to +1; map to -MAX_SHIFT to +MAX_SHIFT of the default weight
+    const adjustment = combinedScores[key] * MAX_SHIFT * defaultW;
+    adjustments[key] = round2(adjustment);
+    newWeights[key] = Math.max(0.02, defaultW + adjustment); // min 2% to never fully disable a source
+  }
+
+  // Normalize weights so they sum to 1.0
+  const totalW = SOURCE_KEYS.reduce((sum, k) => sum + newWeights[k], 0);
+  for (const key of SOURCE_KEYS) {
+    newWeights[key] = round2(newWeights[key] / totalW);
+  }
+
+  return {
+    weights: newWeights,
+    evaluatedCount: evaluable.length,
+    lastUpdated: new Date().toISOString().split("T")[0],
+    adjustments,
+  };
+}
+
+/**
+ * Run the learning engine: recompute global and per-stock weights from prediction history.
+ * Called periodically alongside updateAccuracy().
+ */
+function runLearningEngine(user: string): void {
+  const history = getUserHistory(user);
+  if (history.length === 0) return;
+
+  const state = getUserLearningState(user);
+
+  // Global: learn from all evaluated predictions across all tickers
+  const globalWeights = computeLearnedWeights(history, 5);
+  if (globalWeights) {
+    state.global = globalWeights;
+    console.log(`[Learning] Global weights updated for user '${safeUser(user)}' (${globalWeights.evaluatedCount} samples)`);
+  }
+
+  // Per-stock: learn from each ticker's individual history (needs 5+ samples)
+  const byTicker = new Map<string, PredictionHistoryEntry[]>();
+  for (const entry of history) {
+    if (!byTicker.has(entry.ticker)) byTicker.set(entry.ticker, []);
+    byTicker.get(entry.ticker)!.push(entry);
+  }
+
+  byTicker.forEach((entries, ticker) => {
+    const stockWeights = computeLearnedWeights(entries, 5);
+    if (stockWeights) {
+      state.perStock[ticker] = stockWeights;
+    }
+  });
+
+  saveLearningState(user);
+}
+
+/**
+ * Get the best weights for a specific stock + user.
+ * Priority: per-stock > global > defaults.
+ * If per-stock exists, blend it 70/30 with global for stability.
+ */
+function getLearnedWeights(user: string, ticker: string): {
+  weights: Record<SourceKey, number>;
+  isAdaptive: boolean;
+  source: "per-stock" | "global" | "default";
+  evaluatedCount: number;
+} {
+  const state = getUserLearningState(user);
+  const perStock = state.perStock[ticker];
+  const global = state.global;
+
+  if (perStock && global) {
+    // Blend: 70% per-stock, 30% global for stability
+    const blended: Record<SourceKey, number> = {} as any;
+    for (const key of SOURCE_KEYS) {
+      blended[key] = round2(perStock.weights[key] * 0.7 + global.weights[key] * 0.3);
+    }
+    // Re-normalize
+    const total = SOURCE_KEYS.reduce((sum, k) => sum + blended[k], 0);
+    for (const key of SOURCE_KEYS) blended[key] = round2(blended[key] / total);
+    return { weights: blended, isAdaptive: true, source: "per-stock", evaluatedCount: perStock.evaluatedCount };
+  }
+
+  if (perStock) {
+    return { weights: perStock.weights, isAdaptive: true, source: "per-stock", evaluatedCount: perStock.evaluatedCount };
+  }
+
+  if (global) {
+    return { weights: global.weights, isAdaptive: true, source: "global", evaluatedCount: global.evaluatedCount };
+  }
+
+  return { weights: { ...DEFAULT_WEIGHTS }, isAdaptive: false, source: "default", evaluatedCount: 0 };
 }
 
 // Per-user prediction history
@@ -1397,7 +1691,7 @@ function recordPrediction(prediction: StockPrediction, user: string): void {
   // Only record once per day per ticker per user
   if (history.some(e => e.ticker === prediction.ticker && e.date === today)) return;
 
-  history.push({
+  const entry: PredictionHistoryEntry = {
     ticker: prediction.ticker,
     name: prediction.name,
     date: today,
@@ -1407,7 +1701,22 @@ function recordPrediction(prediction: StockPrediction, user: string): void {
     longTerm: { signal: prediction.longTerm.signal, confidence: prediction.longTerm.confidence },
     sentimentScore: prediction.sentimentScore,
     riskLevel: prediction.riskLevel,
-  });
+  };
+
+  // Store source signals for the self-learning engine
+  const src = (prediction as any)._sourceSignals;
+  if (src) {
+    entry.sourceSignals = {
+      webSentiment: src.webSentiment ?? 0,
+      analystRating: src.analystRating ?? 0,
+      finnhubSentiment: src.finnhubSentiment ?? 0,
+      technicalSignal: src.technicalSignal ?? 0,
+      fearGreedSignal: src.fearGreedSignal ?? 0,
+      momentum: src.momentum ?? 0,
+    };
+  }
+
+  history.push(entry);
 
   // Cap at 5000 entries to prevent unbounded growth
   while (history.length > 5000) history.shift();
@@ -1464,6 +1773,9 @@ async function updateAccuracy(): Promise<void> {
     }
 
     saveUserHistory(userKey);
+
+    // After accuracy is updated, re-run the learning engine to recompute weights
+    runLearningEngine(userKey);
   }
 }
 
@@ -1599,11 +1911,48 @@ export async function registerRoutes(
           correct: longCorrect,
           accuracy: longTotal > 0 ? round2((longCorrect / longTotal) * 100) : null,
         },
-        recentPredictions: entries.slice(-10).reverse(),
+        recentPredictions: entries.slice(-15).reverse(),
       });
     } catch (err: any) {
       console.error("Accuracy error:", err.message);
       res.status(500).json({ error: "Failed to compute accuracy." });
+    }
+  });
+
+  // --- Learning stats (self-learning engine transparency) ---
+  app.get("/api/learning-stats", (req, res) => {
+    try {
+      const user = (req.query.user as string) || "_default";
+      const ticker = (req.query.ticker as string || "").toUpperCase();
+      const state = getUserLearningState(user);
+
+      // Get the effective weights for this ticker
+      const effective = ticker
+        ? getLearnedWeights(user, ticker)
+        : { weights: DEFAULT_WEIGHTS, isAdaptive: false, source: "default" as const, evaluatedCount: 0 };
+
+      res.json({
+        defaults: DEFAULT_WEIGHTS,
+        effective: effective.weights,
+        isAdaptive: effective.isAdaptive,
+        adaptiveSource: effective.source,
+        evaluatedCount: effective.evaluatedCount,
+        global: state.global ? {
+          weights: state.global.weights,
+          adjustments: state.global.adjustments,
+          evaluatedCount: state.global.evaluatedCount,
+          lastUpdated: state.global.lastUpdated,
+        } : null,
+        perStock: ticker && state.perStock[ticker] ? {
+          weights: state.perStock[ticker].weights,
+          adjustments: state.perStock[ticker].adjustments,
+          evaluatedCount: state.perStock[ticker].evaluatedCount,
+          lastUpdated: state.perStock[ticker].lastUpdated,
+        } : null,
+      });
+    } catch (err: any) {
+      console.error("Learning stats error:", err.message);
+      res.status(500).json({ error: "Failed to fetch learning stats." });
     }
   });
 
@@ -1644,7 +1993,7 @@ export async function registerRoutes(
     try {
       const user = (req.query.user as string) || "_default";
       const symbol = req.params.symbol.toUpperCase();
-      const prediction = await fetchFullPrediction(symbol);
+      const prediction = await fetchFullPrediction(symbol, user);
       if (!prediction) {
         return res.status(404).json({ error: "No data found. Market may be closed or symbol invalid." });
       }
@@ -1673,21 +2022,24 @@ export async function registerRoutes(
 
       const cacheKey = `batch:${symbols.join(",")}`;
 
+      const user = (req.query.user as string) || "_default";
+
       if (force) {
         // Wipe individual prediction caches so fetchFullPrediction re-fetches
-        for (const s of symbols) cache.delete(`v4:${s}`);
+        for (const s of symbols) {
+          cache.delete(`v4:${s}`);
+          cache.delete(`v4:${s}:${safeUser(user)}`);
+        }
         cache.delete(cacheKey);
       }
 
       const cached = !force ? getCached<any>(cacheKey, 60000) : null; // 60s
       if (cached) return res.json(cached);
-
-      const user = (req.query.user as string) || "_default";
       const results: StockPrediction[] = [];
       const wl = getUserWatchlist(user);
       const watchlistSymbols = new Set(wl.map(w => w.symbol));
       for (const symbol of symbols.slice(0, 20)) {
-        const prediction = await fetchFullPrediction(symbol);
+        const prediction = await fetchFullPrediction(symbol, user);
         if (prediction) {
           results.push(prediction);
           // Record predictions for watchlist stocks (per-user)
@@ -1973,12 +2325,14 @@ export async function registerRoutes(
       const force = req.query.force === "true";
       const symbol = req.params.symbol.toUpperCase();
       const range = (req.query.range as string) || "3mo"; // 1mo, 3mo, 6mo, 1y
+      const user = (req.query.user as string) || "_default";
 
       const cacheKey = `history:${symbol}:${range}`;
 
       if (force) {
         cache.delete(cacheKey);
         cache.delete(`v4:${symbol}`); // also clear prediction cache for this symbol
+        cache.delete(`v4:${symbol}:${safeUser(user)}`);
       }
 
       const cached = !force ? getCached<any>(cacheKey, 300000) : null; // 5 min for chart history is fine
@@ -2019,13 +2373,15 @@ export async function registerRoutes(
 
       // Generate projection based on prediction, scaled to the selected range
       // Check prediction cache (3 min TTL — matches batch prediction TTL)
-      const predCacheKey = `v4:${symbol}`;
+      const predCacheKey = `v4:${symbol}:${safeUser(user)}`;
       let prediction = getCached<StockPrediction>(predCacheKey, 60000); // 60s
+      // Fallback: try generic cache without user (from non-user requests)
+      if (!prediction) prediction = getCached<StockPrediction>(`v4:${symbol}`, 60000);
 
       // If no cached prediction, fetch one on-the-fly so the chart always has a projection
       if (!prediction) {
         try {
-          prediction = await fetchFullPrediction(symbol);
+          prediction = await fetchFullPrediction(symbol, user);
         } catch {
           // Non-fatal — we'll just show historical only
         }

@@ -238,6 +238,29 @@ const translations = {
     de: "Verlauf wird nur für Watchlist-Aktien aufgezeichnet",
   },
 
+  // ── Adaptive learning ──
+  "learning.adaptive": { en: "Adaptive", de: "Adaptiv" },
+  "learning.badge": { en: "Self-Learning Active", de: "Selbstlernen aktiv" },
+  "learning.badgeGlobal": { en: "Learning from all stocks", de: "Lernt aus allen Aktien" },
+  "learning.badgePerStock": { en: "Learning from this stock", de: "Lernt aus dieser Aktie" },
+  "learning.evaluatedCount": { en: "predictions evaluated", de: "Vorhersagen ausgewertet" },
+  "learning.weights": { en: "Source Weights", de: "Quellen-Gewichtung" },
+  "learning.default": { en: "Default", de: "Standard" },
+  "learning.learned": { en: "Learned", de: "Gelernt" },
+  "learning.webSentiment": { en: "Web News", de: "Web-Nachrichten" },
+  "learning.analystRating": { en: "Analyst", de: "Analysten" },
+  "learning.finnhubSentiment": { en: "Finnhub", de: "Finnhub" },
+  "learning.technicalSignal": { en: "Technicals", de: "Technische Analyse" },
+  "learning.fearGreedSignal": { en: "Fear & Greed", de: "Fear & Greed" },
+  "learning.notEnoughData": {
+    en: "Not enough data yet — needs 5+ evaluated predictions to start learning",
+    de: "Noch nicht gen\u00fcgend Daten — 5+ ausgewertete Vorhersagen n\u00f6tig",
+  },
+  // ── Source signals in history ──
+  "history.sourceSignals": { en: "Source Signals", de: "Quellensignale" },
+  "history.expand": { en: "Details", de: "Details" },
+  "history.momentum": { en: "Momentum", de: "Momentum" },
+
   // ── Price chart ──
   "chart.loading": { en: "Loading chart data...", de: "Lade Chartdaten..." },
   "chart.unavailable": { en: "Chart data unavailable", de: "Chartdaten nicht verfügbar" },
