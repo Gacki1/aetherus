@@ -43,6 +43,16 @@ interface TRSubscription {
 // CONSTANTS
 // ═══════════════════════════════════════════════════════════
 const TR_HOST = "https://api.traderepublic.com";
+
+// Browser-like headers to pass TR's bot protection
+const TR_HEADERS: Record<string, string> = {
+  "Content-Type": "application/json",
+  "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+  "Origin": "https://app.traderepublic.com",
+  "Referer": "https://app.traderepublic.com/",
+  "Accept": "application/json",
+  "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
+};
 const TR_WS_HOST = "wss://api.traderepublic.com";
 const TR_WS_VERSION = "31";
 const ECHO_INTERVAL_MS = 25_000;
@@ -133,7 +143,7 @@ export class TradeRepublicClient {
       // Step 1: Initial login request
       const loginRes = await fetch(`${TR_HOST}/api/v1/auth/web/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: TR_HEADERS,
         body: JSON.stringify({ phoneNumber: this.phoneNo, pin: this.pin }),
         signal: AbortSignal.timeout(10_000),
       });
@@ -157,7 +167,7 @@ export class TradeRepublicClient {
         `${TR_HOST}/api/v1/auth/web/login/${loginData.processId}/${devicePin}`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: TR_HEADERS,
           signal: AbortSignal.timeout(10_000),
         }
       );
@@ -235,7 +245,7 @@ export class TradeRepublicClient {
     try {
       const res = await fetch(`${TR_HOST}/api/v1/auth/web/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: TR_HEADERS,
         body: JSON.stringify({ phoneNumber: this.phoneNo, pin: this.pin }),
         signal: AbortSignal.timeout(10_000),
       });
@@ -259,7 +269,7 @@ export class TradeRepublicClient {
         `${TR_HOST}/api/v1/auth/web/login/${processId}/${code}`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: TR_HEADERS,
           signal: AbortSignal.timeout(10_000),
         }
       );
