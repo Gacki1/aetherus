@@ -66,7 +66,7 @@ export default function Dashboard() {
   const [autoRefreshCountdown, setAutoRefreshCountdown] = useState(300);
   const [activeTab, setActiveTab] = useState<ViewTab>("trending");
   const [listPage, setListPage] = useState(0);
-  const STOCKS_PER_PAGE = 20;
+  const STOCKS_PER_PAGE = 21;
   const [isDetailExpanded, setIsDetailExpanded] = useState(false);
 
   // === Browse tab ===
