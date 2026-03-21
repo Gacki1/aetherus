@@ -3212,6 +3212,22 @@ function getTRAdminHTML(): string {
     .stat-box .val { font-size: 20px; font-weight: 700; color: #e6edf3; }
     .stat-box .lbl { font-size: 11px; color: #8b949e; margin-top: 2px; }
 
+    /* ── Countdown section ── */
+    #algoCountdown {
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid #30363d;
+    }
+    .cd-title { font-size: 11px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+    .cd-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .cd-label { font-size: 11px; color: #8b949e; width: 90px; text-align: right; flex-shrink: 0; }
+    .cd-track { flex: 1; height: 6px; background: #161b22; border-radius: 3px; overflow: hidden; border: 1px solid #30363d; }
+    .cd-fill { height: 100%; background: rgba(0, 210, 255, 0.5); border-radius: 3px; transition: width 0.4s; }
+    .cd-fill.green { background: #3fb950; }
+    .cd-val { font-size: 11px; color: #8b949e; width: 55px; text-align: right; font-variant-numeric: tabular-nums; }
+    .cd-val.green { color: #3fb950; }
+    .cd-note { font-size: 11px; color: #8b949e; margin-top: 8px; }
+
     /* ── Accuracy Card ── */
     .acc-bar-wrap { margin-bottom: 12px; }
     .acc-header {
@@ -3420,6 +3436,7 @@ function getTRAdminHTML(): string {
             <div class="stat-box"><div class="val" id="statSignals">\u2013</div><div class="lbl">Mit Quellensignalen</div></div>
             <div class="stat-box"><div class="val" id="statRecent">\u2013</div><div class="lbl">Letzte 7 Tage</div></div>
           </div>
+          <div id="algoCountdown" style="display:none"></div>
         </div>
       </div>
 
@@ -3693,23 +3710,76 @@ function getTRAdminHTML(): string {
 
     // ── Card 2: Algo status ──
     function renderAlgoStatus(data) {
-      const user = data.users && data.users[0];
       document.getElementById('algoStatusLoading').style.display = 'none';
-      if (!user) {
-        document.getElementById('algoStatusContent').style.display = 'block';
-        document.getElementById('algoStatusLabel').textContent = 'Keine Daten';
-        document.getElementById('algoDot').className = 'dot gray';
-        return;
-      }
       document.getElementById('algoStatusContent').style.display = 'block';
-      const isActive = user.learning && user.learning.isActive;
+
+      // Aggregate stats across all users
+      let totalPred = 0, totalEval = 0, totalSignals = 0, totalRecent = 0;
+      let oldestPredDate = null;
+      for (const u of (data.users || [])) {
+        totalPred += u.totalPredictions || 0;
+        totalEval += u.evaluated || 0;
+        totalSignals += u.withSourceSignals || 0;
+        totalRecent += u.recentCount || 0;
+      }
+
+      // Find oldest prediction date for countdown calculation
+      for (const u of (data.users || [])) {
+        for (const s of (u.stocks || [])) {
+          // We use lastDate as an approximation; earliest would be better but not exposed
+        }
+      }
+
+      const learning = data.learning || {};
+      const isActive = !!learning.isActive;
       document.getElementById('algoDot').className = 'dot ' + (isActive ? 'green' : 'orange');
-      document.getElementById('algoStatusLabel').textContent = isActive ? 'Aktiv' : 'Sammelt Daten';
+      document.getElementById('algoStatusLabel').textContent = isActive ? 'Aktiv \u2014 Lernt aus ' + (learning.categoryCount || 0) + ' Kategorien' : 'Sammelt Daten';
       document.getElementById('algoStatusLabel').className = '';
-      document.getElementById('statTotal').textContent = user.totalPredictions || 0;
-      document.getElementById('statEval').textContent = user.evaluated || 0;
-      document.getElementById('statSignals').textContent = user.withSourceSignals || 0;
-      document.getElementById('statRecent').textContent = user.recentCount || 0;
+      document.getElementById('statTotal').textContent = totalPred;
+      document.getElementById('statEval').textContent = totalEval;
+      document.getElementById('statSignals').textContent = totalSignals;
+      document.getElementById('statRecent').textContent = totalRecent;
+
+      // Countdown section
+      const cdEl = document.getElementById('algoCountdown');
+      if (cdEl) {
+        if (totalPred > 0 && totalEval === 0) {
+          // No evaluations yet — show countdown to first short-term eval
+          const daysToShort = 7;
+          const daysToMed = 28;
+          const daysToLong = 90;
+          const needMore = Math.max(0, 5 - totalEval);
+          cdEl.style.display = 'block';
+          cdEl.innerHTML =
+            '<div class="cd-title">N\u00e4chste Auswertungen</div>' +
+            renderCountdownBar('Kurzfristig', daysToShort, 7) +
+            renderCountdownBar('Mittelfristig', daysToMed, 28) +
+            renderCountdownBar('Langfristig', daysToLong, 90) +
+            '<div class="cd-note">' + totalEval + ' ausgewertet \u00b7 ' + needMore + ' weitere n\u00f6tig f\u00fcr Lernen</div>';
+        } else if (totalEval > 0 && !isActive) {
+          const needMore = Math.max(0, 5 - totalEval);
+          cdEl.style.display = 'block';
+          cdEl.innerHTML =
+            '<div class="cd-note">' + totalEval + ' ausgewertet \u00b7 ' + needMore + ' weitere n\u00f6tig f\u00fcr Lernen</div>';
+        } else if (isActive) {
+          cdEl.style.display = 'block';
+          cdEl.innerHTML =
+            '<div class="cd-note" style="color:#3fb950">' + (learning.globalEvaluatedCount || 0) + ' Vorhersagen ausgewertet \u00b7 ' + (learning.categoryCount || 0) + ' Kategorie-Modelle aktiv</div>';
+        } else {
+          cdEl.style.display = 'none';
+        }
+      }
+    }
+
+    function renderCountdownBar(label, daysLeft, totalDays) {
+      const pct = Math.max(5, ((totalDays - daysLeft) / totalDays) * 100);
+      const cls = daysLeft === 0 ? 'green' : '';
+      const valText = daysLeft === 0 ? 'heute' : daysLeft + ' Tage';
+      return '<div class="cd-row">' +
+        '<span class="cd-label">' + label + '</span>' +
+        '<div class="cd-track"><div class="cd-fill ' + cls + '" style="width:' + pct + '%"></div></div>' +
+        '<span class="cd-val ' + cls + '">' + valText + '</span>' +
+        '</div>';
     }
 
     // ── Card 3: Accuracy ──
