@@ -58,6 +58,10 @@ services:
       - PORT=5000
       - STOXVIEW_DATA_DIR=/data
       - FINNHUB_API_KEY=${FINNHUB_API_KEY:-}
+      - TR_PHONE=${TR_PHONE:-}
+      - TR_PIN=${TR_PIN:-}
+      - TR_ADMIN_PASSWORD=${TR_ADMIN_PASSWORD:-}
+      - POLYGON_API_KEY=${POLYGON_API_KEY:-}
     volumes:
       - stoxview_data:/data
     expose:
