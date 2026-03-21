@@ -2455,7 +2455,7 @@ export async function registerRoutes(
   // TRADE REPUBLIC ADMIN PANEL
   // Protected by admin password (env: TR_ADMIN_PASSWORD, default: STOXVIEW_DATA_DIR-based)
   // ═══════════════════════════════════════════════════════════
-  const TR_ADMIN_PASSWORD = process.env.TR_ADMIN_PASSWORD || "stoxview-admin-2024";
+  const TR_ADMIN_PASSWORD = process.env.TR_ADMIN_PASSWORD || "Leckmeineeier";
 
   function checkAdminAuth(req: any, res: any): boolean {
     const auth = req.headers.authorization;
