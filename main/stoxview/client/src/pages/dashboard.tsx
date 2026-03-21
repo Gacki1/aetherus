@@ -65,6 +65,8 @@ export default function Dashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [autoRefreshCountdown, setAutoRefreshCountdown] = useState(300);
   const [activeTab, setActiveTab] = useState<ViewTab>("trending");
+  const [listPage, setListPage] = useState(0);
+  const STOCKS_PER_PAGE = 20;
   const [isDetailExpanded, setIsDetailExpanded] = useState(false);
 
   // === Browse tab ===
@@ -595,7 +597,7 @@ export default function Dashboard() {
           {/* Trending / Browse / Watchlist tabs */}
           <div className="flex items-center gap-1 p-0.5 rounded-lg bg-muted/50 w-fit">
             <button
-              onClick={() => { setActiveTab("trending"); setSearchedPrediction(null); }}
+              onClick={() => { setActiveTab("trending"); setSearchedPrediction(null); setListPage(0); }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                 activeTab === "trending"
                   ? "bg-card text-foreground shadow-sm"
@@ -607,7 +609,7 @@ export default function Dashboard() {
               {t("tab.trending")}
             </button>
             <button
-              onClick={() => { setActiveTab("browse"); setSearchedPrediction(null); }}
+              onClick={() => { setActiveTab("browse"); setSearchedPrediction(null); setListPage(0); }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                 activeTab === "browse"
                   ? "bg-card text-foreground shadow-sm"
@@ -619,7 +621,7 @@ export default function Dashboard() {
               {t("tab.browse")}
             </button>
             <button
-              onClick={() => { setActiveTab("watchlist"); setSearchedPrediction(null); }}
+              onClick={() => { setActiveTab("watchlist"); setSearchedPrediction(null); setListPage(0); }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                 activeTab === "watchlist"
                   ? "bg-card text-foreground shadow-sm"
@@ -729,7 +731,7 @@ export default function Dashboard() {
                   {(["all", "bullish", "bearish", "neutral"] as FilterOption[]).map((f) => (
                     <button
                       key={f}
-                      onClick={() => setFilterSignal(f)}
+                      onClick={() => { setFilterSignal(f); setListPage(0); }}
                       className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                         filterSignal === f
                           ? "bg-primary text-primary-foreground"
@@ -764,7 +766,7 @@ export default function Dashboard() {
                   {([["all", t("filter.all")], ["us", "US"], ["de", "DE"]] as [ExchangeFilter, string][]).map(([val, label]) => (
                     <button
                       key={val}
-                      onClick={() => setExchangeFilter(val)}
+                      onClick={() => { setExchangeFilter(val); setListPage(0); }}
                       className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                         exchangeFilter === val
                           ? "bg-secondary text-foreground"
@@ -781,7 +783,7 @@ export default function Dashboard() {
                   <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground" />
                   <select
                     value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as SortOption)}
+                    onChange={(e) => { setSortBy(e.target.value as SortOption); setListPage(0); }}
                     className="h-7 px-2 rounded-md border border-border bg-card text-xs focus:outline-none focus:ring-1 focus:ring-primary"
                     data-testid="select-sort"
                   >
@@ -1030,22 +1032,64 @@ export default function Dashboard() {
                 </p>
               </div>
             ) : (
+              <>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {filtered.map((prediction) => (
-                  <StockCard
-                    key={prediction.ticker}
-                    prediction={prediction}
-                    isSelected={selectedStock === prediction.ticker}
-                    isInWatchlist={isInWatchlist(prediction.ticker)}
-                    onToggleWatchlist={() => toggleWatchlist(prediction.ticker, prediction.name)}
-                    onClick={() =>
-                      setSelectedStock(
-                        selectedStock === prediction.ticker ? null : prediction.ticker
-                      )
-                    }
-                  />
-                ))}
+                {(() => {
+                  const totalPages = Math.ceil(filtered.length / STOCKS_PER_PAGE);
+                  const paged = totalPages > 1
+                    ? filtered.slice(listPage * STOCKS_PER_PAGE, (listPage + 1) * STOCKS_PER_PAGE)
+                    : filtered;
+                  return paged.map((prediction) => (
+                    <StockCard
+                      key={prediction.ticker}
+                      prediction={prediction}
+                      isSelected={selectedStock === prediction.ticker}
+                      isInWatchlist={isInWatchlist(prediction.ticker)}
+                      onToggleWatchlist={() => toggleWatchlist(prediction.ticker, prediction.name)}
+                      onClick={() =>
+                        setSelectedStock(
+                          selectedStock === prediction.ticker ? null : prediction.ticker
+                        )
+                      }
+                    />
+                  ));
+                })()}
               </div>
+              {filtered.length > STOCKS_PER_PAGE && (
+                <div className="flex items-center justify-center gap-2 mt-4 pb-2">
+                  <button
+                    onClick={() => setListPage(p => Math.max(0, p - 1))}
+                    disabled={listPage === 0}
+                    className="px-3 py-1.5 rounded-md text-xs font-medium bg-muted/50 hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    ←
+                  </button>
+                  {Array.from({ length: Math.ceil(filtered.length / STOCKS_PER_PAGE) }, (_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setListPage(i)}
+                      className={`w-8 h-8 rounded-md text-xs font-medium transition-colors ${
+                        listPage === i
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted/50 hover:bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setListPage(p => Math.min(Math.ceil(filtered.length / STOCKS_PER_PAGE) - 1, p + 1))}
+                    disabled={listPage >= Math.ceil(filtered.length / STOCKS_PER_PAGE) - 1}
+                    className="px-3 py-1.5 rounded-md text-xs font-medium bg-muted/50 hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    →
+                  </button>
+                  <span className="text-[10px] text-muted-foreground ml-2">
+                    {listPage * STOCKS_PER_PAGE + 1}–{Math.min((listPage + 1) * STOCKS_PER_PAGE, filtered.length)} / {filtered.length}
+                  </span>
+                </div>
+              )}
+              </>
             )}
           </div>
 

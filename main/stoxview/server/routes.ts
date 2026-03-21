@@ -2051,9 +2051,8 @@ export async function registerRoutes(
         ? symbolsParam.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean)
         : DEFAULT_SYMBOLS;
 
-      const cacheKey = `batch:${symbols.join(",")}`;
-
       const user = (req.query.user as string) || "_default";
+      const cacheKey = `batch:${symbols.join(",")}:${safeUser(user)}`;
 
       if (force) {
         // Wipe individual prediction caches so fetchFullPrediction re-fetches
@@ -2065,7 +2064,22 @@ export async function registerRoutes(
       }
 
       const cached = !force ? getCached<any>(cacheKey, 60000) : null; // 60s
-      if (cached) return res.json(cached);
+
+      // Even when serving cached results, record predictions for watchlist stocks
+      // This ensures all watchlist stocks get history, not just ones the user clicks on
+      if (cached) {
+        const wl = getUserWatchlist(user);
+        if (wl.length > 0) {
+          const watchlistSymbols = new Set(wl.map(w => w.symbol));
+          for (const pred of cached as StockPrediction[]) {
+            if (watchlistSymbols.has(pred.ticker)) {
+              recordPrediction(pred, user);
+            }
+          }
+        }
+        return res.json(cached);
+      }
+
       const results: StockPrediction[] = [];
       const wl = getUserWatchlist(user);
       const watchlistSymbols = new Set(wl.map(w => w.symbol));
@@ -2073,7 +2087,6 @@ export async function registerRoutes(
         const prediction = await fetchFullPrediction(symbol, user);
         if (prediction) {
           results.push(prediction);
-          // Record predictions for watchlist stocks (per-user)
           if (watchlistSymbols.has(symbol)) {
             recordPrediction(prediction, user);
           }
