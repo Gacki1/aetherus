@@ -8,6 +8,57 @@ Full development history of Aetherus — all changes documented by date and phas
 
 ---
 
+## [2026-03-21] Fixes & Improvements
+
+Various fixes and improvements following the major self-learning engine release.
+
+### Magnitude-aware learning
+
+- Learning engine now scores sources on direction AND magnitude accuracy
+- Direction component (±0.5): did the source predict the right direction?
+- Magnitude component (±0.5): how close was the predicted move to the actual move?
+- Sources that consistently nail both direction and size get heavily rewarded
+- Predicted estimated move (%) now stored in prediction history and displayed in UI
+
+### Watchlist pagination
+
+- 21 stocks per page (7 full rows of 3 columns, no empty gap)
+- Page number buttons + arrow navigation with "X–Y / Z" counter
+- Page resets when switching tabs or changing filters
+
+### Prediction history fixes
+
+- All frontend components now read `uid` param correctly (was reading `user` which doesn't exist in iframe URL)
+- Auto-recording: predictions recorded for ALL watchlist stocks on every batch fetch, even from cache
+- Previously only stocks you clicked on individually got history entries
+- Batch prediction limit raised from 20 to 50 stocks
+
+### Admin panel fixes
+
+- Password validated server-side before showing dashboard (was showing broken cards on wrong password)
+- Shows "Falsches Passwort" on login screen instead of Unauthorized errors
+
+### StoxView iframe fixes
+
+- Removed double-scroll (body + iframe both scrollable)
+- Fixed iframe height: navbar is 64px not 56px, removed extra 3rem margin
+- Bottom of StoxView content is now fully visible
+
+### CI
+
+- Bumped `actions/checkout` v4 → v5 (Node.js 20 deprecation warning)
+
+### Files changed
+
+- `main/stoxview/server/routes.ts` — Magnitude scoring, auto-recording, batch limit, admin auth
+- `main/stoxview/client/src/pages/dashboard.tsx` — Pagination, uid param, page size
+- `main/stoxview/client/src/components/prediction-history.tsx` — uid param, estimated move display
+- `main/stoxview/client/src/components/price-chart.tsx` — uid param
+- `main/backend/templates/stoxview.html` — Scroll + height fixes
+- `.github/workflows/deploy.yml` — checkout v5
+
+---
+
 ## [2026-03-21] Self-Learning Prediction Engine + Admin Dashboard Rework
 
 StoxView predictions now learn from their own mistakes. The admin panel has been rebuilt as a full dashboard.
