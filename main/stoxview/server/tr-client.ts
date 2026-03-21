@@ -240,7 +240,9 @@ export class TradeRepublicClient {
         signal: AbortSignal.timeout(10_000),
       });
       if (!res.ok) {
-        console.error("[TR] initiateLogin failed:", res.status);
+        const errBody = await res.text().catch(() => "");
+        console.error(`[TR] initiateLogin failed: HTTP ${res.status} — ${errBody.slice(0, 200)}`);
+        console.error(`[TR] Request was: phoneNumber=${this.phoneNo.slice(0,6)}***, pin=****)`);
         return null;
       }
       const data = await res.json() as { processId?: string };
