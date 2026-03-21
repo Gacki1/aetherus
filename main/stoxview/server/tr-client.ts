@@ -241,56 +241,89 @@ export class TradeRepublicClient {
    * Step 1: initiateLogin() → returns processId, triggers 2FA
    * Step 2: completeLogin(processId, code) → saves session, connects WS
    */
+  /**
+   * Launch headless Chromium to bypass TR's TLS fingerprinting.
+   * The browser makes the API call from a real Chrome context.
+   */
+  private async browserFetch(url: string, body?: any): Promise<{ ok: boolean; status: number; data: any; cookies: string[] }> {
+    const puppeteer = await import("puppeteer-core");
+    const execPath = process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium";
+    console.log(`[TR] Launching headless Chromium...`);
+    const browser = await puppeteer.default.launch({
+      executablePath: execPath,
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--disable-dev-shm-usage"],
+    });
+    try {
+      const page = await browser.newPage();
+      await page.goto("https://app.traderepublic.com", { waitUntil: "domcontentloaded", timeout: 15000 }).catch(() => {});
+
+      const result = await page.evaluate(async (fetchUrl: string, fetchBody: any) => {
+        try {
+          const opts: RequestInit = { method: "POST", headers: { "Content-Type": "application/json" } };
+          if (fetchBody) opts.body = JSON.stringify(fetchBody);
+          const res = await fetch(fetchUrl, opts);
+          const text = await res.text();
+          let data: any = null;
+          try { data = JSON.parse(text); } catch { data = text; }
+          return { ok: res.ok, status: res.status, data };
+        } catch (e: any) {
+          return { ok: false, status: 0, data: e.message };
+        }
+      }, url, body);
+
+      const browserCookies = await page.cookies();
+      const cookieStrings = browserCookies
+        .filter((c: any) => c.domain.includes("traderepublic"))
+        .map((c: any) => `${c.name}=${c.value}`);
+
+      return { ...result, cookies: cookieStrings };
+    } finally {
+      await browser.close();
+      console.log("[TR] Chromium closed.");
+    }
+  }
+
   async initiateLogin(): Promise<{ processId: string } | null> {
     try {
-      const res = await fetch(`${TR_HOST}/api/v1/auth/web/login`, {
-        method: "POST",
-        headers: TR_HEADERS,
-        body: JSON.stringify({ phoneNumber: this.phoneNo, pin: this.pin }),
-        signal: AbortSignal.timeout(10_000),
-      });
-      if (!res.ok) {
-        const errBody = await res.text().catch(() => "");
-        console.error(`[TR] initiateLogin failed: HTTP ${res.status} — ${errBody.slice(0, 200)}`);
-        console.error(`[TR] Request was: phoneNumber=${this.phoneNo.slice(0,6)}***, pin=****)`);
+      const result = await this.browserFetch(
+        `${TR_HOST}/api/v1/auth/web/login`,
+        { phoneNumber: this.phoneNo, pin: this.pin }
+      );
+      if (!result.ok) {
+        console.error(`[TR] initiateLogin failed: HTTP ${result.status}`, JSON.stringify(result.data).slice(0, 200));
         return null;
       }
-      const data = await res.json() as { processId?: string };
-      return data.processId ? { processId: data.processId } : null;
+      const processId = result.data?.processId;
+      return processId ? { processId } : null;
     } catch (e) {
-      console.error("[TR] initiateLogin error:", (e as Error).message?.slice(0, 100));
+      console.error("[TR] initiateLogin error:", (e as Error).message?.slice(0, 150));
       return null;
     }
   }
 
   async completeLogin(processId: string, code: string): Promise<boolean> {
     try {
-      const verifyRes = await fetch(
-        `${TR_HOST}/api/v1/auth/web/login/${processId}/${code}`,
-        {
-          method: "POST",
-          headers: TR_HEADERS,
-          signal: AbortSignal.timeout(10_000),
-        }
+      const result = await this.browserFetch(
+        `${TR_HOST}/api/v1/auth/web/login/${processId}/${code}`
       );
-      if (!verifyRes.ok) {
-        console.error("[TR] completeLogin failed:", verifyRes.status);
+      if (!result.ok) {
+        console.error("[TR] completeLogin failed:", result.status, result.data);
         return false;
       }
 
-      const setCookies = verifyRes.headers.getSetCookie?.() || [];
-      const sessionToken = this.extractCookie(setCookies, "tr_session");
-      const refreshToken = this.extractCookie(setCookies, "tr_refresh");
+      const sessionToken = result.cookies.find((c: string) => c.startsWith("tr_session="))?.split("=").slice(1).join("=");
+      const refreshToken = result.cookies.find((c: string) => c.startsWith("tr_refresh="))?.split("=").slice(1).join("=");
 
       if (!sessionToken) {
-        console.error("[TR] No tr_session cookie in verify response");
+        console.error("[TR] No tr_session cookie. Cookies:", result.cookies);
         return false;
       }
 
       this.session = {
         trSessionToken: sessionToken,
         trRefreshToken: refreshToken,
-        rawCookies: setCookies,
+        rawCookies: result.cookies.map((c: string) => c + "; Path=/; Domain=.traderepublic.com"),
         savedAt: new Date().toISOString(),
       };
 
