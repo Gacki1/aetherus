@@ -2422,11 +2422,13 @@ export async function registerRoutes(
     return true;
   }
 
-  // Admin page — serves the TR login UI
-  app.get("/admin/tr", (_req, res) => {
+  // Admin page — serves the admin dashboard UI
+  app.get("/admin", (_req, res) => {
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.send(getTRAdminHTML());
   });
+  // Backwards compat redirect
+  app.get("/admin/tr", (_req, res) => res.redirect("/admin"));
 
   // Step 1: Initiate TR login — triggers 2FA to phone
   app.post("/api/tr/login", async (req, res) => {
@@ -2710,7 +2712,7 @@ function getTRAdminHTML(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>StoxView Admin — Trade Republic</title>
+  <title>StoxView Admin</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -2718,20 +2720,23 @@ function getTRAdminHTML(): string {
       background: #0d1117;
       color: #e6edf3;
       min-height: 100vh;
+    }
+
+    /* ── Login screen ── */
+    .login-wrap {
+      min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-    }
-    .container {
-      width: 100%;
-      max-width: 620px;
       padding: 24px;
     }
-    .card {
+    .login-card {
       background: #161b22;
       border: 1px solid #30363d;
       border-radius: 12px;
       padding: 32px;
+      width: 100%;
+      max-width: 400px;
     }
     .logo {
       display: flex;
@@ -2748,52 +2753,100 @@ function getTRAdminHTML(): string {
     }
     .logo h1 { font-size: 18px; font-weight: 600; }
     .logo h1 span { color: #00d2ff; }
-    .subtitle { color: #8b949e; font-size: 13px; margin-bottom: 24px; }
-    /* Tab navigation */
-    .tab-nav {
-      display: flex;
+
+    /* ── Dashboard ── */
+    .dashboard { display: none; }
+    .dashboard.active { display: block; }
+    .login-wrap.hidden { display: none; }
+
+    .header {
+      background: #161b22;
       border-bottom: 1px solid #30363d;
-      margin-bottom: 24px;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
     }
-    .tab-btn {
-      flex: 1;
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .header-left .logo-icon {
+      width: 32px; height: 32px;
+      font-size: 16px;
+      border-radius: 8px;
+    }
+    .header-left h1 { font-size: 16px; font-weight: 600; }
+    .header-left h1 span { color: #00d2ff; }
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .btn-icon {
       background: none;
-      border: none;
-      border-bottom: 2px solid transparent;
+      border: 1px solid #30363d;
       color: #8b949e;
-      font-size: 14px;
+      width: 34px; height: 34px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      padding: 0;
+      transition: all 0.2s;
+    }
+    .btn-icon:hover { color: #e6edf3; border-color: #8b949e; }
+    .btn-icon.spinning { animation: spin 0.8s linear infinite; }
+    .btn-logout {
+      background: none;
+      border: 1px solid #30363d;
+      color: #f85149;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 13px;
       font-weight: 600;
-      padding: 10px 16px;
       cursor: pointer;
       transition: all 0.2s;
       width: auto;
     }
-    .tab-btn:hover { color: #e6edf3; }
-    .tab-btn.active {
-      color: #00d2ff;
-      border-bottom-color: #00d2ff;
+    .btn-logout:hover { background: #f8514922; border-color: #f85149; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      padding: 20px 24px;
+      max-width: 1100px;
+      margin: 0 auto;
     }
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
-    .status-bar {
-      display: flex; align-items: center; gap: 8px;
-      padding: 10px 14px;
-      background: #0d1117;
+    .grid .card.full-width { grid-column: 1 / -1; }
+
+    @media (max-width: 700px) {
+      .grid { grid-template-columns: 1fr; padding: 16px; gap: 12px; }
+    }
+
+    .card {
+      background: #161b22;
       border: 1px solid #30363d;
-      border-radius: 8px;
-      margin-bottom: 20px;
-      font-size: 13px;
+      border-radius: 12px;
+      padding: 20px;
     }
-    .status-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      flex-shrink: 0;
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #e6edf3;
+      margin-bottom: 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #30363d;
     }
-    .status-dot.connected { background: #3fb950; box-shadow: 0 0 6px #3fb950; }
-    .status-dot.disconnected { background: #f85149; }
-    .status-dot.pending { background: #d29922; }
-    .status-text { flex: 1; }
-    .status-label { color: #8b949e; }
+
+    /* ── Shared ── */
     label {
       display: block;
       font-size: 13px;
@@ -2816,11 +2869,10 @@ function getTRAdminHTML(): string {
     input:focus { border-color: #00d2ff; }
     input::placeholder { color: #484f58; }
     button {
-      width: 100%;
-      padding: 12px;
+      padding: 10px 16px;
       border: none;
       border-radius: 8px;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.2s;
@@ -2828,15 +2880,13 @@ function getTRAdminHTML(): string {
     .btn-primary {
       background: linear-gradient(135deg, #00d2ff 0%, #0088ff 100%);
       color: #0d1117;
+      width: 100%;
     }
     .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
-    .btn-primary:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-      transform: none;
-    }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
     .message {
-      margin-top: 16px;
+      margin-top: 12px;
       padding: 10px 14px;
       border-radius: 8px;
       font-size: 13px;
@@ -2845,421 +2895,405 @@ function getTRAdminHTML(): string {
     .message.success { background: #0d2818; border: 1px solid #238636; color: #3fb950; display: block; }
     .message.error { background: #2d1117; border: 1px solid #f85149; color: #f85149; display: block; }
     .message.info { background: #0d1d30; border: 1px solid #1f6feb; color: #58a6ff; display: block; }
-    .step { display: none; }
-    .step.active { display: block; }
+
     .spinner {
       display: inline-block;
       width: 14px; height: 14px;
       border: 2px solid transparent;
-      border-top-color: #0d1117;
+      border-top-color: currentColor;
       border-radius: 50%;
       animation: spin 0.6s linear infinite;
       vertical-align: middle;
       margin-right: 6px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .session-info {
-      margin-top: 20px;
-      padding: 12px 14px;
-      background: #0d1117;
-      border: 1px solid #30363d;
-      border-radius: 8px;
-      font-size: 12px;
-      color: #8b949e;
-    }
-    .session-info strong { color: #e6edf3; }
-    /* Algorithm tab styles */
-    .algo-section {
-      margin-bottom: 20px;
-    }
-    .algo-section h3 {
-      font-size: 14px;
-      font-weight: 600;
-      color: #e6edf3;
-      margin-bottom: 12px;
-      padding-bottom: 6px;
-      border-bottom: 1px solid #30363d;
-    }
-    .algo-status-row {
+
+    /* ── TR Card ── */
+    .status-row {
       display: flex;
       align-items: center;
       gap: 8px;
-      margin-bottom: 8px;
+      padding: 10px 14px;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      margin-bottom: 14px;
       font-size: 13px;
     }
-    .algo-dot {
+    .dot {
       width: 8px; height: 8px;
       border-radius: 50%;
       flex-shrink: 0;
     }
-    .algo-dot.active { background: #3fb950; box-shadow: 0 0 6px #3fb950; }
-    .algo-dot.collecting { background: #d29922; box-shadow: 0 0 6px #d29922; }
-    .algo-stats {
+    .dot.green { background: #3fb950; box-shadow: 0 0 6px #3fb950; }
+    .dot.red { background: #f85149; }
+    .dot.orange { background: #d29922; box-shadow: 0 0 6px #d29922; }
+    .dot.gray { background: #484f58; }
+    .muted { color: #8b949e; }
+    .step { display: none; }
+    .step.active { display: block; }
+    .session-info {
+      margin-top: 12px;
+      padding: 10px 12px;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      font-size: 11px;
+      color: #8b949e;
+    }
+    .session-info strong { color: #e6edf3; }
+
+    /* ── Algo Status Card ── */
+    .stat-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 8px;
       margin-top: 10px;
     }
-    .algo-stat-box {
+    .stat-box {
       background: #0d1117;
       border: 1px solid #30363d;
       border-radius: 8px;
       padding: 10px 12px;
     }
-    .algo-stat-box .value {
-      font-size: 20px;
-      font-weight: 700;
-      color: #e6edf3;
-    }
-    .algo-stat-box .label {
-      font-size: 11px;
-      color: #8b949e;
-      margin-top: 2px;
-    }
-    .accuracy-bar-container {
-      margin-bottom: 12px;
-    }
-    .accuracy-label {
+    .stat-box .val { font-size: 20px; font-weight: 700; color: #e6edf3; }
+    .stat-box .lbl { font-size: 11px; color: #8b949e; margin-top: 2px; }
+
+    /* ── Accuracy Card ── */
+    .acc-bar-wrap { margin-bottom: 12px; }
+    .acc-header {
       display: flex;
       justify-content: space-between;
       font-size: 12px;
       color: #8b949e;
       margin-bottom: 4px;
     }
-    .accuracy-bar {
+    .acc-track {
       height: 8px;
       background: #0d1117;
       border-radius: 4px;
       overflow: hidden;
       border: 1px solid #30363d;
     }
-    .accuracy-fill {
+    .acc-fill {
       height: 100%;
       border-radius: 4px;
       transition: width 0.4s ease;
     }
-    .accuracy-fill.green { background: #3fb950; }
-    .accuracy-fill.amber { background: #d29922; }
-    .accuracy-fill.red { background: #f85149; }
-    .accuracy-detail {
-      font-size: 11px;
-      color: #8b949e;
-      margin-top: 3px;
-    }
-    .weights-table, .stocks-table {
+    .acc-fill.green { background: #3fb950; }
+    .acc-fill.amber { background: #d29922; }
+    .acc-fill.red { background: #f85149; }
+    .acc-fill.gray { background: #484f58; }
+    .acc-detail { font-size: 11px; color: #8b949e; margin-top: 3px; }
+
+    /* ── Weights Card ── */
+    .w-table {
       width: 100%;
       border-collapse: collapse;
       font-size: 12px;
     }
-    .weights-table th, .stocks-table th {
+    .w-table th {
       text-align: left;
       color: #8b949e;
       font-weight: 500;
       padding: 6px 8px;
       border-bottom: 1px solid #30363d;
     }
-    .weights-table td, .stocks-table td {
-      padding: 8px 8px;
+    .w-table td {
+      padding: 8px;
       border-bottom: 1px solid #21262d;
       color: #e6edf3;
     }
-    .weight-bar-cell {
-      width: 80px;
-    }
-    .weight-bar {
+    .w-bar-cell { width: 80px; }
+    .w-bar {
       height: 6px;
       background: #0d1117;
       border-radius: 3px;
       overflow: hidden;
     }
-    .weight-bar-fill {
+    .w-bar-fill {
       height: 100%;
       border-radius: 3px;
       background: linear-gradient(90deg, #00d2ff, #0088ff);
     }
-    .stocks-table-wrap {
-      max-height: 300px;
+    .delta-pos { color: #3fb950; }
+    .delta-neg { color: #f85149; }
+
+    /* ── Stocks Card ── */
+    .stocks-wrap {
+      max-height: 340px;
       overflow-y: auto;
       border: 1px solid #30363d;
       border-radius: 8px;
     }
-    .stocks-table-wrap::-webkit-scrollbar {
-      width: 6px;
+    .stocks-wrap::-webkit-scrollbar { width: 6px; }
+    .stocks-wrap::-webkit-scrollbar-track { background: #0d1117; }
+    .stocks-wrap::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+    .s-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
     }
-    .stocks-table-wrap::-webkit-scrollbar-track {
-      background: #0d1117;
-    }
-    .stocks-table-wrap::-webkit-scrollbar-thumb {
-      background: #30363d;
-      border-radius: 3px;
-    }
-    .stock-row { cursor: pointer; transition: background 0.15s; }
-    .stock-row:hover { background: #1c2128; }
-    .stock-detail {
-      display: none;
-      background: #0d1117;
-    }
-    .stock-detail.open { display: table-row; }
-    .stock-detail td {
-      padding: 10px 12px;
-      font-size: 11px;
+    .s-table th {
+      text-align: left;
       color: #8b949e;
+      font-weight: 500;
+      padding: 6px 8px;
+      border-bottom: 1px solid #30363d;
+      position: sticky;
+      top: 0;
+      background: #161b22;
     }
-    .stock-weights-mini {
+    .s-table td {
+      padding: 8px;
+      border-bottom: 1px solid #21262d;
+      color: #e6edf3;
+    }
+    .s-row { cursor: pointer; transition: background 0.15s; }
+    .s-row:hover { background: #1c2128; }
+    .s-detail { display: none; background: #0d1117; }
+    .s-detail.open { display: table-row; }
+    .s-detail td { padding: 10px 12px; font-size: 11px; color: #8b949e; }
+    .s-weights {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 4px 12px;
     }
-    .stock-weights-mini span { color: #e6edf3; }
-    .delta-pos { color: #3fb950; }
-    .delta-neg { color: #f85149; }
-    .algo-loading {
+    .s-weights span { color: #e6edf3; }
+
+    /* ── Loading / hints ── */
+    .card-loading {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 10px;
-      padding: 40px 0;
+      gap: 8px;
+      padding: 30px 0;
       color: #8b949e;
       font-size: 13px;
     }
-    .algo-loading .spinner {
-      border-top-color: #00d2ff;
-    }
-    .algo-error {
+    .card-error {
       text-align: center;
-      padding: 30px 0;
+      padding: 20px 0;
       color: #f85149;
       font-size: 13px;
     }
-    .algo-no-auth {
-      text-align: center;
-      padding: 30px 0;
-      color: #8b949e;
-      font-size: 13px;
-    }
-    .btn-refresh {
-      background: #21262d;
-      color: #e6edf3;
-      border: 1px solid #30363d;
-      padding: 8px 16px;
-      font-size: 12px;
-      font-weight: 600;
-      border-radius: 6px;
-      cursor: pointer;
-      width: auto;
-      display: inline-block;
-      margin-top: 12px;
-      transition: background 0.2s;
-    }
-    .btn-refresh:hover { background: #30363d; }
-    .no-data-hint {
+    .hint {
       color: #8b949e;
       font-size: 12px;
       font-style: italic;
-      padding: 8px 0;
+      padding: 6px 0;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="card">
+
+  <!-- ════ LOGIN SCREEN ════ -->
+  <div class="login-wrap" id="loginWrap">
+    <div class="login-card">
       <div class="logo">
         <div class="logo-icon">S</div>
         <h1>Stox<span>View</span> Admin</h1>
       </div>
+      <p style="color:#8b949e;font-size:13px;margin-bottom:20px">Bitte mit Admin-Passwort anmelden</p>
+      <label for="adminPw">Admin-Passwort</label>
+      <input type="password" id="adminPw" placeholder="Passwort eingeben" autocomplete="off">
+      <button class="btn-primary" id="btnAuth" onclick="authenticate()">Anmelden</button>
+      <div class="message" id="loginMsg"></div>
+    </div>
+  </div>
 
-      <!-- Tab Navigation -->
-      <div class="tab-nav">
-        <button class="tab-btn active" onclick="switchTab('tr')" id="tabBtnTr">Trade Republic</button>
-        <button class="tab-btn" onclick="switchTab('algo')" id="tabBtnAlgo">Algorithmus</button>
+  <!-- ════ DASHBOARD ════ -->
+  <div class="dashboard" id="dashboard">
+
+    <!-- Header -->
+    <div class="header">
+      <div class="header-left">
+        <div class="logo-icon">S</div>
+        <h1>Stox<span>View</span> Admin</h1>
+      </div>
+      <div class="header-right">
+        <button class="btn-icon" onclick="refreshAll()" id="btnRefresh" title="Aktualisieren">\u21bb</button>
+        <button class="btn-logout" onclick="logout()">Abmelden</button>
+      </div>
+    </div>
+
+    <!-- Card Grid -->
+    <div class="grid">
+
+      <!-- Card 1: Trade Republic -->
+      <div class="card" id="cardTR">
+        <div class="card-title">Trade Republic</div>
+        <div class="status-row">
+          <div class="dot gray" id="trDot"></div>
+          <span id="trStatusText" class="muted">Status wird geladen\u2026</span>
+        </div>
+        <div id="trBody">
+          <!-- Step 1: Initiate Login (step0 is the global login now) -->
+          <div class="step active" id="trStep1">
+            <p style="color:#8b949e;font-size:13px;margin-bottom:14px">
+              Klicke auf \u201eAnmelden\u201c um einen 2FA-Code an dein Handy zu senden.
+              TR-Zugangsdaten werden aus den Umgebungsvariablen gelesen.
+            </p>
+            <button class="btn-primary" id="btnLogin" onclick="initiateLogin()">Anmelden</button>
+          </div>
+          <!-- Step 2: 2FA -->
+          <div class="step" id="trStep2">
+            <label for="code2fa">2FA-Code</label>
+            <input type="text" id="code2fa" placeholder="4-stelliger Code" maxlength="4"
+                   pattern="[0-9]*" inputmode="numeric" autocomplete="one-time-code">
+            <button class="btn-primary" id="btnVerify" onclick="verifyCode()">Verifizieren</button>
+          </div>
+          <div class="message" id="trMsg"></div>
+          <div class="session-info" id="sessionInfo" style="display:none">
+            <strong>Session-Info:</strong><br>
+            <span id="sessionDetails"></span>
+          </div>
+        </div>
       </div>
 
-      <!-- TR Tab Content -->
-      <div class="tab-content active" id="tabTr">
-        <p class="subtitle">Trade Republic Verbindung verwalten</p>
-
-        <div class="status-bar" id="statusBar">
-          <div class="status-dot disconnected" id="statusDot"></div>
-          <span class="status-text" id="statusText">Status wird geladen...</span>
-        </div>
-
-        <!-- Step 0: Admin Password -->
-        <div class="step active" id="step0">
-          <label for="adminPw">Admin-Passwort</label>
-          <input type="password" id="adminPw" placeholder="Passwort eingeben" autocomplete="off">
-          <button class="btn-primary" id="btnAuth" onclick="authenticate()">Anmelden</button>
-        </div>
-
-        <!-- Step 1: Initiate Login -->
-        <div class="step" id="step1">
-          <p style="color:#8b949e;font-size:13px;margin-bottom:16px">
-            Klicke auf "Login starten" um einen 2FA-Code an dein Handy zu senden.
-            Deine TR-Zugangsdaten werden aus den Umgebungsvariablen gelesen.
-          </p>
-          <button class="btn-primary" id="btnLogin" onclick="initiateLogin()">Login starten</button>
-        </div>
-
-        <!-- Step 2: Enter 2FA Code -->
-        <div class="step" id="step2">
-          <label for="code2fa">2FA-Code</label>
-          <input type="text" id="code2fa" placeholder="4-stelliger Code" maxlength="4"
-                 pattern="[0-9]*" inputmode="numeric" autocomplete="one-time-code">
-          <button class="btn-primary" id="btnVerify" onclick="verifyCode()">Verifizieren</button>
-        </div>
-
-        <div class="message" id="msg"></div>
-
-        <div class="session-info" id="sessionInfo" style="display:none">
-          <strong>Session-Info:</strong><br>
-          <span id="sessionDetails"></span>
+      <!-- Card 2: Algorithmus-Status -->
+      <div class="card" id="cardAlgoStatus">
+        <div class="card-title">Algorithmus-Status</div>
+        <div class="card-loading" id="algoStatusLoading"><span class="spinner" style="border-top-color:#00d2ff"></span> Lade\u2026</div>
+        <div class="card-error" id="algoStatusError" style="display:none"></div>
+        <div id="algoStatusContent" style="display:none">
+          <div class="status-row">
+            <div class="dot gray" id="algoDot"></div>
+            <span id="algoStatusLabel" class="muted">\u2013</span>
+          </div>
+          <div class="stat-grid">
+            <div class="stat-box"><div class="val" id="statTotal">\u2013</div><div class="lbl">Vorhersagen gesamt</div></div>
+            <div class="stat-box"><div class="val" id="statEval">\u2013</div><div class="lbl">Ausgewertet</div></div>
+            <div class="stat-box"><div class="val" id="statSignals">\u2013</div><div class="lbl">Mit Quellensignalen</div></div>
+            <div class="stat-box"><div class="val" id="statRecent">\u2013</div><div class="lbl">Letzte 7 Tage</div></div>
+          </div>
         </div>
       </div>
 
-      <!-- Algorithm Tab Content -->
-      <div class="tab-content" id="tabAlgo">
-        <div class="algo-no-auth" id="algoNoAuth">
-          Bitte zuerst im Tab "Trade Republic" mit dem Admin-Passwort anmelden.
-        </div>
-        <div id="algoLoading" class="algo-loading" style="display:none">
-          <span class="spinner"></span> Lade Daten...
-        </div>
-        <div id="algoError" class="algo-error" style="display:none"></div>
-        <div id="algoContent" style="display:none">
-
-          <!-- Overview -->
-          <div class="algo-section">
-            <h3>Lernstatus</h3>
-            <div class="algo-status-row">
-              <div class="algo-dot" id="algoStatusDot"></div>
-              <span id="algoStatusLabel"></span>
-            </div>
-            <div class="algo-stats">
-              <div class="algo-stat-box">
-                <div class="value" id="algoTotalPred">–</div>
-                <div class="label">Vorhersagen gesamt</div>
-              </div>
-              <div class="algo-stat-box">
-                <div class="value" id="algoEvaluated">–</div>
-                <div class="label">Ausgewertet</div>
-              </div>
-              <div class="algo-stat-box">
-                <div class="value" id="algoWithSignals">–</div>
-                <div class="label">Mit Quellsignalen</div>
-              </div>
-              <div class="algo-stat-box">
-                <div class="value" id="algoRecent">–</div>
-                <div class="label">Letzte 7 Tage</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Accuracy -->
-          <div class="algo-section">
-            <h3>Genauigkeit</h3>
-            <div id="algoAccuracy"></div>
-          </div>
-
-          <!-- Weights -->
-          <div class="algo-section">
-            <h3>Quellen-Gewichtung</h3>
-            <div id="algoWeights"></div>
-          </div>
-
-          <!-- Per-stock table -->
-          <div class="algo-section">
-            <h3>Aktien-\u00dcbersicht</h3>
-            <div id="algoStocks"></div>
-          </div>
-
-          <button class="btn-refresh" onclick="fetchAlgoStats()">Aktualisieren</button>
-        </div>
+      <!-- Card 3: Genauigkeit -->
+      <div class="card" id="cardAccuracy">
+        <div class="card-title">Genauigkeit</div>
+        <div class="card-loading" id="accLoading"><span class="spinner" style="border-top-color:#00d2ff"></span> Lade\u2026</div>
+        <div id="accContent" style="display:none"></div>
       </div>
+
+      <!-- Card 4: Quellen-Gewichtung -->
+      <div class="card" id="cardWeights">
+        <div class="card-title">Quellen-Gewichtung</div>
+        <div class="card-loading" id="wLoading"><span class="spinner" style="border-top-color:#00d2ff"></span> Lade\u2026</div>
+        <div id="wContent" style="display:none"></div>
+      </div>
+
+      <!-- Card 5: Aktien-\u00dcbersicht (full width) -->
+      <div class="card full-width" id="cardStocks">
+        <div class="card-title">Aktien-\u00dcbersicht</div>
+        <div class="card-loading" id="sLoading"><span class="spinner" style="border-top-color:#00d2ff"></span> Lade\u2026</div>
+        <div id="sContent" style="display:none"></div>
+      </div>
+
     </div>
   </div>
 
   <script>
     let adminToken = '';
     let processId = '';
-    let algoDataLoaded = false;
-    let algoStatsCache = null;
 
-    // Detect base path: if served under /stoxview-api/, API calls need that prefix
-    const basePath = window.location.pathname.replace(/\\/admin\\/tr\\/?$/, '').replace(/\\/$/, '');
+    // Detect base path
+    const basePath = window.location.pathname.replace(/\\/admin(\\/tr)?\\/?$/, '').replace(/\\/$/, '');
     function apiUrl(path) { return basePath + path; }
 
-    // Tab switching
-    function switchTab(tab) {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-      if (tab === 'tr') {
-        document.getElementById('tabBtnTr').classList.add('active');
-        document.getElementById('tabTr').classList.add('active');
-      } else {
-        document.getElementById('tabBtnAlgo').classList.add('active');
-        document.getElementById('tabAlgo').classList.add('active');
-        if (adminToken && !algoDataLoaded) {
-          fetchAlgoStats();
-        }
+    // ─── Login ───
+    document.getElementById('adminPw').addEventListener('keydown', e => {
+      if (e.key === 'Enter') authenticate();
+    });
+
+    function authenticate() {
+      const pw = document.getElementById('adminPw').value.trim();
+      if (!pw) {
+        showLoginMsg('Bitte Passwort eingeben', 'error');
+        return;
       }
+      adminToken = pw;
+      document.getElementById('loginWrap').classList.add('hidden');
+      document.getElementById('dashboard').classList.add('active');
+      fetchAllData();
     }
 
-    // Check status on load
-    fetchStatus();
-
-    async function fetchStatus() {
-      try {
-        const res = await fetch(apiUrl('/api/data-sources'));
-        const data = await res.json();
-        const dot = document.getElementById('statusDot');
-        const text = document.getElementById('statusText');
-        const info = document.getElementById('sessionInfo');
-        const details = document.getElementById('sessionDetails');
-
-        if (data.tradeRepublic.connected) {
-          dot.className = 'status-dot connected';
-          text.innerHTML = '<span class="status-label">Trade Republic:</span> Verbunden';
-          info.style.display = 'block';
-          details.textContent = 'WebSocket aktiv \u2022 ' + data.tradeRepublic.subscribedIsins + ' ISINs abonniert';
-        } else if (data.tradeRepublic.hasSession) {
-          dot.className = 'status-dot pending';
-          text.innerHTML = '<span class="status-label">Trade Republic:</span> Session vorhanden (nicht verbunden)';
-        } else {
-          dot.className = 'status-dot disconnected';
-          text.innerHTML = '<span class="status-label">Trade Republic:</span> Nicht verbunden';
-        }
-      } catch {
-        document.getElementById('statusText').textContent = 'Status nicht verf\u00fcgbar';
-      }
-    }
-
-    function showMsg(text, type) {
-      const el = document.getElementById('msg');
+    function showLoginMsg(text, type) {
+      const el = document.getElementById('loginMsg');
       el.textContent = text;
       el.className = 'message ' + type;
     }
 
-    function hideMsg() {
-      document.getElementById('msg').className = 'message';
+    function logout() {
+      adminToken = '';
+      processId = '';
+      document.getElementById('dashboard').classList.remove('active');
+      document.getElementById('loginWrap').classList.remove('hidden');
+      document.getElementById('adminPw').value = '';
+      document.getElementById('loginMsg').className = 'message';
     }
 
-    function showStep(n) {
-      document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
-      document.getElementById('step' + n).classList.add('active');
+    // ─── Data fetching ───
+    function fetchAllData() {
+      fetchTRStatus();
+      fetchAlgoStats();
     }
 
-    function authenticate() {
-      adminToken = document.getElementById('adminPw').value.trim();
-      if (!adminToken) { showMsg('Bitte Passwort eingeben', 'error'); return; }
-      hideMsg();
-      showStep(1);
-      // Update algo tab auth state
-      document.getElementById('algoNoAuth').style.display = 'none';
+    function refreshAll() {
+      const btn = document.getElementById('btnRefresh');
+      btn.classList.add('spinning');
+      fetchAllData();
+      setTimeout(() => btn.classList.remove('spinning'), 800);
     }
 
-    // Enter-key on password field
-    document.getElementById('adminPw').addEventListener('keydown', e => {
-      if (e.key === 'Enter') authenticate();
-    });
+    // ─── TR Status ───
+    async function fetchTRStatus() {
+      try {
+        const res = await fetch(apiUrl('/api/data-sources'));
+        const data = await res.json();
+        const dot = document.getElementById('trDot');
+        const text = document.getElementById('trStatusText');
+        const info = document.getElementById('sessionInfo');
+        const details = document.getElementById('sessionDetails');
+
+        if (data.tradeRepublic.connected) {
+          dot.className = 'dot green';
+          text.textContent = 'Verbunden';
+          text.className = '';
+          info.style.display = 'block';
+          details.textContent = 'WebSocket aktiv \u2022 ' + data.tradeRepublic.subscribedIsins + ' ISINs abonniert';
+        } else if (data.tradeRepublic.hasSession) {
+          dot.className = 'dot orange';
+          text.textContent = 'Session vorhanden (nicht verbunden)';
+          text.className = 'muted';
+          info.style.display = 'none';
+        } else {
+          dot.className = 'dot red';
+          text.textContent = 'Nicht verbunden';
+          text.className = 'muted';
+          info.style.display = 'none';
+        }
+      } catch {
+        document.getElementById('trStatusText').textContent = 'Status nicht verf\u00fcgbar';
+      }
+    }
+
+    // ─── TR Login flow ───
+    function showTRMsg(text, type) {
+      const el = document.getElementById('trMsg');
+      el.textContent = text;
+      el.className = 'message ' + type;
+    }
+    function hideTRMsg() {
+      document.getElementById('trMsg').className = 'message';
+    }
+    function showTRStep(n) {
+      document.querySelectorAll('#trBody .step').forEach(s => s.classList.remove('active'));
+      const el = document.getElementById('trStep' + n);
+      if (el) el.classList.add('active');
+    }
+
     document.getElementById('code2fa').addEventListener('keydown', e => {
       if (e.key === 'Enter') verifyCode();
     });
@@ -3267,8 +3301,8 @@ function getTRAdminHTML(): string {
     async function initiateLogin() {
       const btn = document.getElementById('btnLogin');
       btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span>Wird gesendet...';
-      hideMsg();
+      btn.innerHTML = '<span class="spinner" style="border-top-color:#0d1117"></span>Wird gesendet\u2026';
+      hideTRMsg();
 
       try {
         const res = await fetch(apiUrl('/api/tr/login'), {
@@ -3280,34 +3314,31 @@ function getTRAdminHTML(): string {
           body: '{}'
         });
         const data = await res.json();
-
         if (!res.ok) {
-          showMsg(data.error || 'Login fehlgeschlagen', 'error');
+          showTRMsg(data.error || 'Login fehlgeschlagen', 'error');
           btn.disabled = false;
-          btn.textContent = 'Login starten';
+          btn.textContent = 'Anmelden';
           return;
         }
-
         processId = data.processId;
-        showMsg(data.message, 'info');
-        showStep(2);
+        showTRMsg(data.message, 'info');
+        showTRStep(2);
         document.getElementById('code2fa').focus();
       } catch (err) {
-        showMsg('Netzwerkfehler: ' + err.message, 'error');
+        showTRMsg('Netzwerkfehler: ' + err.message, 'error');
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Login starten';
+        btn.textContent = 'Anmelden';
       }
     }
 
     async function verifyCode() {
       const code = document.getElementById('code2fa').value.trim();
-      if (!code) { showMsg('Bitte Code eingeben', 'error'); return; }
-
+      if (!code) { showTRMsg('Bitte Code eingeben', 'error'); return; }
       const btn = document.getElementById('btnVerify');
       btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span>Wird verifiziert...';
-      hideMsg();
+      btn.innerHTML = '<span class="spinner" style="border-top-color:#0d1117"></span>Wird verifiziert\u2026';
+      hideTRMsg();
 
       try {
         const res = await fetch(apiUrl('/api/tr/verify'), {
@@ -3319,29 +3350,24 @@ function getTRAdminHTML(): string {
           body: JSON.stringify({ processId, code })
         });
         const data = await res.json();
-
         if (!res.ok) {
-          showMsg(data.error || 'Verifizierung fehlgeschlagen', 'error');
+          showTRMsg(data.error || 'Verifizierung fehlgeschlagen', 'error');
           btn.disabled = false;
           btn.textContent = 'Verifizieren';
           return;
         }
-
-        showMsg(data.message, 'success');
+        showTRMsg(data.message, 'success');
         btn.disabled = false;
         btn.textContent = 'Verifizieren';
-
-        // Refresh status after short delay
-        setTimeout(fetchStatus, 1500);
+        setTimeout(fetchTRStatus, 1500);
       } catch (err) {
-        showMsg('Netzwerkfehler: ' + err.message, 'error');
+        showTRMsg('Netzwerkfehler: ' + err.message, 'error');
         btn.disabled = false;
         btn.textContent = 'Verifizieren';
       }
     }
 
-    // ─── Algorithm Tab ───────────────────────────────
-
+    // ─── Algorithm Stats ───
     const SOURCE_NAMES = {
       webSentiment: 'Web-Nachrichten',
       analystRating: 'Analysten',
@@ -3349,25 +3375,19 @@ function getTRAdminHTML(): string {
       technicalSignal: 'Technische Analyse',
       fearGreedSignal: 'Fear & Greed'
     };
+    const SOURCE_KEYS = ['webSentiment', 'analystRating', 'finnhubSentiment', 'technicalSignal', 'fearGreedSignal'];
 
     async function fetchAlgoStats() {
-      const loading = document.getElementById('algoLoading');
-      const error = document.getElementById('algoError');
-      const content = document.getElementById('algoContent');
-      const noAuth = document.getElementById('algoNoAuth');
-
-      if (!adminToken) {
-        noAuth.style.display = 'block';
-        loading.style.display = 'none';
-        error.style.display = 'none';
-        content.style.display = 'none';
-        return;
-      }
-
-      noAuth.style.display = 'none';
-      loading.style.display = 'flex';
-      error.style.display = 'none';
-      content.style.display = 'none';
+      // Show loading states
+      document.getElementById('algoStatusLoading').style.display = 'flex';
+      document.getElementById('algoStatusContent').style.display = 'none';
+      document.getElementById('algoStatusError').style.display = 'none';
+      document.getElementById('accLoading').style.display = 'flex';
+      document.getElementById('accContent').style.display = 'none';
+      document.getElementById('wLoading').style.display = 'flex';
+      document.getElementById('wContent').style.display = 'none';
+      document.getElementById('sLoading').style.display = 'flex';
+      document.getElementById('sContent').style.display = 'none';
 
       try {
         const res = await fetch(apiUrl('/api/admin/algorithm-stats'), {
@@ -3378,59 +3398,67 @@ function getTRAdminHTML(): string {
           throw new Error(errData.error || 'Fehler ' + res.status);
         }
         const data = await res.json();
-        algoStatsCache = data;
-        algoDataLoaded = true;
-        renderAlgoStats(data);
-        loading.style.display = 'none';
-        content.style.display = 'block';
+        renderAlgoStatus(data);
+        renderAccuracy(data);
+        renderWeights(data);
+        renderStocks(data);
       } catch (err) {
-        loading.style.display = 'none';
-        error.style.display = 'block';
-        error.innerHTML = 'Fehler beim Laden: ' + escapeHtml(err.message) +
-          '<br><button class="btn-refresh" onclick="fetchAlgoStats()" style="margin-top:10px">Erneut versuchen</button>';
+        const msg = esc(err.message);
+        document.getElementById('algoStatusLoading').style.display = 'none';
+        document.getElementById('algoStatusError').style.display = 'block';
+        document.getElementById('algoStatusError').textContent = 'Fehler: ' + msg;
+        document.getElementById('accLoading').style.display = 'none';
+        document.getElementById('accContent').style.display = 'block';
+        document.getElementById('accContent').innerHTML = '<p class="card-error">' + msg + '</p>';
+        document.getElementById('wLoading').style.display = 'none';
+        document.getElementById('wContent').style.display = 'block';
+        document.getElementById('wContent').innerHTML = '<p class="card-error">' + msg + '</p>';
+        document.getElementById('sLoading').style.display = 'none';
+        document.getElementById('sContent').style.display = 'block';
+        document.getElementById('sContent').innerHTML = '<p class="card-error">' + msg + '</p>';
       }
     }
 
-    function escapeHtml(str) {
+    function esc(str) {
       const d = document.createElement('div');
       d.textContent = str;
       return d.innerHTML;
     }
 
-    function renderAlgoStats(data) {
-      // Use first user (single-user admin view)
+    // ── Card 2: Algo status ──
+    function renderAlgoStatus(data) {
       const user = data.users && data.users[0];
+      document.getElementById('algoStatusLoading').style.display = 'none';
       if (!user) {
-        document.getElementById('algoContent').innerHTML = '<p class="no-data-hint">Keine Nutzerdaten vorhanden.</p>';
+        document.getElementById('algoStatusContent').style.display = 'block';
+        document.getElementById('algoStatusLabel').textContent = 'Keine Daten';
+        document.getElementById('algoDot').className = 'dot gray';
         return;
       }
-
-      // Overview
+      document.getElementById('algoStatusContent').style.display = 'block';
       const isActive = user.learning && user.learning.isActive;
-      const dot = document.getElementById('algoStatusDot');
-      const label = document.getElementById('algoStatusLabel');
-      dot.className = 'algo-dot ' + (isActive ? 'active' : 'collecting');
-      label.textContent = isActive ? 'Aktiv' : 'Sammelt Daten';
-
-      document.getElementById('algoTotalPred').textContent = user.totalPredictions || 0;
-      document.getElementById('algoEvaluated').textContent = user.evaluated || 0;
-      document.getElementById('algoWithSignals').textContent = user.withSourceSignals || 0;
-      document.getElementById('algoRecent').textContent = user.recentCount || 0;
-
-      // Accuracy
-      renderAccuracy(user.accuracy);
-
-      // Weights
-      renderWeights(data.defaults, user.learning);
-
-      // Stocks
-      renderStocks(user.stocks);
+      document.getElementById('algoDot').className = 'dot ' + (isActive ? 'green' : 'orange');
+      document.getElementById('algoStatusLabel').textContent = isActive ? 'Aktiv' : 'Sammelt Daten';
+      document.getElementById('algoStatusLabel').className = '';
+      document.getElementById('statTotal').textContent = user.totalPredictions || 0;
+      document.getElementById('statEval').textContent = user.evaluated || 0;
+      document.getElementById('statSignals').textContent = user.withSourceSignals || 0;
+      document.getElementById('statRecent').textContent = user.recentCount || 0;
     }
 
-    function renderAccuracy(accuracy) {
-      const container = document.getElementById('algoAccuracy');
-      if (!accuracy || (accuracy.shortTerm.total === 0 && accuracy.mediumTerm.total === 0 && accuracy.longTerm.total === 0)) {
-        container.innerHTML = '<p class="no-data-hint">Noch keine ausgewerteten Vorhersagen</p>';
+    // ── Card 3: Accuracy ──
+    function renderAccuracy(data) {
+      document.getElementById('accLoading').style.display = 'none';
+      const container = document.getElementById('accContent');
+      container.style.display = 'block';
+      const user = data.users && data.users[0];
+      if (!user || !user.accuracy) {
+        container.innerHTML = '<p class="hint">Noch keine ausgewerteten Vorhersagen</p>';
+        return;
+      }
+      const acc = user.accuracy;
+      if (acc.shortTerm.total === 0 && acc.mediumTerm.total === 0 && acc.longTerm.total === 0) {
+        container.innerHTML = '<p class="hint">Noch keine ausgewerteten Vorhersagen</p>';
         return;
       }
       const terms = [
@@ -3438,97 +3466,98 @@ function getTRAdminHTML(): string {
         { key: 'mediumTerm', label: 'Mittelfristig' },
         { key: 'longTerm', label: 'Langfristig' }
       ];
-      let html = '';
+      let h = '';
       for (const t of terms) {
-        const d = accuracy[t.key];
+        const d = acc[t.key];
         const pct = d.pct !== null && d.pct !== undefined ? d.pct : 0;
         const hasData = d.total > 0;
-        const colorClass = !hasData ? 'red' : pct > 65 ? 'green' : pct > 45 ? 'amber' : 'red';
-        html += '<div class="accuracy-bar-container">' +
-          '<div class="accuracy-label"><span>' + t.label + '</span><span>' + (hasData ? pct.toFixed(1) + '%' : '–') + '</span></div>' +
-          '<div class="accuracy-bar"><div class="accuracy-fill ' + colorClass + '" style="width:' + (hasData ? pct : 0) + '%"></div></div>' +
-          '<div class="accuracy-detail">' + (hasData ? d.correct + '/' + d.total + ' korrekt' : 'Keine Daten') + '</div>' +
+        const cls = !hasData ? 'gray' : pct >= 65 ? 'green' : pct >= 45 ? 'amber' : 'red';
+        h += '<div class="acc-bar-wrap">' +
+          '<div class="acc-header"><span>' + t.label + '</span><span>' + (hasData ? pct.toFixed(1) + '%' : '\u2013') + '</span></div>' +
+          '<div class="acc-track"><div class="acc-fill ' + cls + '" style="width:' + (hasData ? pct : 0) + '%"></div></div>' +
+          '<div class="acc-detail">' + (hasData ? d.correct + '/' + d.total + ' korrekt' : 'Keine Daten') + '</div>' +
           '</div>';
       }
-      container.innerHTML = html;
+      container.innerHTML = h;
     }
 
-    function renderWeights(defaults, learning) {
-      const container = document.getElementById('algoWeights');
-      const keys = ['webSentiment', 'analystRating', 'finnhubSentiment', 'technicalSignal', 'fearGreedSignal'];
+    // ── Card 4: Weights ──
+    function renderWeights(data) {
+      document.getElementById('wLoading').style.display = 'none';
+      const container = document.getElementById('wContent');
+      container.style.display = 'block';
+      const user = data.users && data.users[0];
+      const defaults = data.defaults || {};
+      const learning = user && user.learning;
       const isAdaptive = learning && learning.isActive && learning.globalWeights;
 
-      let html = '';
+      let h = '';
       if (!isAdaptive) {
-        html += '<p class="no-data-hint" style="margin-bottom:10px">Lernen noch nicht aktiv \u2014 Standardgewichte werden verwendet</p>';
+        h += '<p class="hint" style="margin-bottom:10px">Lernen noch nicht aktiv \u2014 Standardgewichte werden verwendet</p>';
       }
-      html += '<table class="weights-table"><thead><tr>' +
-        '<th>Quelle</th><th>Standard</th>' + (isAdaptive ? '<th>Gelernt</th><th>\u00c4nderung</th>' : '') + '<th class="weight-bar-cell"></th>' +
+      h += '<table class="w-table"><thead><tr>' +
+        '<th>Quelle</th><th>Standard</th>' + (isAdaptive ? '<th>Gelernt</th><th>\u00c4nderung</th>' : '') + '<th class="w-bar-cell"></th>' +
         '</tr></thead><tbody>';
-      for (const k of keys) {
+      for (const k of SOURCE_KEYS) {
         const def = defaults[k] || 0;
         const learned = isAdaptive && learning.globalWeights[k] !== undefined ? learning.globalWeights[k] : def;
         const adj = isAdaptive && learning.globalAdjustments && learning.globalAdjustments[k] !== undefined ? learning.globalAdjustments[k] : 0;
-        const deltaStr = adj > 0 ? '<span class="delta-pos">+' + (adj * 100).toFixed(1) + '%</span>' :
-                         adj < 0 ? '<span class="delta-neg">' + (adj * 100).toFixed(1) + '%</span>' : '0%';
-        const barWidth = Math.round(learned * 100 / 0.5 * 100); // max assumed 50%
-        html += '<tr>' +
-          '<td>' + SOURCE_NAMES[k] + '</td>' +
-          '<td>' + (def * 100).toFixed(0) + '%</td>' +
-          (isAdaptive ? '<td>' + (learned * 100).toFixed(1) + '%</td><td>' + deltaStr + '</td>' : '') +
-          '<td class="weight-bar-cell"><div class="weight-bar"><div class="weight-bar-fill" style="width:' + Math.min(barWidth, 100) + '%"></div></div></td>' +
-          '</tr>';
+        const ds = adj > 0 ? '<span class="delta-pos">+' + (adj * 100).toFixed(1) + '%</span>' :
+                   adj < 0 ? '<span class="delta-neg">' + (adj * 100).toFixed(1) + '%</span>' : '0%';
+        const bw = Math.min(Math.round(learned / 0.5 * 100), 100);
+        h += '<tr><td>' + SOURCE_NAMES[k] + '</td><td>' + (def * 100).toFixed(0) + '%</td>' +
+          (isAdaptive ? '<td>' + (learned * 100).toFixed(1) + '%</td><td>' + ds + '</td>' : '') +
+          '<td class="w-bar-cell"><div class="w-bar"><div class="w-bar-fill" style="width:' + bw + '%"></div></div></td></tr>';
       }
-      html += '</tbody></table>';
-      container.innerHTML = html;
+      h += '</tbody></table>';
+      container.innerHTML = h;
     }
 
-    function renderStocks(stocks) {
-      const container = document.getElementById('algoStocks');
+    // ── Card 5: Stocks ──
+    function renderStocks(data) {
+      document.getElementById('sLoading').style.display = 'none';
+      const container = document.getElementById('sContent');
+      container.style.display = 'block';
+      const user = data.users && data.users[0];
+      const stocks = user && user.stocks;
       if (!stocks || stocks.length === 0) {
-        container.innerHTML = '<p class="no-data-hint">Noch keine Aktien-Daten vorhanden</p>';
+        container.innerHTML = '<p class="hint">Noch keine Aktien-Daten vorhanden</p>';
         return;
       }
       const sorted = [...stocks].sort((a, b) => (b.predictions || 0) - (a.predictions || 0));
-      let html = '<div class="stocks-table-wrap"><table class="stocks-table"><thead><tr>' +
-        '<th>Ticker</th><th>Vorhersagen</th><th>Letzte</th><th>Gelernt</th>' +
-        '</tr></thead><tbody>';
+      let h = '<div class="stocks-wrap"><table class="s-table"><thead><tr>' +
+        '<th>Ticker</th><th>Vorhersagen</th><th>Letzte Aufnahme</th><th>Gelernt</th></tr></thead><tbody>';
       for (let i = 0; i < sorted.length; i++) {
         const s = sorted[i];
         const icon = s.hasLearnedWeights ? '\ud83e\udde0' : '\u2013';
-        const lastDate = s.lastDate || '\u2013';
-        html += '<tr class="stock-row" onclick="toggleStockDetail(' + i + ')">' +
-          '<td><strong>' + escapeHtml(s.ticker) + '</strong></td>' +
-          '<td>' + (s.predictions || 0) + '</td>' +
-          '<td>' + escapeHtml(lastDate) + '</td>' +
-          '<td style="text-align:center">' + icon + '</td>' +
-          '</tr>';
-        // Expandable detail row
-        html += '<tr class="stock-detail" id="stockDetail' + i + '"><td colspan="4">';
+        const ld = s.lastDate || '\u2013';
+        h += '<tr class="s-row" onclick="toggleSD(' + i + ')"><td><strong>' + esc(s.ticker) + '</strong></td>' +
+          '<td>' + (s.predictions || 0) + '</td><td>' + esc(ld) + '</td><td style="text-align:center">' + icon + '</td></tr>';
+        h += '<tr class="s-detail" id="sd' + i + '"><td colspan="4">';
         if (s.hasLearnedWeights && s.learnedWeights) {
-          html += '<div class="stock-weights-mini">';
-          for (const k of Object.keys(SOURCE_NAMES)) {
+          h += '<div class="s-weights">';
+          for (const k of SOURCE_KEYS) {
             const w = s.learnedWeights[k];
             const a = s.adjustments && s.adjustments[k];
             if (w !== undefined) {
-              const deltaStr = a !== undefined ? (a > 0 ? ' <span class="delta-pos">+' + (a * 100).toFixed(1) + '%</span>' :
-                               a < 0 ? ' <span class="delta-neg">' + (a * 100).toFixed(1) + '%</span>' : '') : '';
-              html += '<div>' + SOURCE_NAMES[k] + ': <span>' + (w * 100).toFixed(1) + '%' + deltaStr + '</span></div>';
+              const dd = a !== undefined ? (a > 0 ? ' <span class="delta-pos">+' + (a * 100).toFixed(1) + '%</span>' :
+                         a < 0 ? ' <span class="delta-neg">' + (a * 100).toFixed(1) + '%</span>' : '') : '';
+              h += '<div>' + SOURCE_NAMES[k] + ': <span>' + (w * 100).toFixed(1) + '%' + dd + '</span></div>';
             }
           }
-          html += '</div>';
+          h += '</div>';
         } else {
-          html += '<em style="color:#8b949e">Keine individuellen Gewichte</em>';
+          h += '<em class="muted">Keine individuellen Gewichte</em>';
         }
-        html += '</td></tr>';
+        h += '</td></tr>';
       }
-      html += '</tbody></table></div>';
-      container.innerHTML = html;
+      h += '</tbody></table></div>';
+      container.innerHTML = h;
     }
 
-    function toggleStockDetail(idx) {
-      const row = document.getElementById('stockDetail' + idx);
-      if (row) row.classList.toggle('open');
+    function toggleSD(i) {
+      const r = document.getElementById('sd' + i);
+      if (r) r.classList.toggle('open');
     }
   </script>
 </body>

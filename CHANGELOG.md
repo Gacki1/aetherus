@@ -4,7 +4,163 @@ Full development history of Aetherus — all changes documented by date and phas
 
 **Repository:** [github.com/Gacki1/aetherus](https://github.com/Gacki1/aetherus)  
 **Live:** [aetherus.net](https://aetherus.net)  
-**Stats:** 311 commits · ~10,000 lines of code · 16 pages · 8 migrations
+**Stats:** 320+ commits · ~14,000 lines of code · 16 pages · 8 migrations
+
+---
+
+## [2026-03-21] Self-Learning Prediction Engine + Admin Dashboard Rework
+
+StoxView predictions now learn from their own mistakes. The admin panel has been rebuilt as a full dashboard.
+
+### Self-learning algorithm
+
+- Stores raw source signals (web, analyst, Finnhub, technicals, Fear & Greed, momentum) with every prediction
+- After predictions are evaluated (7/28/90 days), the learning engine analyzes which sources were accurate
+- Computes adjusted source weights: conservative max ±30% shift, requires 5+ evaluated predictions
+- **Global baseline**: learns from all stock outcomes across the user's watchlist
+- **Per-stock overrides**: individual weight tuning when a stock has enough data (blended 70/30 with global)
+- `generatePrediction()` now uses learned weights instead of hardcoded ones
+- Weights persisted to JSON files (`learning-weights-{user}.json`)
+- New `/api/learning-stats` endpoint for transparency
+
+### Enhanced prediction history UI
+
+- All predictions shown immediately (including ones still waiting for evaluation)
+- Expandable rows: click to see full source signal breakdown with visual bars (-1 to +1)
+- Expanded view shows all 3 timeframe signals (ST/MT/LT) with hit/miss badges
+- Adaptive Learning Badge: cyan Brain icon when self-learning is active
+- Expandable weight comparison: learned vs default weights per source
+- 15 recent predictions (up from 10)
+
+### Admin panel dashboard rework
+
+- Replaced tabbed interface with single-login dashboard layout
+- One password entry → full dashboard with multiple card blocks
+- **Trade Republic card**: status indicator + login/2FA flow
+- **Algorithmus-Status card**: learning status, 4 stat boxes (total/evaluated/with signals/recent)
+- **Genauigkeit card**: 3 color-coded accuracy bars per timeframe
+- **Quellen-Gewichtung card**: source weight table (default vs learned vs delta)
+- **Aktien-Übersicht card**: per-stock table with expandable weight details
+- Route changed from `/admin/tr` to `/admin` (old URL redirects)
+- Responsive 2-column grid, auto-refresh, all text in German
+
+### Prediction history recording fix
+
+- **Root cause**: `/api/predict/:symbol`, `/api/predictions`, and `/api/history/:symbol` were all called without the `user=` parameter
+- This caused `recordPrediction()` to use `_default` as user, so the watchlist check always failed
+- All frontend API calls now correctly pass the Aetherus user ID
+
+### Files changed
+
+- `main/stoxview/server/routes.ts` — Learning engine, admin API, admin HTML rewrite, user param fixes
+- `main/stoxview/client/src/components/prediction-history.tsx` — Full rewrite with expandable rows + learning badge
+- `main/stoxview/client/src/components/price-chart.tsx` — Added user param to history endpoint
+- `main/stoxview/client/src/pages/dashboard.tsx` — User param on all API calls, admin link update
+- `main/stoxview/client/src/lib/i18n.tsx` — 24 new translations (learning + history)
+
+---
+
+## [2026-03-20] Cloud: Bulk Select + Mass Delete
+
+Select multiple files and delete them at once.
+
+### New features
+
+- "☐ Auswählen" button toggles select mode with custom checkboxes
+- Toolbar: Alle (select all) / Keine (deselect) / Löschen / Abbrechen
+- Selected files highlighted with cyan border
+- AJAX bulk delete via `/api/cloud/delete-bulk/` endpoint
+- Confirmation dialog with file count
+- DOM updates: removes items, updates file count + storage bar in real time
+
+### Files changed
+
+- `main/backend/backend/views/pages.py` — `cloud_bulk_delete_view`
+- `main/backend/backend/urls.py` — Bulk delete route
+- `main/backend/templates/cloud.html` — Checkboxes, toolbar HTML, JS functions
+- `main/backend/static/css/cloud.css` (v6) — Toolbar + checkbox styles, responsive
+
+---
+
+## [2026-03-20] Cloud: Multi-File Upload with Drag & Drop
+
+Upload multiple files at once with per-file feedback.
+
+### New features
+
+- Drag & drop zone accepts multiple files
+- File preview list with icons, names, sizes, and remove buttons
+- AJAX upload via `/api/cloud/upload/` endpoint
+- Per-file success/error feedback with colored indicators
+- Storage quota updates in real time after upload
+- 50 MB per-file limit with client-side validation
+
+### Files changed
+
+- `main/backend/backend/views/pages.py` — `cloud_upload_ajax_view`
+- `main/backend/backend/urls.py` — Upload route
+- `main/backend/templates/cloud.html` — Upload form rewrite + AJAX JS
+- `main/backend/static/css/cloud.css` (v5) — Upload preview styles
+
+---
+
+## [2026-03-20] Cloud: Username Search + Profile Pictures in Share Modal
+
+Replaced the user dropdown with a live search input for sharing files.
+
+### Changes
+
+- Text input with autocomplete instead of select dropdown
+- `/api/users/search/` endpoint with username prefix matching
+- Profile pictures (or initial placeholder) shown in suggestions
+- Fixed suggestion dropdown clipping (modal overflow fix)
+- Added all missing share URL routes to `urls.py`
+
+### Files changed
+
+- `main/backend/backend/views/pages.py` — `user_search_view`, removed `all_users` from context
+- `main/backend/backend/urls.py` — Share, accept, decline, remove routes
+- `main/backend/templates/cloud.html` — Search input + autocomplete JS
+- `main/backend/static/css/cloud.css` (v4→v5) — Autocomplete + avatar styles
+
+---
+
+## [2026-03-20] StoxView: Trade Republic Admin Panel + Price Providers
+
+Trade Republic WebSocket integration for real-time prices, plus an admin panel for 2FA login.
+
+### Trade Republic & Polygon.io price providers
+
+- `tr-client.ts` — TR WebSocket client with `initiateLogin()` and `completeLogin()` methods
+- `polygon-client.ts` — Polygon.io REST client for fallback price data
+- `price-provider.ts` — Unified provider with auto-failover (TR → Polygon → Yahoo)
+- Bid/Ask prices from TR real-time stream
+
+### Admin panel
+
+- Password-protected page at `/admin/tr` (now `/admin`)
+- 3-step flow: password → initiate TR login → enter 2FA code
+- Live status indicator (Verbunden/Getrennt/Warte auf 2FA)
+- Dark theme matching StoxView
+- Shield icon button in StoxView header, visible only when `uname=Rhulksack`
+
+### Environment variables
+
+| Variable | Purpose |
+|---|---|
+| `TR_PHONE` | Trade Republic phone number |
+| `TR_PIN` | Trade Republic PIN |
+| `TR_ADMIN_PASSWORD` | Admin panel password |
+| `POLYGON_API_KEY` | Polygon.io free tier key |
+
+### Files changed
+
+- `main/stoxview/server/tr-client.ts` — New file
+- `main/stoxview/server/polygon-client.ts` — New file
+- `main/stoxview/server/price-provider.ts` — New file
+- `main/stoxview/server/routes.ts` — Admin HTML, TR endpoints, data-sources endpoint
+- `main/stoxview/client/src/pages/dashboard.tsx` — Shield admin button
+- `main/backend/templates/stoxview.html` — Passes `&uname={{ user.username }}`
 
 ---
 

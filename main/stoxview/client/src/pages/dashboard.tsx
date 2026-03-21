@@ -504,7 +504,7 @@ export default function Dashboard() {
               <Button
                 size="sm"
                 variant="secondary"
-                onClick={() => window.open("/stoxview-api/admin/tr", "_blank")}
+                onClick={() => window.open("/stoxview-api/admin", "_blank")}
                 title="Admin Panel"
               >
                 <Shield className="w-3.5 h-3.5" />
