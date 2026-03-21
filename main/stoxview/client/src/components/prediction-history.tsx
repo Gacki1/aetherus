@@ -393,8 +393,8 @@ export function PredictionHistory({ ticker, isInWatchlist }: PredictionHistoryPr
           <div className="flex-1 min-w-0">
             <span className="text-[11px] font-medium text-cyan-400">{t("learning.badge")}</span>
             <span className="text-[10px] text-muted-foreground ml-1.5">
-              {learningStats.adaptiveSource === "per-stock"
-                ? t("learning.badgePerStock")
+              {learningStats.adaptiveSource === "category"
+                ? `${t("learning.badgeCategory")}: ${(learningStats as any).category || ""}`
                 : t("learning.badgeGlobal")}
               {" · "}{learningStats.evaluatedCount} {t("learning.evaluatedCount")}
             </span>

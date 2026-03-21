@@ -1208,7 +1208,8 @@ async function fetchFullPrediction(symbol: string, user?: string): Promise<Stock
     ];
 
     // Phase 3: Get learned weights (self-learning engine) and generate prediction
-    const learnedW = user ? getLearnedWeights(user, symbol) : null;
+    const stockCategory = classifyCategory(quote.industry || "");
+    const learnedW = user ? getLearnedWeights(user, symbol, stockCategory) : null;
     const prediction = generatePrediction(
       quote, allSources, analystData.rating, symbol, eurRate,
       finnhubSentiment, technicals.overallSignal, fearGreed.signal,
@@ -1220,7 +1221,10 @@ async function fetchFullPrediction(symbol: string, user?: string): Promise<Stock
       (prediction as any).isAdaptive = true;
       (prediction as any).adaptiveSource = learnedW.source;
       (prediction as any).adaptiveEvaluatedCount = learnedW.evaluatedCount;
+      if (learnedW.category) (prediction as any).adaptiveCategory = learnedW.category;
     }
+    // Tag category for history recording
+    (prediction as any)._category = stockCategory;
 
     // Tag raw source signals for the self-learning engine to store in history
     const webSentimentAvg = webNews.length > 0
@@ -1368,6 +1372,7 @@ interface PredictionHistoryEntry {
   longTerm: { signal: string; confidence: number; estimatedMove?: number };
   sentimentScore: number;
   riskLevel: number;
+  category?: string; // sector category for category-based learning
   // Accuracy tracking — filled in later when we check actual price
   actualPriceShort?: number;  // Price 7 days later
   actualPriceMedium?: number; // Price 28 days later
@@ -1386,6 +1391,74 @@ interface PredictionHistoryEntry {
 // ═══════════════════════════════════════════════════════════
 // SELF-LEARNING ENGINE — adjusts prediction weights from history
 // ═══════════════════════════════════════════════════════════
+
+// ── Sector category mapping for category-based learning ──
+// Yahoo industries are very specific ("Semiconductors", "Auto Manufacturers").
+// We group them into broad categories so the learning engine has enough
+// data points per category.
+const INDUSTRY_TO_CATEGORY: Record<string, string> = {
+  // Technology
+  "consumer electronics": "tech", "semiconductors": "tech", "software—infrastructure": "tech",
+  "software—application": "tech", "information technology services": "tech",
+  "electronic components": "tech", "semiconductor equipment & materials": "tech",
+  "communication equipment": "tech", "computer hardware": "tech",
+  "scientific & technical instruments": "tech", "solar": "tech",
+  // Internet & Media
+  "internet content & information": "internet", "internet retail": "internet",
+  "electronic gaming & multimedia": "internet", "entertainment": "internet",
+  "advertising agencies": "internet", "broadcasting": "internet",
+  "publishing": "internet",
+  // Finance
+  "insurance—diversified": "finance", "insurance—life": "finance",
+  "banks—diversified": "finance", "banks—regional": "finance",
+  "capital markets": "finance", "financial data & stock exchanges": "finance",
+  "asset management": "finance", "insurance—property & casualty": "finance",
+  "credit services": "finance", "insurance brokers": "finance",
+  // Automotive
+  "auto manufacturers": "auto", "auto parts": "auto",
+  "recreational vehicles": "auto", "farm & heavy construction machinery": "auto",
+  // Healthcare & Pharma
+  "drug manufacturers—general": "pharma", "drug manufacturers—specialty & generic": "pharma",
+  "biotechnology": "pharma", "medical devices": "pharma",
+  "diagnostics & research": "pharma", "health information services": "pharma",
+  "healthcare plans": "pharma", "medical instruments & supplies": "pharma",
+  // Industrial
+  "specialty industrial machinery": "industrial", "industrial distribution": "industrial",
+  "conglomerates": "industrial", "electrical equipment & parts": "industrial",
+  "aerospace & defense": "industrial", "railroads": "industrial",
+  "integrated freight & logistics": "industrial", "building products & equipment": "industrial",
+  // Energy
+  "oil & gas integrated": "energy", "oil & gas e&p": "energy",
+  "oil & gas midstream": "energy", "oil & gas equipment & services": "energy",
+  "uranium": "energy", "utilities—renewable": "energy",
+  // Consumer
+  "discount stores": "consumer", "home improvement retail": "consumer",
+  "restaurants": "consumer", "apparel retail": "consumer",
+  "specialty retail": "consumer", "beverages—non-alcoholic": "consumer",
+  "household & personal products": "consumer", "packaged foods": "consumer",
+  "tobacco": "consumer", "beverages—brewers": "consumer",
+  // Telecom
+  "telecom services": "telecom", "pay tv": "telecom",
+  // Real Estate
+  "reit—specialty": "realestate", "reit—diversified": "realestate",
+  "real estate services": "realestate",
+  // Chemicals & Materials
+  "specialty chemicals": "materials", "chemicals": "materials",
+  "steel": "materials", "gold": "materials", "copper": "materials",
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  tech: "Technology", internet: "Internet & Media", finance: "Finance",
+  auto: "Automotive", pharma: "Healthcare & Pharma", industrial: "Industrial",
+  energy: "Energy", consumer: "Consumer", telecom: "Telecom",
+  realestate: "Real Estate", materials: "Materials", other: "Other",
+};
+
+function classifyCategory(industry: string): string {
+  if (!industry || industry === "N/A") return "other";
+  const lower = industry.toLowerCase();
+  return INDUSTRY_TO_CATEGORY[lower] || "other";
+}
 
 /** Default (hardcoded) weights used before learning kicks in. */
 const DEFAULT_WEIGHTS = {
@@ -1409,16 +1482,80 @@ interface LearnedWeights {
 
 interface LearningState {
   global: LearnedWeights | null;
-  perStock: Record<string, LearnedWeights>; // keyed by ticker
+  perCategory: Record<string, LearnedWeights>; // keyed by category (tech, finance, auto...)
 }
 
-// In-memory learning state per user
+// In-memory learning state per user (per-stock only) + shared global
 const userLearningStates = new Map<string, LearningState>();
+let sharedGlobalWeights: LearnedWeights | null = null;
+let sharedCategoryWeights: Record<string, LearnedWeights> = {};
+
+function sharedGlobalPath(): string {
+  if (!DATA_DIR) return "";
+  return join(DATA_DIR, "learning-weights-shared-global.json");
+}
 
 function learningPath(user: string): string {
   if (!DATA_DIR) return "";
   return join(DATA_DIR, `learning-weights-${safeUser(user)}.json`);
 }
+
+function loadSharedGlobal(): void {
+  const filePath = sharedGlobalPath();
+  if (!filePath) return;
+  try {
+    if (existsSync(filePath)) {
+      const raw = readFileSync(filePath, "utf-8");
+      sharedGlobalWeights = JSON.parse(raw) as LearnedWeights;
+    }
+  } catch (err) {
+    console.error(`[Learning] Failed to load shared global:`, err);
+  }
+}
+
+function saveSharedGlobal(): void {
+  const filePath = sharedGlobalPath();
+  if (!filePath) return;
+  try {
+    if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
+    writeFileSync(filePath, JSON.stringify(sharedGlobalWeights, null, 2), "utf-8");
+  } catch (err) {
+    console.error(`[Learning] Failed to save shared global:`, err);
+  }
+}
+
+function categoryWeightsPath(): string {
+  if (!DATA_DIR) return "";
+  return join(DATA_DIR, "learning-weights-categories.json");
+}
+
+function loadCategoryWeights(): void {
+  const filePath = categoryWeightsPath();
+  if (!filePath) return;
+  try {
+    if (existsSync(filePath)) {
+      const raw = readFileSync(filePath, "utf-8");
+      sharedCategoryWeights = JSON.parse(raw) as Record<string, LearnedWeights>;
+    }
+  } catch (err) {
+    console.error(`[Learning] Failed to load category weights:`, err);
+  }
+}
+
+function saveCategoryWeights(): void {
+  const filePath = categoryWeightsPath();
+  if (!filePath) return;
+  try {
+    if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
+    writeFileSync(filePath, JSON.stringify(sharedCategoryWeights, null, 2), "utf-8");
+  } catch (err) {
+    console.error(`[Learning] Failed to save category weights:`, err);
+  }
+}
+
+// Load on startup
+loadSharedGlobal();
+loadCategoryWeights();
 
 function getUserLearningState(user: string): LearningState {
   const key = safeUser(user);
@@ -1436,7 +1573,7 @@ function getUserLearningState(user: string): LearningState {
       console.error(`[Learning] Failed to load for user '${key}':`, err);
     }
   }
-  const empty: LearningState = { global: null, perStock: {} };
+  const empty: LearningState = { global: null, perCategory: {} };
   userLearningStates.set(key, empty);
   return empty;
 }
@@ -1602,68 +1739,78 @@ function computeLearnedWeights(
 }
 
 /**
- * Run the learning engine: recompute global and per-stock weights from prediction history.
- * Called periodically alongside updateAccuracy().
+ * Run the learning engine:
+ * 1. Shared global weights from ALL users' histories
+ * 2. Per-category weights (tech, finance, auto...) for sector-specific tuning
  */
-function runLearningEngine(user: string): void {
-  const history = getUserHistory(user);
-  if (history.length === 0) return;
-
-  const state = getUserLearningState(user);
-
-  // Global: learn from all evaluated predictions across all tickers
-  const globalWeights = computeLearnedWeights(history, 5);
-  if (globalWeights) {
-    state.global = globalWeights;
-    console.log(`[Learning] Global weights updated for user '${safeUser(user)}' (${globalWeights.evaluatedCount} samples)`);
-  }
-
-  // Per-stock: learn from each ticker's individual history (needs 5+ samples)
-  const byTicker = new Map<string, PredictionHistoryEntry[]>();
-  for (const entry of history) {
-    if (!byTicker.has(entry.ticker)) byTicker.set(entry.ticker, []);
-    byTicker.get(entry.ticker)!.push(entry);
-  }
-
-  byTicker.forEach((entries, ticker) => {
-    const stockWeights = computeLearnedWeights(entries, 5);
-    if (stockWeights) {
-      state.perStock[ticker] = stockWeights;
-    }
+function runLearningEngine(_user: string): void {
+  const allEntries: PredictionHistoryEntry[] = [];
+  userHistories.forEach((history) => {
+    for (const entry of history) allEntries.push(entry);
   });
 
-  saveLearningState(user);
+  if (allEntries.length === 0) return;
+
+  // 1. Global model from all predictions
+  const globalWeights = computeLearnedWeights(allEntries, 5);
+  if (globalWeights) {
+    sharedGlobalWeights = globalWeights;
+    saveSharedGlobal();
+    console.log(`[Learning] Global model updated (${globalWeights.evaluatedCount} samples from ${userHistories.size} users)`);
+  }
+
+  // 2. Per-category models — group by sector, compute weights per category
+  const byCategory = new Map<string, PredictionHistoryEntry[]>();
+  for (const entry of allEntries) {
+    const cat = entry.category || "other";
+    if (!byCategory.has(cat)) byCategory.set(cat, []);
+    byCategory.get(cat)!.push(entry);
+  }
+
+  // Store category weights in a dedicated shared state
+  // (reuse the first user's state for now — categories are global)
+  const categoryWeights: Record<string, LearnedWeights> = {};
+  byCategory.forEach((entries, cat) => {
+    const weights = computeLearnedWeights(entries, 5);
+    if (weights) {
+      categoryWeights[cat] = weights;
+      console.log(`[Learning] Category '${CATEGORY_LABELS[cat] || cat}' updated (${weights.evaluatedCount} samples)`);
+    }
+  });
+  sharedCategoryWeights = categoryWeights;
+  saveCategoryWeights();
 }
 
 /**
- * Get the best weights for a specific stock + user.
- * Priority: per-stock > global > defaults.
- * If per-stock exists, blend it 70/30 with global for stability.
+ * Get the learned weights for a stock.
+ * Priority: category-specific > global > defaults.
+ * Category weights are blended 60/40 with global for stability.
+ * Same model for all users — learns from everyone's prediction history.
  */
-function getLearnedWeights(user: string, ticker: string): {
+function getLearnedWeights(user: string, ticker: string, category?: string): {
   weights: Record<SourceKey, number>;
   isAdaptive: boolean;
-  source: "per-stock" | "global" | "default";
+  source: "category" | "global" | "default";
   evaluatedCount: number;
+  category?: string;
 } {
-  const state = getUserLearningState(user);
-  const perStock = state.perStock[ticker];
-  const global = state.global;
+  const global = sharedGlobalWeights;
+  const cat = category || "other";
+  const catWeights = sharedCategoryWeights[cat];
 
-  if (perStock && global) {
-    // Blend: 70% per-stock, 30% global for stability
+  if (catWeights && global) {
+    // Blend: 60% category-specific, 40% global
     const blended: Record<SourceKey, number> = {} as any;
     for (const key of SOURCE_KEYS) {
-      blended[key] = round2(perStock.weights[key] * 0.7 + global.weights[key] * 0.3);
+      blended[key] = round2(catWeights.weights[key] * 0.6 + global.weights[key] * 0.4);
     }
-    // Re-normalize
     const total = SOURCE_KEYS.reduce((sum, k) => sum + blended[k], 0);
     for (const key of SOURCE_KEYS) blended[key] = round2(blended[key] / total);
-    return { weights: blended, isAdaptive: true, source: "per-stock", evaluatedCount: perStock.evaluatedCount };
+    return { weights: blended, isAdaptive: true, source: "category", evaluatedCount: catWeights.evaluatedCount + global.evaluatedCount, category: CATEGORY_LABELS[cat] || cat };
   }
 
-  if (perStock) {
-    return { weights: perStock.weights, isAdaptive: true, source: "per-stock", evaluatedCount: perStock.evaluatedCount };
+  if (catWeights) {
+    return { weights: catWeights.weights, isAdaptive: true, source: "category", evaluatedCount: catWeights.evaluatedCount, category: CATEGORY_LABELS[cat] || cat };
   }
 
   if (global) {
@@ -1746,6 +1893,10 @@ function recordPrediction(prediction: StockPrediction, user: string): void {
       momentum: src.momentum ?? 0,
     };
   }
+
+  // Store category for category-based learning
+  const cat = (prediction as any)._category;
+  if (cat) entry.category = cat;
 
   history.push(entry);
 
@@ -1962,24 +2113,34 @@ export async function registerRoutes(
         ? getLearnedWeights(user, ticker)
         : { weights: DEFAULT_WEIGHTS, isAdaptive: false, source: "default" as const, evaluatedCount: 0 };
 
+      // Find category for this ticker from recent history
+      const history = getUserHistory(user);
+      const tickerCategory = history.find(e => e.ticker === ticker)?.category;
+
       res.json({
         defaults: DEFAULT_WEIGHTS,
         effective: effective.weights,
         isAdaptive: effective.isAdaptive,
         adaptiveSource: effective.source,
         evaluatedCount: effective.evaluatedCount,
-        global: state.global ? {
-          weights: state.global.weights,
-          adjustments: state.global.adjustments,
-          evaluatedCount: state.global.evaluatedCount,
-          lastUpdated: state.global.lastUpdated,
+        category: (effective as any).category || null,
+        global: sharedGlobalWeights ? {
+          weights: sharedGlobalWeights.weights,
+          adjustments: sharedGlobalWeights.adjustments,
+          evaluatedCount: sharedGlobalWeights.evaluatedCount,
+          lastUpdated: sharedGlobalWeights.lastUpdated,
         } : null,
-        perStock: ticker && state.perStock[ticker] ? {
-          weights: state.perStock[ticker].weights,
-          adjustments: state.perStock[ticker].adjustments,
-          evaluatedCount: state.perStock[ticker].evaluatedCount,
-          lastUpdated: state.perStock[ticker].lastUpdated,
+        categoryWeights: tickerCategory && sharedCategoryWeights[tickerCategory] ? {
+          category: CATEGORY_LABELS[tickerCategory] || tickerCategory,
+          weights: sharedCategoryWeights[tickerCategory].weights,
+          adjustments: sharedCategoryWeights[tickerCategory].adjustments,
+          evaluatedCount: sharedCategoryWeights[tickerCategory].evaluatedCount,
         } : null,
+        availableCategories: Object.keys(sharedCategoryWeights).map(k => ({
+          key: k,
+          label: CATEGORY_LABELS[k] || k,
+          evaluatedCount: sharedCategoryWeights[k].evaluatedCount,
+        })),
       });
     } catch (err: any) {
       console.error("Learning stats error:", err.message);
@@ -2571,14 +2732,14 @@ export async function registerRoutes(
         const recentEntries = history.filter(e => e.date >= sevenDaysAgo);
 
         // Per-stock breakdown
-        const tickerMap = new Map<string, { count: number; lastDate: string; hasLearned: boolean }>();
+        const tickerMap = new Map<string, { count: number; lastDate: string; category: string }>();
         for (const e of history) {
           const cur = tickerMap.get(e.ticker);
           if (!cur || e.date > cur.lastDate) {
             tickerMap.set(e.ticker, {
               count: (cur?.count || 0) + 1,
               lastDate: e.date,
-              hasLearned: !!state.perStock[e.ticker],
+              category: e.category || "other",
             });
           } else {
             cur.count++;
@@ -2587,13 +2748,13 @@ export async function registerRoutes(
 
         const stockBreakdown: any[] = [];
         tickerMap.forEach((info, ticker) => {
+          const cat = info.category;
           stockBreakdown.push({
             ticker,
             predictions: info.count,
             lastDate: info.lastDate,
-            hasLearnedWeights: info.hasLearned,
-            learnedWeights: state.perStock[ticker]?.weights || null,
-            adjustments: state.perStock[ticker]?.adjustments || null,
+            category: CATEGORY_LABELS[cat] || cat,
+            hasCategoryWeights: !!sharedCategoryWeights[cat],
           });
         });
         stockBreakdown.sort((a, b) => b.predictions - a.predictions);
@@ -2609,21 +2770,32 @@ export async function registerRoutes(
             mediumTerm: { total: mtTotal, correct: mtCorrect, pct: mtTotal > 0 ? round2((mtCorrect / mtTotal) * 100) : null },
             longTerm: { total: ltTotal, correct: ltCorrect, pct: ltTotal > 0 ? round2((ltCorrect / ltTotal) * 100) : null },
           },
-          learning: {
-            isActive: !!state.global,
-            globalWeights: state.global?.weights || null,
-            globalAdjustments: state.global?.adjustments || null,
-            globalEvaluatedCount: state.global?.evaluatedCount || 0,
-            globalLastUpdated: state.global?.lastUpdated || null,
-            perStockCount: Object.keys(state.perStock).length,
-          },
           stocks: stockBreakdown,
         });
       });
 
+      // Category weights summary
+      const categories = Object.entries(sharedCategoryWeights).map(([key, w]) => ({
+        key,
+        label: CATEGORY_LABELS[key] || key,
+        weights: w.weights,
+        adjustments: w.adjustments,
+        evaluatedCount: w.evaluatedCount,
+        lastUpdated: w.lastUpdated,
+      }));
+
       res.json({
         defaults: DEFAULT_WEIGHTS,
         users: allUserStats,
+        learning: {
+          isActive: !!sharedGlobalWeights,
+          globalWeights: sharedGlobalWeights?.weights || null,
+          globalAdjustments: sharedGlobalWeights?.adjustments || null,
+          globalEvaluatedCount: sharedGlobalWeights?.evaluatedCount || 0,
+          globalLastUpdated: sharedGlobalWeights?.lastUpdated || null,
+          categories,
+          categoryCount: categories.length,
+        },
         timestamp: new Date().toISOString(),
       });
     } catch (err: any) {

@@ -242,7 +242,7 @@ const translations = {
   "learning.adaptive": { en: "Adaptive", de: "Adaptiv" },
   "learning.badge": { en: "Self-Learning Active", de: "Selbstlernen aktiv" },
   "learning.badgeGlobal": { en: "Learning from all stocks", de: "Lernt aus allen Aktien" },
-  "learning.badgePerStock": { en: "Learning from this stock", de: "Lernt aus dieser Aktie" },
+  "learning.badgeCategory": { en: "Learning from sector", de: "Lernt aus Sektor" },
   "learning.evaluatedCount": { en: "predictions evaluated", de: "Vorhersagen ausgewertet" },
   "learning.weights": { en: "Source Weights", de: "Quellen-Gewichtung" },
   "learning.default": { en: "Default", de: "Standard" },
