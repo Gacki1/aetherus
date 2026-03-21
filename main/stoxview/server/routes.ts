@@ -2069,7 +2069,7 @@ export async function registerRoutes(
       const results: StockPrediction[] = [];
       const wl = getUserWatchlist(user);
       const watchlistSymbols = new Set(wl.map(w => w.symbol));
-      for (const symbol of symbols.slice(0, 20)) {
+      for (const symbol of symbols.slice(0, 50)) {
         const prediction = await fetchFullPrediction(symbol, user);
         if (prediction) {
           results.push(prediction);
