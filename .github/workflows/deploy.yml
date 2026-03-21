@@ -12,7 +12,7 @@ jobs:
     steps:
     
       - name: ⬇️ Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         # WICHTIG: Verwenden Sie 'path' und 'ssh-known-hosts' NICHT, wenn Sie appleboy/ssh-action verwenden.
         # appleboy/ssh-action führt den Pull direkt auf dem Server durch.
 
