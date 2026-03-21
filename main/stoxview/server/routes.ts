@@ -2076,22 +2076,59 @@ export async function registerRoutes(
         }
       }
 
+      // Calculate countdown: when will the next evaluations happen?
+      const now = Date.now();
+      let nextShortDays: number | null = null;
+      let nextMedDays: number | null = null;
+      let nextLongDays: number | null = null;
+
+      for (const e of entries) {
+        const entryDate = new Date(e.date).getTime();
+        if (e.actualPriceShort === undefined) {
+          const daysLeft = Math.max(0, Math.ceil((entryDate + 7 * 86400000 - now) / 86400000));
+          if (nextShortDays === null || daysLeft < nextShortDays) nextShortDays = daysLeft;
+        }
+        if (e.actualPriceMedium === undefined) {
+          const daysLeft = Math.max(0, Math.ceil((entryDate + 28 * 86400000 - now) / 86400000));
+          if (nextMedDays === null || daysLeft < nextMedDays) nextMedDays = daysLeft;
+        }
+        if (e.actualPriceLong === undefined) {
+          const daysLeft = Math.max(0, Math.ceil((entryDate + 90 * 86400000 - now) / 86400000));
+          if (nextLongDays === null || daysLeft < nextLongDays) nextLongDays = daysLeft;
+        }
+      }
+
+      // How many evaluated predictions needed before learning kicks in
+      const totalEvaluated = shortTotal + medTotal + longTotal;
+      const learningActive = !!sharedGlobalWeights;
+
       res.json({
         totalPredictions: entries.length,
         shortTerm: {
           total: shortTotal,
           correct: shortCorrect,
           accuracy: shortTotal > 0 ? round2((shortCorrect / shortTotal) * 100) : null,
+          nextEvalDays: nextShortDays,
         },
         mediumTerm: {
           total: medTotal,
           correct: medCorrect,
           accuracy: medTotal > 0 ? round2((medCorrect / medTotal) * 100) : null,
+          nextEvalDays: nextMedDays,
         },
         longTerm: {
           total: longTotal,
           correct: longCorrect,
           accuracy: longTotal > 0 ? round2((longCorrect / longTotal) * 100) : null,
+          nextEvalDays: nextLongDays,
+        },
+        countdown: {
+          nextShortDays,
+          nextMedDays,
+          nextLongDays,
+          totalEvaluated,
+          learningActive,
+          needsForLearning: learningActive ? 0 : Math.max(0, 5 - totalEvaluated),
         },
         recentPredictions: entries.slice(-15).reverse(),
       });

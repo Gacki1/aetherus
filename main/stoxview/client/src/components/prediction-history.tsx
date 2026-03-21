@@ -45,9 +45,17 @@ interface PredictionEntry {
 
 interface AccuracyData {
   totalPredictions: number;
-  shortTerm: { total: number; correct: number; accuracy: number | null };
-  mediumTerm: { total: number; correct: number; accuracy: number | null };
-  longTerm: { total: number; correct: number; accuracy: number | null };
+  shortTerm: { total: number; correct: number; accuracy: number | null; nextEvalDays?: number | null };
+  mediumTerm: { total: number; correct: number; accuracy: number | null; nextEvalDays?: number | null };
+  longTerm: { total: number; correct: number; accuracy: number | null; nextEvalDays?: number | null };
+  countdown?: {
+    nextShortDays: number | null;
+    nextMedDays: number | null;
+    nextLongDays: number | null;
+    totalEvaluated: number;
+    learningActive: boolean;
+    needsForLearning: number;
+  };
   recentPredictions: PredictionEntry[];
 }
 
@@ -426,13 +434,51 @@ export function PredictionHistory({ ticker, isInWatchlist }: PredictionHistoryPr
         </div>
       )}
 
-      {/* Not adaptive yet hint */}
-      {learningStats && !learningStats.isAdaptive && accuracy.totalPredictions > 0 && (
-        <div className="flex items-start gap-1.5 px-2">
-          <Brain className="w-3 h-3 text-muted-foreground/40 shrink-0 mt-0.5" />
-          <p className="text-[10px] text-muted-foreground/50 leading-relaxed">
-            {t("learning.notEnoughData")}
-          </p>
+      {/* Countdown / Status Section */}
+      {accuracy.countdown && accuracy.totalPredictions > 0 && (
+        <div className="rounded-lg border border-border/40 p-2.5 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <Brain className="w-3 h-3 text-muted-foreground/60" />
+            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+              {accuracy.countdown.learningActive ? t("learning.badge") : t("learning.countdown.collecting")}
+            </span>
+          </div>
+
+          {/* Evaluation countdown bars */}
+          <div className="space-y-1.5">
+            {[
+              { label: t("learning.countdown.short"), days: accuracy.countdown.nextShortDays, total: 7, evaluated: accuracy.shortTerm.total },
+              { label: t("learning.countdown.medium"), days: accuracy.countdown.nextMedDays, total: 28, evaluated: accuracy.mediumTerm.total },
+              { label: t("learning.countdown.long"), days: accuracy.countdown.nextLongDays, total: 90, evaluated: accuracy.longTerm.total },
+            ].map(({ label, days, total, evaluated }) => (
+              <div key={label} className="flex items-center gap-2">
+                <span className="text-[9px] text-muted-foreground w-[120px] shrink-0 text-right truncate">{label}</span>
+                <div className="flex-1 h-1.5 bg-muted/40 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      days === null ? "bg-muted/20" : days === 0 ? "bg-emerald-500/70" : "bg-cyan-500/50"
+                    }`}
+                    style={{ width: days === null ? "0%" : `${Math.max(5, ((total - days) / total) * 100)}%` }}
+                  />
+                </div>
+                <span className={`text-[9px] tabular-nums w-14 text-right ${
+                  days === 0 ? "text-emerald-400" : "text-muted-foreground/60"
+                }`}>
+                  {days === null ? "—" : days === 0 ? t("learning.countdown.today") : `${days} ${t("learning.countdown.days")}`}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Learning progress */}
+          {!accuracy.countdown.learningActive && (
+            <div className="text-[9px] text-muted-foreground/50 pt-1 border-t border-border/20">
+              {accuracy.countdown.totalEvaluated > 0
+                ? `${accuracy.countdown.totalEvaluated} ${t("learning.countdown.evaluated")} · ${accuracy.countdown.needsForLearning} ${t("learning.countdown.needMore")}`
+                : t("learning.notEnoughData")
+              }
+            </div>
+          )}
         </div>
       )}
 
