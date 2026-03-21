@@ -241,134 +241,141 @@ export class TradeRepublicClient {
    * Step 1: initiateLogin() → returns processId, triggers 2FA
    * Step 2: completeLogin(processId, code) → saves session, connects WS
    */
+  // Persistent browser instance for the two-step login flow
+  private _loginBrowser: any = null;
+  private _loginPage: any = null;
+
   /**
-   * Launch headless Chromium to bypass TR's TLS fingerprinting.
+   * Launch headless Chromium and keep it alive for the login flow.
    */
-  private async browserFetch(url: string, body?: any): Promise<{ ok: boolean; status: number; data: any; cookies: string[] }> {
-    let browser: any = null;
-    try {
-      const puppeteer = await import("puppeteer-core");
-      const execPath = process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium";
-      console.log("[TR] Launching Chromium at:", execPath);
+  private async getLoginPage(): Promise<any> {
+    if (this._loginPage) return this._loginPage;
 
-      browser = await puppeteer.default.launch({
-        executablePath: execPath,
-        headless: true,
-        args: [
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          "--disable-gpu",
-          "--disable-dev-shm-usage",
-          "--disable-web-security",
-          "--disable-features=IsolateOrigins,site-per-process",
-        ],
-      });
-      console.log("[TR] Chromium launched OK");
+    const puppeteer = await import("puppeteer-core");
+    const execPath = process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium";
+    console.log("[TR] Launching Chromium at:", execPath);
 
-      const page = await browser.newPage();
+    this._loginBrowser = await puppeteer.default.launch({
+      executablePath: execPath,
+      headless: true,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-gpu",
+        "--disable-dev-shm-usage",
+        "--disable-web-security",
+        "--disable-features=IsolateOrigins,site-per-process",
+      ],
+    });
+    console.log("[TR] Chromium launched OK");
 
-      // Log all console messages and errors from the page
-      page.on("console", (msg: any) => console.log("[TR-Chrome]", msg.text()));
-      page.on("pageerror", (err: any) => console.error("[TR-Chrome error]", err.message));
-      page.on("requestfailed", (req: any) => console.error("[TR-Chrome req failed]", req.url(), req.failure()?.errorText));
+    this._loginPage = await this._loginBrowser.newPage();
+    await this._loginPage.setUserAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36");
 
-      // Set proper user agent
-      await page.setUserAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36");
+    // Navigate to TR app to establish context
+    console.log("[TR] Navigating to app.traderepublic.com...");
+    await this._loginPage.goto("https://app.traderepublic.com", {
+      waitUntil: "networkidle2",
+      timeout: 20000,
+    }).catch((e: any) => console.log("[TR] App navigation:", e.message?.slice(0, 80)));
+    console.log("[TR] App page loaded, url:", this._loginPage.url());
 
-      // First, navigate to TR app to establish cookies/context
-      console.log("[TR] Navigating to app.traderepublic.com...");
-      const appResponse = await page.goto("https://app.traderepublic.com", {
-        waitUntil: "networkidle2",
-        timeout: 20000,
-      }).catch((e: any) => { console.log("[TR] App navigation:", e.message?.slice(0, 100)); return null; });
-      console.log("[TR] App page status:", appResponse?.status(), "url:", page.url());
+    return this._loginPage;
+  }
 
-      // Now make the API call using XMLHttpRequest (more compatible than fetch in some contexts)
-      const postData = body ? JSON.stringify(body) : null;
-      console.log("[TR] Making API call to:", url);
-
-      const result = await page.evaluate(async (apiUrl: string, data: string | null) => {
-        return new Promise((resolve) => {
-          const xhr = new XMLHttpRequest();
-          xhr.open("POST", apiUrl, true);
-          xhr.setRequestHeader("Content-Type", "application/json");
-          xhr.onload = () => {
-            let parsed = null;
-            try { parsed = JSON.parse(xhr.responseText); } catch { parsed = xhr.responseText; }
-            resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, data: parsed, error: null });
-          };
-          xhr.onerror = () => {
-            resolve({ ok: false, status: 0, data: null, error: "XHR network error" });
-          };
-          xhr.ontimeout = () => {
-            resolve({ ok: false, status: 0, data: null, error: "XHR timeout" });
-          };
-          xhr.timeout = 12000;
-          xhr.send(data);
-        });
-      }, url, postData) as any;
-
-      console.log("[TR] API result:", JSON.stringify({ ok: result.ok, status: result.status, error: result.error, dataPreview: JSON.stringify(result.data)?.slice(0, 150) }));
-
-      // Extract cookies
-      const browserCookies = await page.cookies();
-      const cookieStrings = browserCookies
-        .filter((c: any) => c.domain.includes("traderepublic"))
-        .map((c: any) => `${c.name}=${c.value}`);
-      console.log("[TR] Cookies found:", cookieStrings.length);
-
-      return { ok: result.ok, status: result.status, data: result.data, cookies: cookieStrings };
-    } catch (e: any) {
-      console.error("[TR] browserFetch fatal error:", e.message);
-      return { ok: false, status: 0, data: e.message, cookies: [] };
-    } finally {
-      if (browser) {
-        await browser.close().catch(() => {});
-        console.log("[TR] Chromium closed.");
-      }
+  private async closeLoginBrowser(): Promise<void> {
+    if (this._loginBrowser) {
+      await this._loginBrowser.close().catch(() => {});
+      this._loginBrowser = null;
+      this._loginPage = null;
+      console.log("[TR] Chromium closed.");
     }
+  }
+
+  /**
+   * Make an API call via the persistent browser page.
+   */
+  private async browserApiCall(url: string, body?: any): Promise<{ ok: boolean; status: number; data: any; cookies: string[] }> {
+    const page = await this.getLoginPage();
+    const postData = body ? JSON.stringify(body) : null;
+    console.log("[TR] API call:", url);
+
+    const result = await page.evaluate(async (apiUrl: string, data: string | null) => {
+      return new Promise((resolve) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", apiUrl, true);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.onload = () => {
+          let parsed = null;
+          try { parsed = JSON.parse(xhr.responseText); } catch { parsed = xhr.responseText; }
+          resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, data: parsed, error: null });
+        };
+        xhr.onerror = () => resolve({ ok: false, status: 0, data: null, error: "XHR error" });
+        xhr.ontimeout = () => resolve({ ok: false, status: 0, data: null, error: "XHR timeout" });
+        xhr.timeout = 12000;
+        xhr.send(data);
+      });
+    }, url, postData) as any;
+
+    console.log("[TR] Result:", JSON.stringify({ ok: result.ok, status: result.status, error: result.error }));
+
+    const browserCookies = await page.cookies();
+    const cookieStrings = browserCookies
+      .filter((c: any) => c.domain.includes("traderepublic"))
+      .map((c: any) => `${c.name}=${c.value}`);
+
+    return { ok: result.ok, status: result.status, data: result.data, cookies: cookieStrings };
   }
 
   async initiateLogin(): Promise<{ processId: string } | null> {
     try {
-      const result = await this.browserFetch(
+      const result = await this.browserApiCall(
         `${TR_HOST}/api/v1/auth/web/login`,
         { phoneNumber: this.phoneNo, pin: this.pin }
       );
       if (!result.ok) {
-        console.error(`[TR] initiateLogin failed: HTTP ${result.status}`, JSON.stringify(result.data).slice(0, 200));
+        console.error("[TR] initiateLogin failed:", result.status, JSON.stringify(result.data)?.slice(0, 200));
+        await this.closeLoginBrowser();
         return null;
       }
       const processId = result.data?.processId;
+      console.log("[TR] Got processId, waiting for 2FA code...");
+      // Keep browser alive for completeLogin!
       return processId ? { processId } : null;
     } catch (e) {
       console.error("[TR] initiateLogin error:", (e as Error).message?.slice(0, 150));
+      await this.closeLoginBrowser();
       return null;
     }
   }
 
   async completeLogin(processId: string, code: string): Promise<boolean> {
     try {
-      const result = await this.browserFetch(
+      const result = await this.browserApiCall(
         `${TR_HOST}/api/v1/auth/web/login/${processId}/${code}`
       );
+
+      // Done with login flow — close browser regardless of result
+      const cookies = result.cookies;
+      await this.closeLoginBrowser();
+
       if (!result.ok) {
         console.error("[TR] completeLogin failed:", result.status, result.data);
         return false;
       }
 
-      const sessionToken = result.cookies.find((c: string) => c.startsWith("tr_session="))?.split("=").slice(1).join("=");
-      const refreshToken = result.cookies.find((c: string) => c.startsWith("tr_refresh="))?.split("=").slice(1).join("=");
+      const sessionToken = cookies.find((c: string) => c.startsWith("tr_session="))?.split("=").slice(1).join("=");
+      const refreshToken = cookies.find((c: string) => c.startsWith("tr_refresh="))?.split("=").slice(1).join("=");
 
       if (!sessionToken) {
-        console.error("[TR] No tr_session cookie. Cookies:", result.cookies);
+        console.error("[TR] No tr_session cookie. Cookies:", cookies);
         return false;
       }
 
       this.session = {
         trSessionToken: sessionToken,
         trRefreshToken: refreshToken,
-        rawCookies: result.cookies.map((c: string) => c + "; Path=/; Domain=.traderepublic.com"),
+        rawCookies: cookies.map((c: string) => c + "; Path=/; Domain=.traderepublic.com"),
         savedAt: new Date().toISOString(),
       };
 
@@ -379,6 +386,7 @@ export class TradeRepublicClient {
       return true;
     } catch (e) {
       console.error("[TR] completeLogin error:", (e as Error).message?.slice(0, 100));
+      await this.closeLoginBrowser();
       return false;
     }
   }
