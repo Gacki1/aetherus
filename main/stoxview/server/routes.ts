@@ -3207,10 +3207,23 @@ function getTRAdminHTML(): string {
       if (e.key === 'Enter') authenticate();
     });
 
-    function authenticate() {
+    async function authenticate() {
       const pw = document.getElementById('adminPw').value.trim();
       if (!pw) {
         showLoginMsg('Bitte Passwort eingeben', 'error');
+        return;
+      }
+      // Verify password against server before showing dashboard
+      try {
+        const res = await fetch(apiUrl('/api/admin/algorithm-stats'), {
+          headers: { 'Authorization': 'Bearer ' + pw }
+        });
+        if (!res.ok) {
+          showLoginMsg('Falsches Passwort', 'error');
+          return;
+        }
+      } catch (err) {
+        showLoginMsg('Verbindungsfehler', 'error');
         return;
       }
       adminToken = pw;
