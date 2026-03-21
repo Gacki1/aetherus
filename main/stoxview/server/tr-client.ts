@@ -364,16 +364,21 @@ export class TradeRepublicClient {
         return false;
       }
 
+      // TR uses tr_claims (JWT) as session token now, not tr_session
+      const claimsToken = cookies.find((c: string) => c.startsWith("tr_claims="))?.split("=").slice(1).join("=");
       const sessionToken = cookies.find((c: string) => c.startsWith("tr_session="))?.split("=").slice(1).join("=");
       const refreshToken = cookies.find((c: string) => c.startsWith("tr_refresh="))?.split("=").slice(1).join("=");
+      const effectiveToken = claimsToken || sessionToken;
 
-      if (!sessionToken) {
-        console.error("[TR] No tr_session cookie. Cookies:", cookies);
+      if (!effectiveToken) {
+        console.error("[TR] No session cookie found. Cookies:", cookies.map((c: string) => c.split("=")[0]));
         return false;
       }
 
+      console.log("[TR] Session established via", claimsToken ? "tr_claims" : "tr_session");
+
       this.session = {
-        trSessionToken: sessionToken,
+        trSessionToken: effectiveToken,
         trRefreshToken: refreshToken,
         rawCookies: cookies.map((c: string) => c + "; Path=/; Domain=.traderepublic.com"),
         savedAt: new Date().toISOString(),
@@ -411,7 +416,19 @@ export class TradeRepublicClient {
     try {
       await this.closeWebSocket();
 
-      this.ws = new WebSocket(TR_WS_HOST);
+      // Build cookie header from session for WebSocket auth
+      const cookieHeader = this.session?.rawCookies
+        ?.map((c: string) => c.split(";")[0])
+        .join("; ") || "";
+      console.log("[TR] WebSocket connecting with", cookieHeader ? `${this.session?.rawCookies?.length} cookies` : "no cookies");
+
+      this.ws = new WebSocket(TR_WS_HOST, {
+        headers: {
+          "Cookie": cookieHeader,
+          "Origin": "https://app.traderepublic.com",
+          "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        },
+      });
 
       await new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => {
@@ -421,8 +438,15 @@ export class TradeRepublicClient {
 
         this.ws!.once("open", () => {
           clearTimeout(timeout);
-          // Send connection handshake
-          this.ws!.send(`connect ${TR_WS_VERSION} ${JSON.stringify({ locale: "de" })}`);
+          // Send connection handshake with web trading context
+          const connectMsg = JSON.stringify({
+            locale: "de",
+            platformId: "webtrading",
+            platformVersion: "chrome - 131.0.0",
+            clientId: "app.traderepublic.com",
+            clientVersion: "5582",
+          });
+          this.ws!.send(`connect ${TR_WS_VERSION} ${connectMsg}`);
           this.connected = true;
           this.reconnectAttempts = 0;
           this.startEcho();
