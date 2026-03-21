@@ -243,78 +243,89 @@ export class TradeRepublicClient {
    */
   /**
    * Launch headless Chromium to bypass TR's TLS fingerprinting.
-   * Uses Puppeteer page.goto() to POST directly — the browser handles TLS.
    */
   private async browserFetch(url: string, body?: any): Promise<{ ok: boolean; status: number; data: any; cookies: string[] }> {
-    const puppeteer = await import("puppeteer-core");
-    const execPath = process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium";
-    console.log("[TR] Launching headless Chromium...");
-    const browser = await puppeteer.default.launch({
-      executablePath: execPath,
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--disable-dev-shm-usage"],
-    });
+    let browser: any = null;
     try {
+      const puppeteer = await import("puppeteer-core");
+      const execPath = process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium";
+      console.log("[TR] Launching Chromium at:", execPath);
+
+      browser = await puppeteer.default.launch({
+        executablePath: execPath,
+        headless: true,
+        args: [
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-gpu",
+          "--disable-dev-shm-usage",
+          "--disable-web-security",
+          "--disable-features=IsolateOrigins,site-per-process",
+        ],
+      });
+      console.log("[TR] Chromium launched OK");
+
       const page = await browser.newPage();
+
+      // Log all console messages and errors from the page
+      page.on("console", (msg: any) => console.log("[TR-Chrome]", msg.text()));
+      page.on("pageerror", (err: any) => console.error("[TR-Chrome error]", err.message));
+      page.on("requestfailed", (req: any) => console.error("[TR-Chrome req failed]", req.url(), req.failure()?.errorText));
+
+      // Set proper user agent
       await page.setUserAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36");
 
-      // Use request interception to convert the navigation into a POST
-      await page.setRequestInterception(true);
-      let intercepted = false;
-      page.on("request", (req) => {
-        if (!intercepted && req.url() === url) {
-          intercepted = true;
-          const overrides: any = {
-            method: "POST",
-            headers: {
-              ...req.headers(),
-              "Content-Type": "application/json",
-              "Origin": "https://app.traderepublic.com",
-              "Referer": "https://app.traderepublic.com/",
-            },
+      // First, navigate to TR app to establish cookies/context
+      console.log("[TR] Navigating to app.traderepublic.com...");
+      const appResponse = await page.goto("https://app.traderepublic.com", {
+        waitUntil: "networkidle2",
+        timeout: 20000,
+      }).catch((e: any) => { console.log("[TR] App navigation:", e.message?.slice(0, 100)); return null; });
+      console.log("[TR] App page status:", appResponse?.status(), "url:", page.url());
+
+      // Now make the API call using XMLHttpRequest (more compatible than fetch in some contexts)
+      const postData = body ? JSON.stringify(body) : null;
+      console.log("[TR] Making API call to:", url);
+
+      const result = await page.evaluate(async (apiUrl: string, data: string | null) => {
+        return new Promise((resolve) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("POST", apiUrl, true);
+          xhr.setRequestHeader("Content-Type", "application/json");
+          xhr.onload = () => {
+            let parsed = null;
+            try { parsed = JSON.parse(xhr.responseText); } catch { parsed = xhr.responseText; }
+            resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, data: parsed, error: null });
           };
-          if (body) overrides.postData = JSON.stringify(body);
-          req.continue(overrides);
-        } else {
-          req.continue();
-        }
-      });
+          xhr.onerror = () => {
+            resolve({ ok: false, status: 0, data: null, error: "XHR network error" });
+          };
+          xhr.ontimeout = () => {
+            resolve({ ok: false, status: 0, data: null, error: "XHR timeout" });
+          };
+          xhr.timeout = 12000;
+          xhr.send(data);
+        });
+      }, url, postData) as any;
 
-      // Navigate to the URL — this triggers the intercepted POST
-      let responseStatus = 0;
-      let responseBody = "";
-      try {
-        const response = await page.goto(url, { waitUntil: "load", timeout: 15000 });
-        if (response) {
-          responseStatus = response.status();
-          responseBody = await response.text().catch(() => "");
-        }
-      } catch (navErr: any) {
-        // page.goto may throw on non-HTML responses, but we can still read the response
-        console.log("[TR] Navigation threw (expected for API):", navErr.message?.slice(0, 80));
-      }
-
-      // Try to get response from the page content if goto didn't return it
-      if (!responseBody) {
-        responseBody = await page.evaluate(() => document.body?.innerText || "").catch(() => "");
-      }
-
-      let data: any = null;
-      try { data = JSON.parse(responseBody); } catch { data = responseBody; }
-      const ok = responseStatus >= 200 && responseStatus < 300;
-
-      console.log(`[TR] Browser response: HTTP ${responseStatus}, body length: ${responseBody.length}`);
+      console.log("[TR] API result:", JSON.stringify({ ok: result.ok, status: result.status, error: result.error, dataPreview: JSON.stringify(result.data)?.slice(0, 150) }));
 
       // Extract cookies
       const browserCookies = await page.cookies();
       const cookieStrings = browserCookies
         .filter((c: any) => c.domain.includes("traderepublic"))
         .map((c: any) => `${c.name}=${c.value}`);
+      console.log("[TR] Cookies found:", cookieStrings.length);
 
-      return { ok, status: responseStatus, data, cookies: cookieStrings };
+      return { ok: result.ok, status: result.status, data: result.data, cookies: cookieStrings };
+    } catch (e: any) {
+      console.error("[TR] browserFetch fatal error:", e.message);
+      return { ok: false, status: 0, data: e.message, cookies: [] };
     } finally {
-      await browser.close();
-      console.log("[TR] Chromium closed.");
+      if (browser) {
+        await browser.close().catch(() => {});
+        console.log("[TR] Chromium closed.");
+      }
     }
   }
 
