@@ -1363,9 +1363,9 @@ interface PredictionHistoryEntry {
   name: string;
   date: string; // ISO date (YYYY-MM-DD)
   priceAtPrediction: number;
-  shortTerm: { signal: string; confidence: number };
-  mediumTerm: { signal: string; confidence: number };
-  longTerm: { signal: string; confidence: number };
+  shortTerm: { signal: string; confidence: number; estimatedMove?: number };
+  mediumTerm: { signal: string; confidence: number; estimatedMove?: number };
+  longTerm: { signal: string; confidence: number; estimatedMove?: number };
   sentimentScore: number;
   riskLevel: number;
   // Accuracy tracking — filled in later when we check actual price
@@ -1696,9 +1696,9 @@ function recordPrediction(prediction: StockPrediction, user: string): void {
     name: prediction.name,
     date: today,
     priceAtPrediction: prediction.currentPrice,
-    shortTerm: { signal: prediction.shortTerm.signal, confidence: prediction.shortTerm.confidence },
-    mediumTerm: { signal: prediction.mediumTerm.signal, confidence: prediction.mediumTerm.confidence },
-    longTerm: { signal: prediction.longTerm.signal, confidence: prediction.longTerm.confidence },
+    shortTerm: { signal: prediction.shortTerm.signal, confidence: prediction.shortTerm.confidence, estimatedMove: prediction.shortTerm.estimatedMove },
+    mediumTerm: { signal: prediction.mediumTerm.signal, confidence: prediction.mediumTerm.confidence, estimatedMove: prediction.mediumTerm.estimatedMove },
+    longTerm: { signal: prediction.longTerm.signal, confidence: prediction.longTerm.confidence, estimatedMove: prediction.longTerm.estimatedMove },
     sentimentScore: prediction.sentimentScore,
     riskLevel: prediction.riskLevel,
   };

@@ -32,9 +32,9 @@ interface PredictionEntry {
   name: string;
   date: string;
   priceAtPrediction: number;
-  shortTerm: { signal: string; confidence: number };
-  mediumTerm: { signal: string; confidence: number };
-  longTerm: { signal: string; confidence: number };
+  shortTerm: { signal: string; confidence: number; estimatedMove?: number };
+  mediumTerm: { signal: string; confidence: number; estimatedMove?: number };
+  longTerm: { signal: string; confidence: number; estimatedMove?: number };
   sentimentScore: number;
   riskLevel: number;
   actualPriceShort?: number;
@@ -263,6 +263,13 @@ function PredictionRow({ entry }: { entry: PredictionEntry }) {
                     {tf.signal === "neutral" ? "~0%" : `${tf.signal === "bearish" ? "-" : "+"}${tf.confidence}%`}
                   </span>
                 </div>
+                {tf.estimatedMove != null && tf.signal !== "neutral" && (
+                  <span className={`text-[9px] tabular-nums font-medium ${
+                    tf.estimatedMove >= 0 ? "text-emerald-400/70" : "text-red-400/70"
+                  }`}>
+                    {tf.estimatedMove >= 0 ? "+" : ""}{tf.estimatedMove.toFixed(1)}%
+                  </span>
+                )}
                 <ResultBadge signal={tf.signal} priceAtPrediction={entry.priceAtPrediction} actualPrice={actual} />
               </div>
             ))}
