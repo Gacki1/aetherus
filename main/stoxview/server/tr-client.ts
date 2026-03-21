@@ -243,11 +243,7 @@ export class TradeRepublicClient {
    */
   /**
    * Launch headless Chromium to bypass TR's TLS fingerprinting.
-   * The browser makes the API call from a real Chrome context.
-   */
-  /**
-   * Launch headless Chromium to bypass TR's TLS fingerprinting.
-   * Uses CDP (Chrome DevTools Protocol) to make the request directly.
+   * Uses Puppeteer page.goto() to POST directly — the browser handles TLS.
    */
   private async browserFetch(url: string, body?: any): Promise<{ ok: boolean; status: number; data: any; cookies: string[] }> {
     const puppeteer = await import("puppeteer-core");
@@ -260,35 +256,54 @@ export class TradeRepublicClient {
     });
     try {
       const page = await browser.newPage();
+      await page.setUserAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36");
 
-      // Use CDP to make the fetch — this bypasses CORS since it goes through the browser's network stack
-      const client = await page.createCDPSession();
-
-      // Navigate to TR domain first to establish proper origin
-      await page.goto("https://api.traderepublic.com", { waitUntil: "commit", timeout: 10000 }).catch(() => {});
-
-      // Make the request via page context with the correct origin
-      const postData = body ? JSON.stringify(body) : undefined;
-      const result = await page.evaluate(async (fetchUrl, fetchBody) => {
-        try {
-          const opts: any = {
+      // Use request interception to convert the navigation into a POST
+      await page.setRequestInterception(true);
+      let intercepted = false;
+      page.on("request", (req) => {
+        if (!intercepted && req.url() === url) {
+          intercepted = true;
+          const overrides: any = {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              ...req.headers(),
+              "Content-Type": "application/json",
+              "Origin": "https://app.traderepublic.com",
+              "Referer": "https://app.traderepublic.com/",
+            },
           };
-          if (fetchBody) opts.body = fetchBody;
-          const res = await fetch(fetchUrl, opts);
-          const text = await res.text();
-          let data: any = null;
-          try { data = JSON.parse(text); } catch { data = text; }
-          return { ok: res.ok, status: res.status, data, error: null };
-        } catch (e: any) {
-          return { ok: false, status: 0, data: null, error: e.message || "fetch failed" };
+          if (body) overrides.postData = JSON.stringify(body);
+          req.continue(overrides);
+        } else {
+          req.continue();
         }
-      }, url, postData);
+      });
 
-      if (result.error) {
-        console.error("[TR] Browser fetch error:", result.error);
+      // Navigate to the URL — this triggers the intercepted POST
+      let responseStatus = 0;
+      let responseBody = "";
+      try {
+        const response = await page.goto(url, { waitUntil: "load", timeout: 15000 });
+        if (response) {
+          responseStatus = response.status();
+          responseBody = await response.text().catch(() => "");
+        }
+      } catch (navErr: any) {
+        // page.goto may throw on non-HTML responses, but we can still read the response
+        console.log("[TR] Navigation threw (expected for API):", navErr.message?.slice(0, 80));
       }
+
+      // Try to get response from the page content if goto didn't return it
+      if (!responseBody) {
+        responseBody = await page.evaluate(() => document.body?.innerText || "").catch(() => "");
+      }
+
+      let data: any = null;
+      try { data = JSON.parse(responseBody); } catch { data = responseBody; }
+      const ok = responseStatus >= 200 && responseStatus < 300;
+
+      console.log(`[TR] Browser response: HTTP ${responseStatus}, body length: ${responseBody.length}`);
 
       // Extract cookies
       const browserCookies = await page.cookies();
@@ -296,7 +311,7 @@ export class TradeRepublicClient {
         .filter((c: any) => c.domain.includes("traderepublic"))
         .map((c: any) => `${c.name}=${c.value}`);
 
-      return { ok: result.ok, status: result.status, data: result.data, cookies: cookieStrings };
+      return { ok, status: responseStatus, data, cookies: cookieStrings };
     } finally {
       await browser.close();
       console.log("[TR] Chromium closed.");
