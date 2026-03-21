@@ -305,7 +305,8 @@ interface PredictionHistoryProps {
 // Read Aetherus user from URL for per-user prediction history
 const _stoxviewUser = (() => {
   try {
-    return new URLSearchParams(window.location.search).get("user") || "_default";
+    const params = new URLSearchParams(window.location.search);
+    return params.get("uid") || params.get("user") || "_default";
   } catch { return "_default"; }
 })();
 

@@ -24,8 +24,8 @@ type Range = "1mo" | "3mo" | "6mo" | "1y";
 
 const _chartUser = (() => {
   try {
-    const params = new URLSearchParams(window.location.search);
-    return params.get("uid") || params.get("user") || "_default";
+    const p = new URLSearchParams(window.location.search);
+    return p.get("uid") || p.get("user") || "_default";
   } catch { return "_default"; }
 })();
 
