@@ -1475,22 +1475,53 @@ function evaluateSourceAccuracy(
 
     // Determine actual price movement
     let actualPrice: number | undefined;
-    if (timeframe === "short") actualPrice = entry.actualPriceShort;
-    else if (timeframe === "medium") actualPrice = entry.actualPriceMedium;
-    else actualPrice = entry.actualPriceLong;
+    let estimatedMove: number | undefined;
+    if (timeframe === "short") { actualPrice = entry.actualPriceShort; estimatedMove = entry.shortTerm.estimatedMove; }
+    else if (timeframe === "medium") { actualPrice = entry.actualPriceMedium; estimatedMove = entry.mediumTerm.estimatedMove; }
+    else { actualPrice = entry.actualPriceLong; estimatedMove = entry.longTerm.estimatedMove; }
     if (actualPrice === undefined) continue;
 
-    const actualDirection = actualPrice > entry.priceAtPrediction ? 1
-      : actualPrice < entry.priceAtPrediction ? -1 : 0;
-    if (actualDirection === 0) continue; // flat — can't evaluate source signals
+    const actualMovePercent = ((actualPrice - entry.priceAtPrediction) / entry.priceAtPrediction) * 100;
+    const actualDirection = actualMovePercent > 0.1 ? 1 : actualMovePercent < -0.1 ? -1 : 0;
+    if (actualDirection === 0) continue; // flat — can't evaluate
 
-    // Score each source: did it agree with the actual direction?
+    // Magnitude-aware scoring for each source signal
+    // Score = direction component (±0.5) + magnitude component (±0.5)
     for (const key of SOURCE_KEYS) {
       const signal = entry.sourceSignals[key];
-      if (signal === undefined || Math.abs(signal) < 0.02) continue; // source was absent or neutral
+      if (signal === undefined || Math.abs(signal) < 0.02) continue;
       const sourceDirection = signal > 0 ? 1 : -1;
-      const score = sourceDirection === actualDirection ? 1 : -1;
-      result[key].totalScore += score;
+
+      // Direction component: +0.5 if correct, -0.5 if wrong
+      const directionScore = sourceDirection === actualDirection ? 0.5 : -0.5;
+
+      // Magnitude component: how well did the signal strength predict the actual move?
+      // Compare signal magnitude (0-1) to actual move magnitude
+      // If estimatedMove is available, use it for a more precise magnitude comparison
+      let magnitudeScore = 0;
+      if (sourceDirection === actualDirection) {
+        if (estimatedMove !== undefined && Math.abs(estimatedMove) > 0.1) {
+          // Compare predicted move to actual move — closer = better
+          const moveRatio = Math.min(Math.abs(actualMovePercent), Math.abs(estimatedMove))
+            / Math.max(Math.abs(actualMovePercent), Math.abs(estimatedMove));
+          // moveRatio 0..1 where 1 = perfect magnitude match
+          magnitudeScore = moveRatio * 0.5; // max +0.5
+        } else {
+          // No estimated move — use signal strength vs actual move as proxy
+          // Strong signal + big move = good, strong signal + tiny move = less good
+          const signalStrength = Math.abs(signal);
+          const moveStrength = clamp(Math.abs(actualMovePercent) / 10, 0, 1); // normalize: 10% move = 1.0
+          const strengthMatch = 1 - Math.abs(signalStrength - moveStrength);
+          magnitudeScore = strengthMatch * 0.3; // max +0.3 (less confident without estimatedMove)
+        }
+      } else {
+        // Wrong direction — penalty scales with how confident the source was
+        const signalStrength = Math.abs(signal);
+        magnitudeScore = -signalStrength * 0.3; // stronger wrong signal = bigger penalty
+      }
+
+      const totalScore = directionScore + magnitudeScore; // range roughly -0.8 to +1.0
+      result[key].totalScore += totalScore;
       result[key].count++;
     }
   }
