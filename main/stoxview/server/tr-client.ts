@@ -245,10 +245,14 @@ export class TradeRepublicClient {
    * Launch headless Chromium to bypass TR's TLS fingerprinting.
    * The browser makes the API call from a real Chrome context.
    */
+  /**
+   * Launch headless Chromium to bypass TR's TLS fingerprinting.
+   * Uses CDP (Chrome DevTools Protocol) to make the request directly.
+   */
   private async browserFetch(url: string, body?: any): Promise<{ ok: boolean; status: number; data: any; cookies: string[] }> {
     const puppeteer = await import("puppeteer-core");
     const execPath = process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium";
-    console.log(`[TR] Launching headless Chromium...`);
+    console.log("[TR] Launching headless Chromium...");
     const browser = await puppeteer.default.launch({
       executablePath: execPath,
       headless: true,
@@ -256,28 +260,43 @@ export class TradeRepublicClient {
     });
     try {
       const page = await browser.newPage();
-      await page.goto("https://app.traderepublic.com", { waitUntil: "domcontentloaded", timeout: 15000 }).catch(() => {});
 
-      const result = await page.evaluate(async (fetchUrl: string, fetchBody: any) => {
+      // Use CDP to make the fetch — this bypasses CORS since it goes through the browser's network stack
+      const client = await page.createCDPSession();
+
+      // Navigate to TR domain first to establish proper origin
+      await page.goto("https://api.traderepublic.com", { waitUntil: "commit", timeout: 10000 }).catch(() => {});
+
+      // Make the request via page context with the correct origin
+      const postData = body ? JSON.stringify(body) : undefined;
+      const result = await page.evaluate(async (fetchUrl, fetchBody) => {
         try {
-          const opts: RequestInit = { method: "POST", headers: { "Content-Type": "application/json" } };
-          if (fetchBody) opts.body = JSON.stringify(fetchBody);
+          const opts: any = {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+          };
+          if (fetchBody) opts.body = fetchBody;
           const res = await fetch(fetchUrl, opts);
           const text = await res.text();
           let data: any = null;
           try { data = JSON.parse(text); } catch { data = text; }
-          return { ok: res.ok, status: res.status, data };
+          return { ok: res.ok, status: res.status, data, error: null };
         } catch (e: any) {
-          return { ok: false, status: 0, data: e.message };
+          return { ok: false, status: 0, data: null, error: e.message || "fetch failed" };
         }
-      }, url, body);
+      }, url, postData);
 
+      if (result.error) {
+        console.error("[TR] Browser fetch error:", result.error);
+      }
+
+      // Extract cookies
       const browserCookies = await page.cookies();
       const cookieStrings = browserCookies
         .filter((c: any) => c.domain.includes("traderepublic"))
         .map((c: any) => `${c.name}=${c.value}`);
 
-      return { ...result, cookies: cookieStrings };
+      return { ok: result.ok, status: result.status, data: result.data, cookies: cookieStrings };
     } finally {
       await browser.close();
       console.log("[TR] Chromium closed.");
