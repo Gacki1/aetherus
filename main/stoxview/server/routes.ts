@@ -2479,6 +2479,113 @@ export async function registerRoutes(
     }
   });
 
+  // --- Admin: Algorithm dashboard data ---
+  app.get("/api/admin/algorithm-stats", (req, res) => {
+    if (!checkAdminAuth(req, res)) return;
+    try {
+      // Collect stats from all loaded users
+      const allUserStats: any[] = [];
+
+      userHistories.forEach((history, userKey) => {
+        const state = getUserLearningState(userKey);
+        const totalEntries = history.length;
+        const withSourceSignals = history.filter(e => !!e.sourceSignals).length;
+        const evaluated = history.filter(e =>
+          e.actualPriceShort !== undefined || e.actualPriceMedium !== undefined || e.actualPriceLong !== undefined
+        ).length;
+
+        // Accuracy per timeframe
+        let stCorrect = 0, stTotal = 0, mtCorrect = 0, mtTotal = 0, ltCorrect = 0, ltTotal = 0;
+        for (const e of history) {
+          if (e.actualPriceShort !== undefined) {
+            stTotal++;
+            const up = e.actualPriceShort > e.priceAtPrediction;
+            const down = e.actualPriceShort < e.priceAtPrediction;
+            if ((e.shortTerm.signal === "bullish" && up) || (e.shortTerm.signal === "bearish" && down) ||
+              (e.shortTerm.signal === "neutral" && Math.abs(e.actualPriceShort - e.priceAtPrediction) / e.priceAtPrediction < 0.02)) stCorrect++;
+          }
+          if (e.actualPriceMedium !== undefined) {
+            mtTotal++;
+            const up = e.actualPriceMedium > e.priceAtPrediction;
+            const down = e.actualPriceMedium < e.priceAtPrediction;
+            if ((e.mediumTerm.signal === "bullish" && up) || (e.mediumTerm.signal === "bearish" && down) ||
+              (e.mediumTerm.signal === "neutral" && Math.abs(e.actualPriceMedium - e.priceAtPrediction) / e.priceAtPrediction < 0.03)) mtCorrect++;
+          }
+          if (e.actualPriceLong !== undefined) {
+            ltTotal++;
+            const up = e.actualPriceLong > e.priceAtPrediction;
+            const down = e.actualPriceLong < e.priceAtPrediction;
+            if ((e.longTerm.signal === "bullish" && up) || (e.longTerm.signal === "bearish" && down) ||
+              (e.longTerm.signal === "neutral" && Math.abs(e.actualPriceLong - e.priceAtPrediction) / e.priceAtPrediction < 0.05)) ltCorrect++;
+          }
+        }
+
+        // Recent predictions (last 7 days)
+        const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().split("T")[0];
+        const recentEntries = history.filter(e => e.date >= sevenDaysAgo);
+
+        // Per-stock breakdown
+        const tickerMap = new Map<string, { count: number; lastDate: string; hasLearned: boolean }>();
+        for (const e of history) {
+          const cur = tickerMap.get(e.ticker);
+          if (!cur || e.date > cur.lastDate) {
+            tickerMap.set(e.ticker, {
+              count: (cur?.count || 0) + 1,
+              lastDate: e.date,
+              hasLearned: !!state.perStock[e.ticker],
+            });
+          } else {
+            cur.count++;
+          }
+        }
+
+        const stockBreakdown: any[] = [];
+        tickerMap.forEach((info, ticker) => {
+          stockBreakdown.push({
+            ticker,
+            predictions: info.count,
+            lastDate: info.lastDate,
+            hasLearnedWeights: info.hasLearned,
+            learnedWeights: state.perStock[ticker]?.weights || null,
+            adjustments: state.perStock[ticker]?.adjustments || null,
+          });
+        });
+        stockBreakdown.sort((a, b) => b.predictions - a.predictions);
+
+        allUserStats.push({
+          user: userKey,
+          totalPredictions: totalEntries,
+          withSourceSignals,
+          evaluated,
+          recentCount: recentEntries.length,
+          accuracy: {
+            shortTerm: { total: stTotal, correct: stCorrect, pct: stTotal > 0 ? round2((stCorrect / stTotal) * 100) : null },
+            mediumTerm: { total: mtTotal, correct: mtCorrect, pct: mtTotal > 0 ? round2((mtCorrect / mtTotal) * 100) : null },
+            longTerm: { total: ltTotal, correct: ltCorrect, pct: ltTotal > 0 ? round2((ltCorrect / ltTotal) * 100) : null },
+          },
+          learning: {
+            isActive: !!state.global,
+            globalWeights: state.global?.weights || null,
+            globalAdjustments: state.global?.adjustments || null,
+            globalEvaluatedCount: state.global?.evaluatedCount || 0,
+            globalLastUpdated: state.global?.lastUpdated || null,
+            perStockCount: Object.keys(state.perStock).length,
+          },
+          stocks: stockBreakdown,
+        });
+      });
+
+      res.json({
+        defaults: DEFAULT_WEIGHTS,
+        users: allUserStats,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (err: any) {
+      console.error("Admin algo stats error:", err.message);
+      res.status(500).json({ error: "Failed to fetch algorithm stats." });
+    }
+  });
+
   return httpServer;
 }
 
@@ -2617,7 +2724,7 @@ function getTRAdminHTML(): string {
     }
     .container {
       width: 100%;
-      max-width: 440px;
+      max-width: 620px;
       padding: 24px;
     }
     .card {
@@ -2642,6 +2749,32 @@ function getTRAdminHTML(): string {
     .logo h1 { font-size: 18px; font-weight: 600; }
     .logo h1 span { color: #00d2ff; }
     .subtitle { color: #8b949e; font-size: 13px; margin-bottom: 24px; }
+    /* Tab navigation */
+    .tab-nav {
+      display: flex;
+      border-bottom: 1px solid #30363d;
+      margin-bottom: 24px;
+    }
+    .tab-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: #8b949e;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 10px 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      width: auto;
+    }
+    .tab-btn:hover { color: #e6edf3; }
+    .tab-btn.active {
+      color: #00d2ff;
+      border-bottom-color: #00d2ff;
+    }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
     .status-bar {
       display: flex; align-items: center; gap: 8px;
       padding: 10px 14px;
@@ -2735,6 +2868,196 @@ function getTRAdminHTML(): string {
       color: #8b949e;
     }
     .session-info strong { color: #e6edf3; }
+    /* Algorithm tab styles */
+    .algo-section {
+      margin-bottom: 20px;
+    }
+    .algo-section h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #e6edf3;
+      margin-bottom: 12px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #30363d;
+    }
+    .algo-status-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+    .algo-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .algo-dot.active { background: #3fb950; box-shadow: 0 0 6px #3fb950; }
+    .algo-dot.collecting { background: #d29922; box-shadow: 0 0 6px #d29922; }
+    .algo-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .algo-stat-box {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+    .algo-stat-box .value {
+      font-size: 20px;
+      font-weight: 700;
+      color: #e6edf3;
+    }
+    .algo-stat-box .label {
+      font-size: 11px;
+      color: #8b949e;
+      margin-top: 2px;
+    }
+    .accuracy-bar-container {
+      margin-bottom: 12px;
+    }
+    .accuracy-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #8b949e;
+      margin-bottom: 4px;
+    }
+    .accuracy-bar {
+      height: 8px;
+      background: #0d1117;
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid #30363d;
+    }
+    .accuracy-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.4s ease;
+    }
+    .accuracy-fill.green { background: #3fb950; }
+    .accuracy-fill.amber { background: #d29922; }
+    .accuracy-fill.red { background: #f85149; }
+    .accuracy-detail {
+      font-size: 11px;
+      color: #8b949e;
+      margin-top: 3px;
+    }
+    .weights-table, .stocks-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .weights-table th, .stocks-table th {
+      text-align: left;
+      color: #8b949e;
+      font-weight: 500;
+      padding: 6px 8px;
+      border-bottom: 1px solid #30363d;
+    }
+    .weights-table td, .stocks-table td {
+      padding: 8px 8px;
+      border-bottom: 1px solid #21262d;
+      color: #e6edf3;
+    }
+    .weight-bar-cell {
+      width: 80px;
+    }
+    .weight-bar {
+      height: 6px;
+      background: #0d1117;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .weight-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: linear-gradient(90deg, #00d2ff, #0088ff);
+    }
+    .stocks-table-wrap {
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+    }
+    .stocks-table-wrap::-webkit-scrollbar {
+      width: 6px;
+    }
+    .stocks-table-wrap::-webkit-scrollbar-track {
+      background: #0d1117;
+    }
+    .stocks-table-wrap::-webkit-scrollbar-thumb {
+      background: #30363d;
+      border-radius: 3px;
+    }
+    .stock-row { cursor: pointer; transition: background 0.15s; }
+    .stock-row:hover { background: #1c2128; }
+    .stock-detail {
+      display: none;
+      background: #0d1117;
+    }
+    .stock-detail.open { display: table-row; }
+    .stock-detail td {
+      padding: 10px 12px;
+      font-size: 11px;
+      color: #8b949e;
+    }
+    .stock-weights-mini {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px 12px;
+    }
+    .stock-weights-mini span { color: #e6edf3; }
+    .delta-pos { color: #3fb950; }
+    .delta-neg { color: #f85149; }
+    .algo-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 40px 0;
+      color: #8b949e;
+      font-size: 13px;
+    }
+    .algo-loading .spinner {
+      border-top-color: #00d2ff;
+    }
+    .algo-error {
+      text-align: center;
+      padding: 30px 0;
+      color: #f85149;
+      font-size: 13px;
+    }
+    .algo-no-auth {
+      text-align: center;
+      padding: 30px 0;
+      color: #8b949e;
+      font-size: 13px;
+    }
+    .btn-refresh {
+      background: #21262d;
+      color: #e6edf3;
+      border: 1px solid #30363d;
+      padding: 8px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      width: auto;
+      display: inline-block;
+      margin-top: 12px;
+      transition: background 0.2s;
+    }
+    .btn-refresh:hover { background: #30363d; }
+    .no-data-hint {
+      color: #8b949e;
+      font-size: 12px;
+      font-style: italic;
+      padding: 8px 0;
+    }
   </style>
 </head>
 <body>
@@ -2744,42 +3067,112 @@ function getTRAdminHTML(): string {
         <div class="logo-icon">S</div>
         <h1>Stox<span>View</span> Admin</h1>
       </div>
-      <p class="subtitle">Trade Republic Verbindung verwalten</p>
 
-      <div class="status-bar" id="statusBar">
-        <div class="status-dot disconnected" id="statusDot"></div>
-        <span class="status-text" id="statusText">Status wird geladen...</span>
+      <!-- Tab Navigation -->
+      <div class="tab-nav">
+        <button class="tab-btn active" onclick="switchTab('tr')" id="tabBtnTr">Trade Republic</button>
+        <button class="tab-btn" onclick="switchTab('algo')" id="tabBtnAlgo">Algorithmus</button>
       </div>
 
-      <!-- Step 0: Admin Password -->
-      <div class="step active" id="step0">
-        <label for="adminPw">Admin-Passwort</label>
-        <input type="password" id="adminPw" placeholder="Passwort eingeben" autocomplete="off">
-        <button class="btn-primary" id="btnAuth" onclick="authenticate()">Anmelden</button>
+      <!-- TR Tab Content -->
+      <div class="tab-content active" id="tabTr">
+        <p class="subtitle">Trade Republic Verbindung verwalten</p>
+
+        <div class="status-bar" id="statusBar">
+          <div class="status-dot disconnected" id="statusDot"></div>
+          <span class="status-text" id="statusText">Status wird geladen...</span>
+        </div>
+
+        <!-- Step 0: Admin Password -->
+        <div class="step active" id="step0">
+          <label for="adminPw">Admin-Passwort</label>
+          <input type="password" id="adminPw" placeholder="Passwort eingeben" autocomplete="off">
+          <button class="btn-primary" id="btnAuth" onclick="authenticate()">Anmelden</button>
+        </div>
+
+        <!-- Step 1: Initiate Login -->
+        <div class="step" id="step1">
+          <p style="color:#8b949e;font-size:13px;margin-bottom:16px">
+            Klicke auf "Login starten" um einen 2FA-Code an dein Handy zu senden.
+            Deine TR-Zugangsdaten werden aus den Umgebungsvariablen gelesen.
+          </p>
+          <button class="btn-primary" id="btnLogin" onclick="initiateLogin()">Login starten</button>
+        </div>
+
+        <!-- Step 2: Enter 2FA Code -->
+        <div class="step" id="step2">
+          <label for="code2fa">2FA-Code</label>
+          <input type="text" id="code2fa" placeholder="4-stelliger Code" maxlength="4"
+                 pattern="[0-9]*" inputmode="numeric" autocomplete="one-time-code">
+          <button class="btn-primary" id="btnVerify" onclick="verifyCode()">Verifizieren</button>
+        </div>
+
+        <div class="message" id="msg"></div>
+
+        <div class="session-info" id="sessionInfo" style="display:none">
+          <strong>Session-Info:</strong><br>
+          <span id="sessionDetails"></span>
+        </div>
       </div>
 
-      <!-- Step 1: Initiate Login -->
-      <div class="step" id="step1">
-        <p style="color:#8b949e;font-size:13px;margin-bottom:16px">
-          Klicke auf "Login starten" um einen 2FA-Code an dein Handy zu senden.
-          Deine TR-Zugangsdaten werden aus den Umgebungsvariablen gelesen.
-        </p>
-        <button class="btn-primary" id="btnLogin" onclick="initiateLogin()">Login starten</button>
-      </div>
+      <!-- Algorithm Tab Content -->
+      <div class="tab-content" id="tabAlgo">
+        <div class="algo-no-auth" id="algoNoAuth">
+          Bitte zuerst im Tab "Trade Republic" mit dem Admin-Passwort anmelden.
+        </div>
+        <div id="algoLoading" class="algo-loading" style="display:none">
+          <span class="spinner"></span> Lade Daten...
+        </div>
+        <div id="algoError" class="algo-error" style="display:none"></div>
+        <div id="algoContent" style="display:none">
 
-      <!-- Step 2: Enter 2FA Code -->
-      <div class="step" id="step2">
-        <label for="code2fa">2FA-Code</label>
-        <input type="text" id="code2fa" placeholder="4-stelliger Code" maxlength="4"
-               pattern="[0-9]*" inputmode="numeric" autocomplete="one-time-code">
-        <button class="btn-primary" id="btnVerify" onclick="verifyCode()">Verifizieren</button>
-      </div>
+          <!-- Overview -->
+          <div class="algo-section">
+            <h3>Lernstatus</h3>
+            <div class="algo-status-row">
+              <div class="algo-dot" id="algoStatusDot"></div>
+              <span id="algoStatusLabel"></span>
+            </div>
+            <div class="algo-stats">
+              <div class="algo-stat-box">
+                <div class="value" id="algoTotalPred">–</div>
+                <div class="label">Vorhersagen gesamt</div>
+              </div>
+              <div class="algo-stat-box">
+                <div class="value" id="algoEvaluated">–</div>
+                <div class="label">Ausgewertet</div>
+              </div>
+              <div class="algo-stat-box">
+                <div class="value" id="algoWithSignals">–</div>
+                <div class="label">Mit Quellsignalen</div>
+              </div>
+              <div class="algo-stat-box">
+                <div class="value" id="algoRecent">–</div>
+                <div class="label">Letzte 7 Tage</div>
+              </div>
+            </div>
+          </div>
 
-      <div class="message" id="msg"></div>
+          <!-- Accuracy -->
+          <div class="algo-section">
+            <h3>Genauigkeit</h3>
+            <div id="algoAccuracy"></div>
+          </div>
 
-      <div class="session-info" id="sessionInfo" style="display:none">
-        <strong>Session-Info:</strong><br>
-        <span id="sessionDetails"></span>
+          <!-- Weights -->
+          <div class="algo-section">
+            <h3>Quellen-Gewichtung</h3>
+            <div id="algoWeights"></div>
+          </div>
+
+          <!-- Per-stock table -->
+          <div class="algo-section">
+            <h3>Aktien-\u00dcbersicht</h3>
+            <div id="algoStocks"></div>
+          </div>
+
+          <button class="btn-refresh" onclick="fetchAlgoStats()">Aktualisieren</button>
+        </div>
       </div>
     </div>
   </div>
@@ -2787,10 +3180,28 @@ function getTRAdminHTML(): string {
   <script>
     let adminToken = '';
     let processId = '';
+    let algoDataLoaded = false;
+    let algoStatsCache = null;
 
     // Detect base path: if served under /stoxview-api/, API calls need that prefix
-    const basePath = window.location.pathname.replace(/\/admin\/tr\/?$/, '').replace(/\/$/, '');
+    const basePath = window.location.pathname.replace(/\\/admin\\/tr\\/?$/, '').replace(/\\/$/, '');
     function apiUrl(path) { return basePath + path; }
+
+    // Tab switching
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      if (tab === 'tr') {
+        document.getElementById('tabBtnTr').classList.add('active');
+        document.getElementById('tabTr').classList.add('active');
+      } else {
+        document.getElementById('tabBtnAlgo').classList.add('active');
+        document.getElementById('tabAlgo').classList.add('active');
+        if (adminToken && !algoDataLoaded) {
+          fetchAlgoStats();
+        }
+      }
+    }
 
     // Check status on load
     fetchStatus();
@@ -2841,6 +3252,8 @@ function getTRAdminHTML(): string {
       if (!adminToken) { showMsg('Bitte Passwort eingeben', 'error'); return; }
       hideMsg();
       showStep(1);
+      // Update algo tab auth state
+      document.getElementById('algoNoAuth').style.display = 'none';
     }
 
     // Enter-key on password field
@@ -2925,6 +3338,197 @@ function getTRAdminHTML(): string {
         btn.disabled = false;
         btn.textContent = 'Verifizieren';
       }
+    }
+
+    // ─── Algorithm Tab ───────────────────────────────
+
+    const SOURCE_NAMES = {
+      webSentiment: 'Web-Nachrichten',
+      analystRating: 'Analysten',
+      finnhubSentiment: 'Finnhub',
+      technicalSignal: 'Technische Analyse',
+      fearGreedSignal: 'Fear & Greed'
+    };
+
+    async function fetchAlgoStats() {
+      const loading = document.getElementById('algoLoading');
+      const error = document.getElementById('algoError');
+      const content = document.getElementById('algoContent');
+      const noAuth = document.getElementById('algoNoAuth');
+
+      if (!adminToken) {
+        noAuth.style.display = 'block';
+        loading.style.display = 'none';
+        error.style.display = 'none';
+        content.style.display = 'none';
+        return;
+      }
+
+      noAuth.style.display = 'none';
+      loading.style.display = 'flex';
+      error.style.display = 'none';
+      content.style.display = 'none';
+
+      try {
+        const res = await fetch(apiUrl('/api/admin/algorithm-stats'), {
+          headers: { 'Authorization': 'Bearer ' + adminToken }
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Fehler ' + res.status);
+        }
+        const data = await res.json();
+        algoStatsCache = data;
+        algoDataLoaded = true;
+        renderAlgoStats(data);
+        loading.style.display = 'none';
+        content.style.display = 'block';
+      } catch (err) {
+        loading.style.display = 'none';
+        error.style.display = 'block';
+        error.innerHTML = 'Fehler beim Laden: ' + escapeHtml(err.message) +
+          '<br><button class="btn-refresh" onclick="fetchAlgoStats()" style="margin-top:10px">Erneut versuchen</button>';
+      }
+    }
+
+    function escapeHtml(str) {
+      const d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
+    }
+
+    function renderAlgoStats(data) {
+      // Use first user (single-user admin view)
+      const user = data.users && data.users[0];
+      if (!user) {
+        document.getElementById('algoContent').innerHTML = '<p class="no-data-hint">Keine Nutzerdaten vorhanden.</p>';
+        return;
+      }
+
+      // Overview
+      const isActive = user.learning && user.learning.isActive;
+      const dot = document.getElementById('algoStatusDot');
+      const label = document.getElementById('algoStatusLabel');
+      dot.className = 'algo-dot ' + (isActive ? 'active' : 'collecting');
+      label.textContent = isActive ? 'Aktiv' : 'Sammelt Daten';
+
+      document.getElementById('algoTotalPred').textContent = user.totalPredictions || 0;
+      document.getElementById('algoEvaluated').textContent = user.evaluated || 0;
+      document.getElementById('algoWithSignals').textContent = user.withSourceSignals || 0;
+      document.getElementById('algoRecent').textContent = user.recentCount || 0;
+
+      // Accuracy
+      renderAccuracy(user.accuracy);
+
+      // Weights
+      renderWeights(data.defaults, user.learning);
+
+      // Stocks
+      renderStocks(user.stocks);
+    }
+
+    function renderAccuracy(accuracy) {
+      const container = document.getElementById('algoAccuracy');
+      if (!accuracy || (accuracy.shortTerm.total === 0 && accuracy.mediumTerm.total === 0 && accuracy.longTerm.total === 0)) {
+        container.innerHTML = '<p class="no-data-hint">Noch keine ausgewerteten Vorhersagen</p>';
+        return;
+      }
+      const terms = [
+        { key: 'shortTerm', label: 'Kurzfristig' },
+        { key: 'mediumTerm', label: 'Mittelfristig' },
+        { key: 'longTerm', label: 'Langfristig' }
+      ];
+      let html = '';
+      for (const t of terms) {
+        const d = accuracy[t.key];
+        const pct = d.pct !== null && d.pct !== undefined ? d.pct : 0;
+        const hasData = d.total > 0;
+        const colorClass = !hasData ? 'red' : pct > 65 ? 'green' : pct > 45 ? 'amber' : 'red';
+        html += '<div class="accuracy-bar-container">' +
+          '<div class="accuracy-label"><span>' + t.label + '</span><span>' + (hasData ? pct.toFixed(1) + '%' : '–') + '</span></div>' +
+          '<div class="accuracy-bar"><div class="accuracy-fill ' + colorClass + '" style="width:' + (hasData ? pct : 0) + '%"></div></div>' +
+          '<div class="accuracy-detail">' + (hasData ? d.correct + '/' + d.total + ' korrekt' : 'Keine Daten') + '</div>' +
+          '</div>';
+      }
+      container.innerHTML = html;
+    }
+
+    function renderWeights(defaults, learning) {
+      const container = document.getElementById('algoWeights');
+      const keys = ['webSentiment', 'analystRating', 'finnhubSentiment', 'technicalSignal', 'fearGreedSignal'];
+      const isAdaptive = learning && learning.isActive && learning.globalWeights;
+
+      let html = '';
+      if (!isAdaptive) {
+        html += '<p class="no-data-hint" style="margin-bottom:10px">Lernen noch nicht aktiv \u2014 Standardgewichte werden verwendet</p>';
+      }
+      html += '<table class="weights-table"><thead><tr>' +
+        '<th>Quelle</th><th>Standard</th>' + (isAdaptive ? '<th>Gelernt</th><th>\u00c4nderung</th>' : '') + '<th class="weight-bar-cell"></th>' +
+        '</tr></thead><tbody>';
+      for (const k of keys) {
+        const def = defaults[k] || 0;
+        const learned = isAdaptive && learning.globalWeights[k] !== undefined ? learning.globalWeights[k] : def;
+        const adj = isAdaptive && learning.globalAdjustments && learning.globalAdjustments[k] !== undefined ? learning.globalAdjustments[k] : 0;
+        const deltaStr = adj > 0 ? '<span class="delta-pos">+' + (adj * 100).toFixed(1) + '%</span>' :
+                         adj < 0 ? '<span class="delta-neg">' + (adj * 100).toFixed(1) + '%</span>' : '0%';
+        const barWidth = Math.round(learned * 100 / 0.5 * 100); // max assumed 50%
+        html += '<tr>' +
+          '<td>' + SOURCE_NAMES[k] + '</td>' +
+          '<td>' + (def * 100).toFixed(0) + '%</td>' +
+          (isAdaptive ? '<td>' + (learned * 100).toFixed(1) + '%</td><td>' + deltaStr + '</td>' : '') +
+          '<td class="weight-bar-cell"><div class="weight-bar"><div class="weight-bar-fill" style="width:' + Math.min(barWidth, 100) + '%"></div></div></td>' +
+          '</tr>';
+      }
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    }
+
+    function renderStocks(stocks) {
+      const container = document.getElementById('algoStocks');
+      if (!stocks || stocks.length === 0) {
+        container.innerHTML = '<p class="no-data-hint">Noch keine Aktien-Daten vorhanden</p>';
+        return;
+      }
+      const sorted = [...stocks].sort((a, b) => (b.predictions || 0) - (a.predictions || 0));
+      let html = '<div class="stocks-table-wrap"><table class="stocks-table"><thead><tr>' +
+        '<th>Ticker</th><th>Vorhersagen</th><th>Letzte</th><th>Gelernt</th>' +
+        '</tr></thead><tbody>';
+      for (let i = 0; i < sorted.length; i++) {
+        const s = sorted[i];
+        const icon = s.hasLearnedWeights ? '\ud83e\udde0' : '\u2013';
+        const lastDate = s.lastDate || '\u2013';
+        html += '<tr class="stock-row" onclick="toggleStockDetail(' + i + ')">' +
+          '<td><strong>' + escapeHtml(s.ticker) + '</strong></td>' +
+          '<td>' + (s.predictions || 0) + '</td>' +
+          '<td>' + escapeHtml(lastDate) + '</td>' +
+          '<td style="text-align:center">' + icon + '</td>' +
+          '</tr>';
+        // Expandable detail row
+        html += '<tr class="stock-detail" id="stockDetail' + i + '"><td colspan="4">';
+        if (s.hasLearnedWeights && s.learnedWeights) {
+          html += '<div class="stock-weights-mini">';
+          for (const k of Object.keys(SOURCE_NAMES)) {
+            const w = s.learnedWeights[k];
+            const a = s.adjustments && s.adjustments[k];
+            if (w !== undefined) {
+              const deltaStr = a !== undefined ? (a > 0 ? ' <span class="delta-pos">+' + (a * 100).toFixed(1) + '%</span>' :
+                               a < 0 ? ' <span class="delta-neg">' + (a * 100).toFixed(1) + '%</span>' : '') : '';
+              html += '<div>' + SOURCE_NAMES[k] + ': <span>' + (w * 100).toFixed(1) + '%' + deltaStr + '</span></div>';
+            }
+          }
+          html += '</div>';
+        } else {
+          html += '<em style="color:#8b949e">Keine individuellen Gewichte</em>';
+        }
+        html += '</td></tr>';
+      }
+      html += '</tbody></table></div>';
+      container.innerHTML = html;
+    }
+
+    function toggleStockDetail(idx) {
+      const row = document.getElementById('stockDetail' + idx);
+      if (row) row.classList.toggle('open');
     }
   </script>
 </body>

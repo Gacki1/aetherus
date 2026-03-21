@@ -22,6 +22,13 @@ interface PriceChartProps {
 
 type Range = "1mo" | "3mo" | "6mo" | "1y";
 
+const _chartUser = (() => {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("uid") || params.get("user") || "_default";
+  } catch { return "_default"; }
+})();
+
 interface ChartPoint {
   date: string;
   close: number;
@@ -40,7 +47,7 @@ export function PriceChart({ symbol, currentPrice, currency, chartHeight }: Pric
     queryKey: ["/api/history", symbol, range],
     queryFn: async () => {
       const { apiRequest } = await import("@/lib/queryClient");
-      const res = await apiRequest("GET", `/api/history/${symbol}?range=${range}`);
+      const res = await apiRequest("GET", `/api/history/${symbol}?range=${range}&user=${encodeURIComponent(_chartUser)}`);
       return res.json();
     },
     staleTime: 300000,

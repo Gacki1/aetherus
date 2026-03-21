@@ -132,7 +132,11 @@ export default function Dashboard() {
 
   // Main predictions for default stocks
   const { data: predictions = [], isLoading } = useQuery<StockPrediction[]>({
-    queryKey: ["/api/predictions"],
+    queryKey: ["/api/predictions", STOXVIEW_USER],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/predictions?user=${encodeURIComponent(STOXVIEW_USER)}`);
+      return res.json();
+    },
     refetchInterval: 60000, // 60s — match server cache TTL for fresher prices
   });
 
@@ -279,7 +283,7 @@ export default function Dashboard() {
     setIsLoadingPrediction(true);
     setSelectedStock(symbol);
     try {
-      const res = await apiRequest("GET", `/api/predict/${encodeURIComponent(symbol)}`);
+      const res = await apiRequest("GET", `/api/predict/${encodeURIComponent(symbol)}?user=${encodeURIComponent(STOXVIEW_USER)}`);
       const data = await res.json();
       setSearchedPrediction(data);
     } catch {
@@ -296,7 +300,7 @@ export default function Dashboard() {
       await apiRequest("POST", "/api/force-refresh");
 
       // 2. Invalidate every client-side query so React-Query refetches
-      queryClient.invalidateQueries({ queryKey: ["/api/predictions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/predictions", STOXVIEW_USER] });
       queryClient.invalidateQueries({ queryKey: ["/api/watchlist", STOXVIEW_USER] });
       queryClient.invalidateQueries({ queryKey: ["/api/history"] });
       setAutoRefreshCountdown(300);
