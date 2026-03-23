@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import type { NewsSource, StockPrediction } from "@shared/schema";
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from "fs";
 import { join } from "path";
 import { getPriceProvider } from "./price-provider";
 
@@ -1556,6 +1556,27 @@ function saveCategoryWeights(): void {
 // Load on startup
 loadSharedGlobal();
 loadCategoryWeights();
+
+// Preload all prediction histories from disk so the admin panel has data immediately
+function preloadAllHistories(): void {
+  if (!DATA_DIR) return;
+  try {
+    const files = readdirSync(DATA_DIR) as string[];
+    let count = 0;
+    for (const f of files) {
+      const match = f.match(/^prediction-history-(.+)\.json$/);
+      if (match) {
+        const userKey = match[1];
+        getUserHistory(userKey); // triggers lazy load into memory
+        count++;
+      }
+    }
+    if (count > 0) console.log(`[History] Preloaded ${count} user histories from disk`);
+  } catch (err) {
+    console.error("[History] Failed to preload histories:", err);
+  }
+}
+preloadAllHistories();
 
 function getUserLearningState(user: string): LearningState {
   const key = safeUser(user);
