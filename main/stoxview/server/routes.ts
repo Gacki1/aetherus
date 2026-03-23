@@ -2821,6 +2821,31 @@ export async function registerRoutes(
         lastUpdated: w.lastUpdated,
       }));
 
+      // Calculate countdown from actual prediction dates
+      const now = Date.now();
+      let nextShortDays: number | null = null;
+      let nextMedDays: number | null = null;
+      let nextLongDays: number | null = null;
+      let totalEval = 0;
+
+      userHistories.forEach((history) => {
+        for (const e of history) {
+          const entryDate = new Date(e.date).getTime();
+          if (e.actualPriceShort === undefined) {
+            const d = Math.max(0, Math.ceil((entryDate + 7 * 86400000 - now) / 86400000));
+            if (nextShortDays === null || d < nextShortDays) nextShortDays = d;
+          } else { totalEval++; }
+          if (e.actualPriceMedium === undefined) {
+            const d = Math.max(0, Math.ceil((entryDate + 28 * 86400000 - now) / 86400000));
+            if (nextMedDays === null || d < nextMedDays) nextMedDays = d;
+          }
+          if (e.actualPriceLong === undefined) {
+            const d = Math.max(0, Math.ceil((entryDate + 90 * 86400000 - now) / 86400000));
+            if (nextLongDays === null || d < nextLongDays) nextLongDays = d;
+          }
+        }
+      });
+
       res.json({
         defaults: DEFAULT_WEIGHTS,
         users: allUserStats,
@@ -2832,6 +2857,13 @@ export async function registerRoutes(
           globalLastUpdated: sharedGlobalWeights?.lastUpdated || null,
           categories,
           categoryCount: categories.length,
+        },
+        countdown: {
+          nextShortDays,
+          nextMedDays,
+          nextLongDays,
+          totalEvaluated: totalEval,
+          needsForLearning: sharedGlobalWeights ? 0 : Math.max(0, 5 - totalEval),
         },
         timestamp: new Date().toISOString(),
       });
@@ -3740,34 +3772,31 @@ function getTRAdminHTML(): string {
       document.getElementById('statSignals').textContent = totalSignals;
       document.getElementById('statRecent').textContent = totalRecent;
 
-      // Countdown section
+      // Countdown section — uses real dates from API
       const cdEl = document.getElementById('algoCountdown');
-      if (cdEl) {
-        if (totalPred > 0 && totalEval === 0) {
-          // No evaluations yet — show countdown to first short-term eval
-          const daysToShort = 7;
-          const daysToMed = 28;
-          const daysToLong = 90;
-          const needMore = Math.max(0, 5 - totalEval);
-          cdEl.style.display = 'block';
-          cdEl.innerHTML =
-            '<div class="cd-title">N\u00e4chste Auswertungen</div>' +
-            renderCountdownBar('Kurzfristig', daysToShort, 7) +
-            renderCountdownBar('Mittelfristig', daysToMed, 28) +
-            renderCountdownBar('Langfristig', daysToLong, 90) +
-            '<div class="cd-note">' + totalEval + ' ausgewertet \u00b7 ' + needMore + ' weitere n\u00f6tig f\u00fcr Lernen</div>';
-        } else if (totalEval > 0 && !isActive) {
-          const needMore = Math.max(0, 5 - totalEval);
-          cdEl.style.display = 'block';
-          cdEl.innerHTML =
-            '<div class="cd-note">' + totalEval + ' ausgewertet \u00b7 ' + needMore + ' weitere n\u00f6tig f\u00fcr Lernen</div>';
-        } else if (isActive) {
-          cdEl.style.display = 'block';
-          cdEl.innerHTML =
-            '<div class="cd-note" style="color:#3fb950">' + (learning.globalEvaluatedCount || 0) + ' Vorhersagen ausgewertet \u00b7 ' + (learning.categoryCount || 0) + ' Kategorie-Modelle aktiv</div>';
-        } else {
-          cdEl.style.display = 'none';
+      const cd = data.countdown || {};
+      if (cdEl && totalPred > 0) {
+        cdEl.style.display = 'block';
+        let cdHtml = '<div class="cd-title">N\u00e4chste Auswertungen</div>';
+        if (cd.nextShortDays !== null && cd.nextShortDays !== undefined) {
+          cdHtml += renderCountdownBar('Kurzfristig', cd.nextShortDays, 7);
         }
+        if (cd.nextMedDays !== null && cd.nextMedDays !== undefined) {
+          cdHtml += renderCountdownBar('Mittelfristig', cd.nextMedDays, 28);
+        }
+        if (cd.nextLongDays !== null && cd.nextLongDays !== undefined) {
+          cdHtml += renderCountdownBar('Langfristig', cd.nextLongDays, 90);
+        }
+        if (isActive) {
+          cdHtml += '<div class="cd-note" style="color:#3fb950">' + (learning.globalEvaluatedCount || 0) + ' Vorhersagen ausgewertet \u00b7 ' + (learning.categoryCount || 0) + ' Kategorie-Modelle aktiv</div>';
+        } else {
+          const evald = cd.totalEvaluated || 0;
+          const need = cd.needsForLearning || 0;
+          cdHtml += '<div class="cd-note">' + evald + ' ausgewertet \u00b7 ' + need + ' weitere n\u00f6tig f\u00fcr Lernen</div>';
+        }
+        cdEl.innerHTML = cdHtml;
+      } else if (cdEl) {
+        cdEl.style.display = 'none';
       }
     }
 
