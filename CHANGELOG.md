@@ -4,7 +4,53 @@ Full development history of Aetherus — all changes documented by date and phas
 
 **Repository:** [github.com/Gacki1/aetherus](https://github.com/Gacki1/aetherus)  
 **Live:** [aetherus.net](https://aetherus.net)  
-**Stats:** 320+ commits · ~14,000 lines of code · 16 pages · 8 migrations
+**Stats:** 335+ commits · ~15,000 lines of code · 16 pages · 8 migrations
+
+---
+
+## [2026-03-23] Trade Republic Connection + Learning Model Rework
+
+TR login fully working via headless Chromium, global learning model with category-based weights.
+
+### Trade Republic login via headless Chromium
+
+- TR's AWS WAF blocks all non-browser HTTP clients via TLS fingerprinting (403 Forbidden)
+- Solution: puppeteer-core + system Chromium for login API calls
+- Browser launches for login, stays alive for 2FA verification, then closes
+- Cookies extracted from Chrome and used for WebSocket auth
+- TR now uses `tr_claims` (JWT) instead of `tr_session` — updated cookie extraction
+- WebSocket connects with cookies + browser headers + web trading platform context
+- Docker image updated with Chromium + dependencies
+- Node.js upgraded from 20 to 22 (yahoo-finance2 requirement)
+- `TR_PHONE`, `TR_PIN`, `TR_ADMIN_PASSWORD`, `POLYGON_API_KEY` added to docker-compose.yml
+
+### Single global model + category-based learning
+
+- Replaced per-user learning with one shared global model
+- Everyone sees the same predictions — no confusion between users
+- All users' prediction outcomes feed into a single set of weights
+- Category-based learning: stocks grouped into 12 sectors (Technology, Finance, Automotive, Healthcare, Industrial, Energy, Consumer, Internet, Telecom, Real Estate, Materials, Other)
+- ~50 Yahoo industries mapped to broad categories
+- Category weights blended 60/40 with global for stability
+- Priority: category > global > defaults
+- Learning badge shows sector name when category weights are active
+
+### Evaluation countdown timers
+
+- User-facing: 3 progress bars in prediction history (Kurzfristig/Mittelfristig/Langfristig)
+- Admin-facing: same countdown in Algorithmus-Status card
+- Calculated from actual prediction recording dates (not hardcoded)
+- Shows "X ausgewertet · Y weitere nötig für Lernen" progress
+- Bars fill up daily as evaluation dates approach, turn green when due
+
+### Files changed
+
+- `main/stoxview/server/tr-client.ts` — Puppeteer-based login, tr_claims cookies, WebSocket auth
+- `main/stoxview/server/routes.ts` — Category learning engine, countdown API, admin panel JS
+- `main/stoxview/client/src/components/prediction-history.tsx` — Countdown UI
+- `main/stoxview/client/src/lib/i18n.tsx` — Countdown translations
+- `main/stoxview/Dockerfile` — Node 22 + Chromium
+- `docker-compose.yml` — TR/Polygon env vars
 
 ---
 
