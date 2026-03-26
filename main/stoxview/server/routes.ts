@@ -1578,6 +1578,27 @@ function preloadAllHistories(): void {
 }
 preloadAllHistories();
 
+// Also preload all watchlists so the daily cron knows which stocks to fetch
+function preloadAllWatchlists(): void {
+  if (!DATA_DIR) return;
+  try {
+    const files = readdirSync(DATA_DIR) as string[];
+    let count = 0;
+    for (const f of files) {
+      const match = f.match(/^watchlist-(.+)\.json$/);
+      if (match) {
+        const userKey = match[1];
+        getUserWatchlist(userKey);
+        count++;
+      }
+    }
+    if (count > 0) console.log(`[Watchlist] Preloaded ${count} user watchlists from disk`);
+  } catch (err) {
+    console.error("[Watchlist] Failed to preload:", err);
+  }
+}
+preloadAllWatchlists();
+
 function getUserLearningState(user: string): LearningState {
   const key = safeUser(user);
   if (userLearningStates.has(key)) return userLearningStates.get(key)!;
@@ -2927,6 +2948,76 @@ export async function registerRoutes(
       res.status(500).json({ error: "Failed to fetch algorithm stats." });
     }
   });
+
+  // ═══════════════════════════════════════════════════════════
+  // DAILY PREDICTION RECORDING CRON
+  // Records predictions for ALL watchlist stocks for ALL users
+  // automatically, no user interaction needed.
+  // ═══════════════════════════════════════════════════════════
+  async function dailyPredictionRecording(): Promise<void> {
+    const userKeys = Array.from(userHistories.keys());
+    if (userKeys.length === 0) {
+      console.log("[Cron] No users with history, skipping daily recording");
+      return;
+    }
+
+    console.log(`[Cron] Starting daily prediction recording for ${userKeys.length} users...`);
+    let totalRecorded = 0;
+
+    for (const userKey of userKeys) {
+      const wl = getUserWatchlist(userKey);
+      if (wl.length === 0) continue;
+
+      console.log(`[Cron] User '${userKey}': ${wl.length} watchlist stocks`);
+      for (const item of wl) {
+        try {
+          const prediction = await fetchFullPrediction(item.symbol, userKey);
+          if (prediction) {
+            recordPrediction(prediction, userKey);
+            totalRecorded++;
+          }
+        } catch {
+          // skip failed stocks
+        }
+      }
+    }
+
+    // Also run accuracy evaluation
+    await updateAccuracy().catch((e) => console.error("[Cron] Accuracy update failed:", e));
+
+    console.log(`[Cron] Daily recording complete: ${totalRecorded} predictions recorded`);
+  }
+
+  // Schedule: check every hour, run recording once per day at ~10:00 UTC (12:00 CET)
+  const RECORDING_HOUR_UTC = 10;
+  let lastRecordingDate = "";
+
+  setInterval(async () => {
+    const now = new Date();
+    const today = now.toISOString().split("T")[0];
+    const hour = now.getUTCHours();
+
+    // Run once per day after the target hour
+    if (hour >= RECORDING_HOUR_UTC && lastRecordingDate !== today) {
+      lastRecordingDate = today;
+      try {
+        await dailyPredictionRecording();
+      } catch (err) {
+        console.error("[Cron] Daily recording error:", err);
+      }
+    }
+  }, 60 * 60 * 1000); // check every hour
+
+  // Also run on startup if it's past the recording hour and hasn't run today
+  setTimeout(async () => {
+    const now = new Date();
+    const today = now.toISOString().split("T")[0];
+    if (now.getUTCHours() >= RECORDING_HOUR_UTC && lastRecordingDate !== today) {
+      lastRecordingDate = today;
+      console.log("[Cron] Running initial daily recording (startup catch-up)...");
+      await dailyPredictionRecording().catch((e) => console.error("[Cron] Startup recording error:", e));
+    }
+  }, 30_000); // 30s after startup to let everything initialize
 
   return httpServer;
 }
