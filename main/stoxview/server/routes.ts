@@ -1159,6 +1159,31 @@ function generatePrediction(
 function clamp(n: number, min: number, max: number) { return Math.max(min, Math.min(max, n)); }
 function round2(n: number) { return Math.round(n * 100) / 100; }
 
+/** Evaluate a single timeframe prediction against actual price. Returns quality score 0-100. */
+function evalTimeframe(signal: string, confidence: number, estimatedMove: number | undefined, priceAt: number, actualPrice: number): { directionCorrect: boolean; qualityScore: number; predictedMove: number; actualMove: number } {
+  const actualMove = ((actualPrice - priceAt) / priceAt) * 100;
+  const predictedMove = estimatedMove ?? (signal === "bullish" ? confidence * 0.1 : signal === "bearish" ? -confidence * 0.1 : 0);
+  const directionCorrect =
+    (signal === "bullish" && actualMove > 0.1) ||
+    (signal === "bearish" && actualMove < -0.1) ||
+    (signal === "neutral" && Math.abs(actualMove) < 2);
+  let qualityScore = 0;
+  if (directionCorrect) {
+    qualityScore = 50;
+    if (Math.abs(predictedMove) > 0.1) {
+      const ratio = Math.min(Math.abs(actualMove), Math.abs(predictedMove)) /
+                    Math.max(Math.abs(actualMove), Math.abs(predictedMove));
+      qualityScore += Math.round(ratio * 50);
+    } else {
+      qualityScore += 25;
+    }
+  } else {
+    const error = Math.abs(actualMove - predictedMove);
+    qualityScore = Math.max(0, Math.round(30 - error * 2));
+  }
+  return { directionCorrect, qualityScore: clamp(qualityScore, 0, 100), predictedMove: round2(predictedMove), actualMove: round2(actualMove) };
+}
+
 // ═══════════════════════════════════════════════════════════
 // MULTI-SOURCE ORCHESTRATOR
 // ═══════════════════════════════════════════════════════════
@@ -2088,42 +2113,7 @@ export async function registerRoutes(
         ? history.filter(e => e.ticker === ticker)
         : history;
 
-      // Calculate accuracy stats — magnitude-aware scoring
-      // Each prediction gets a quality score 0-100:
-      //   Direction correct + close magnitude = 80-100
-      //   Direction correct + off magnitude = 40-79
-      //   Direction wrong = 0-39
-      function evalTimeframe(signal: string, confidence: number, estimatedMove: number | undefined, priceAt: number, actualPrice: number): { directionCorrect: boolean; qualityScore: number; predictedMove: number; actualMove: number } {
-        const actualMove = ((actualPrice - priceAt) / priceAt) * 100;
-        const predictedMove = estimatedMove ?? (signal === "bullish" ? confidence * 0.1 : signal === "bearish" ? -confidence * 0.1 : 0);
-        const priceWentUp = actualMove > 0.1;
-        const priceWentDown = actualMove < -0.1;
-        const directionCorrect =
-          (signal === "bullish" && priceWentUp) ||
-          (signal === "bearish" && priceWentDown) ||
-          (signal === "neutral" && Math.abs(actualMove) < 2);
-
-        let qualityScore = 0;
-        if (directionCorrect) {
-          // Base 50 for correct direction
-          qualityScore = 50;
-          // Bonus up to 50 for magnitude accuracy
-          if (Math.abs(predictedMove) > 0.1) {
-            const ratio = Math.min(Math.abs(actualMove), Math.abs(predictedMove)) /
-                          Math.max(Math.abs(actualMove), Math.abs(predictedMove));
-            qualityScore += Math.round(ratio * 50);
-          } else {
-            qualityScore += 25; // neutral prediction, moderate bonus
-          }
-        } else {
-          // Wrong direction — score based on how wrong
-          const error = Math.abs(actualMove - predictedMove);
-          qualityScore = Math.max(0, Math.round(30 - error * 2));
-        }
-
-        return { directionCorrect, qualityScore: clamp(qualityScore, 0, 100), predictedMove: round2(predictedMove), actualMove: round2(actualMove) };
-      }
-
+      // Calculate accuracy stats — using shared evalTimeframe function
       let shortCorrect = 0, shortTotal = 0, shortQualitySum = 0;
       let medCorrect = 0, medTotal = 0, medQualitySum = 0;
       let longCorrect = 0, longTotal = 0, longQualitySum = 0;
@@ -2814,29 +2804,28 @@ export async function registerRoutes(
           e.actualPriceShort !== undefined || e.actualPriceMedium !== undefined || e.actualPriceLong !== undefined
         ).length;
 
-        // Accuracy per timeframe
-        let stCorrect = 0, stTotal = 0, mtCorrect = 0, mtTotal = 0, ltCorrect = 0, ltTotal = 0;
+        // Accuracy per timeframe — magnitude-aware quality scoring
+        let stCorrect = 0, stTotal = 0, stQualitySum = 0;
+        let mtCorrect = 0, mtTotal = 0, mtQualitySum = 0;
+        let ltCorrect = 0, ltTotal = 0, ltQualitySum = 0;
         for (const e of history) {
           if (e.actualPriceShort !== undefined) {
             stTotal++;
-            const up = e.actualPriceShort > e.priceAtPrediction;
-            const down = e.actualPriceShort < e.priceAtPrediction;
-            if ((e.shortTerm.signal === "bullish" && up) || (e.shortTerm.signal === "bearish" && down) ||
-              (e.shortTerm.signal === "neutral" && Math.abs(e.actualPriceShort - e.priceAtPrediction) / e.priceAtPrediction < 0.02)) stCorrect++;
+            const r = evalTimeframe(e.shortTerm.signal, e.shortTerm.confidence, e.shortTerm.estimatedMove, e.priceAtPrediction, e.actualPriceShort);
+            if (r.directionCorrect) stCorrect++;
+            stQualitySum += r.qualityScore;
           }
           if (e.actualPriceMedium !== undefined) {
             mtTotal++;
-            const up = e.actualPriceMedium > e.priceAtPrediction;
-            const down = e.actualPriceMedium < e.priceAtPrediction;
-            if ((e.mediumTerm.signal === "bullish" && up) || (e.mediumTerm.signal === "bearish" && down) ||
-              (e.mediumTerm.signal === "neutral" && Math.abs(e.actualPriceMedium - e.priceAtPrediction) / e.priceAtPrediction < 0.03)) mtCorrect++;
+            const r = evalTimeframe(e.mediumTerm.signal, e.mediumTerm.confidence, e.mediumTerm.estimatedMove, e.priceAtPrediction, e.actualPriceMedium);
+            if (r.directionCorrect) mtCorrect++;
+            mtQualitySum += r.qualityScore;
           }
           if (e.actualPriceLong !== undefined) {
             ltTotal++;
-            const up = e.actualPriceLong > e.priceAtPrediction;
-            const down = e.actualPriceLong < e.priceAtPrediction;
-            if ((e.longTerm.signal === "bullish" && up) || (e.longTerm.signal === "bearish" && down) ||
-              (e.longTerm.signal === "neutral" && Math.abs(e.actualPriceLong - e.priceAtPrediction) / e.priceAtPrediction < 0.05)) ltCorrect++;
+            const r = evalTimeframe(e.longTerm.signal, e.longTerm.confidence, e.longTerm.estimatedMove, e.priceAtPrediction, e.actualPriceLong);
+            if (r.directionCorrect) ltCorrect++;
+            ltQualitySum += r.qualityScore;
           }
         }
 
@@ -2879,9 +2868,9 @@ export async function registerRoutes(
           evaluated,
           recentCount: recentEntries.length,
           accuracy: {
-            shortTerm: { total: stTotal, correct: stCorrect, pct: stTotal > 0 ? round2((stCorrect / stTotal) * 100) : null },
-            mediumTerm: { total: mtTotal, correct: mtCorrect, pct: mtTotal > 0 ? round2((mtCorrect / mtTotal) * 100) : null },
-            longTerm: { total: ltTotal, correct: ltCorrect, pct: ltTotal > 0 ? round2((ltCorrect / ltTotal) * 100) : null },
+            shortTerm: { total: stTotal, correct: stCorrect, pct: stTotal > 0 ? round2((stCorrect / stTotal) * 100) : null, quality: stTotal > 0 ? round2(stQualitySum / stTotal) : null },
+            mediumTerm: { total: mtTotal, correct: mtCorrect, pct: mtTotal > 0 ? round2((mtCorrect / mtTotal) * 100) : null, quality: mtTotal > 0 ? round2(mtQualitySum / mtTotal) : null },
+            longTerm: { total: ltTotal, correct: ltCorrect, pct: ltTotal > 0 ? round2((ltCorrect / ltTotal) * 100) : null, quality: ltTotal > 0 ? round2(ltQualitySum / ltTotal) : null },
           },
           stocks: stockBreakdown,
         });
@@ -3980,13 +3969,18 @@ function getTRAdminHTML(): string {
       let h = '';
       for (const t of terms) {
         const d = acc[t.key];
-        const pct = d.pct !== null && d.pct !== undefined ? d.pct : 0;
+        const quality = d.quality !== null && d.quality !== undefined ? d.quality : null;
+        const dirPct = d.pct !== null && d.pct !== undefined ? d.pct : 0;
         const hasData = d.total > 0;
-        const cls = !hasData ? 'gray' : pct >= 65 ? 'green' : pct >= 45 ? 'amber' : 'red';
+        const displayVal = quality !== null ? quality : dirPct;
+        const cls = !hasData ? 'gray' : displayVal >= 65 ? 'green' : displayVal >= 45 ? 'amber' : 'red';
+        const detailText = hasData
+          ? d.correct + '/' + d.total + ' Richtung korrekt \u00b7 Qualit\u00e4t: ' + (quality !== null ? quality.toFixed(0) + '/100' : '\u2013')
+          : 'Keine Daten';
         h += '<div class="acc-bar-wrap">' +
-          '<div class="acc-header"><span>' + t.label + '</span><span>' + (hasData ? pct.toFixed(1) + '%' : '\u2013') + '</span></div>' +
-          '<div class="acc-track"><div class="acc-fill ' + cls + '" style="width:' + (hasData ? pct : 0) + '%"></div></div>' +
-          '<div class="acc-detail">' + (hasData ? d.correct + '/' + d.total + ' korrekt' : 'Keine Daten') + '</div>' +
+          '<div class="acc-header"><span>' + t.label + '</span><span>' + (hasData ? displayVal.toFixed(1) + '%' : '\u2013') + '</span></div>' +
+          '<div class="acc-track"><div class="acc-fill ' + cls + '" style="width:' + (hasData ? displayVal : 0) + '%"></div></div>' +
+          '<div class="acc-detail">' + detailText + '</div>' +
           '</div>';
       }
       container.innerHTML = h;
