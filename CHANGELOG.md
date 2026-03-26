@@ -4,7 +4,50 @@ Full development history of Aetherus — all changes documented by date and phas
 
 **Repository:** [github.com/Gacki1/aetherus](https://github.com/Gacki1/aetherus)  
 **Live:** [aetherus.net](https://aetherus.net)  
-**Stats:** 335+ commits · ~15,000 lines of code · 16 pages · 8 migrations
+**Stats:** 340+ commits · ~16,000 lines of code · 16 pages · 8 migrations
+
+---
+
+## [2026-03-26] Daily Cron, Magnitude Accuracy + Evaluation Fix
+
+Predictions now recorded automatically server-side. Accuracy scoring reworked to show quality, not just direction.
+
+### Server-side daily prediction cron
+
+- Runs daily at 12:00 CET (10:00 UTC) — no user interaction needed
+- Fetches predictions for ALL watchlist stocks for ALL users
+- Records to history with full source signals
+- Runs accuracy evaluation on older predictions
+- Triggers learning engine if enough data
+- Catches up on startup if past recording hour
+- Preloads all watchlists + histories at startup
+
+### Magnitude-aware accuracy display
+
+- Quality score 0–100 instead of binary hit/miss:
+  - Direction correct + close magnitude = 80–100
+  - Direction correct + off magnitude = 40–79
+  - Direction wrong = 0–39
+- Accuracy rings show quality score instead of just direction %
+- ResultBadge shows actual price move (+2.3%, -1.1%) with color
+
+### Accuracy evaluation fix
+
+- `updateAccuracy()` was silently failing due to Map/Set iterator issue (TS downlevelIteration)
+- Converted to `Array.from()` — evaluations now run correctly
+- Added logging to track evaluation progress
+
+### Other fixes
+
+- Removed batch prediction limit (was 50, now unlimited)
+- Preload all prediction histories + watchlists from disk at startup
+- Admin panel shows data immediately after container restart
+
+### Files changed
+
+- `main/stoxview/server/routes.ts` — Daily cron, accuracy scoring, evaluation fix, preloading
+- `main/stoxview/client/src/components/prediction-history.tsx` — Quality score display, ResultBadge rework
+- `main/stoxview/client/src/pages/dashboard.tsx` — Always fetch watchlist predictions
 
 ---
 
