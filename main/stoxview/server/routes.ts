@@ -1930,8 +1930,13 @@ function recordPrediction(prediction: StockPrediction, user: string): void {
 /** Check old predictions against actual prices and fill in accuracy (runs for all users). */
 async function updateAccuracy(): Promise<void> {
   const now = Date.now();
+  let totalUpdated = 0;
 
-  for (const [userKey, history] of userHistories.entries()) {
+  const userKeys = Array.from(userHistories.keys());
+  for (const userKey of userKeys) {
+    const history = userHistories.get(userKey);
+    if (!history) continue;
+
     const entriesToCheck = history.filter(e => {
       const age = now - new Date(e.date).getTime();
       const ageDays = age / 86400000;
@@ -1944,13 +1949,17 @@ async function updateAccuracy(): Promise<void> {
 
     if (entriesToCheck.length === 0) continue;
 
-    const tickerSet = new Set(entriesToCheck.map(e => e.ticker));
+    const tickers = Array.from(new Set(entriesToCheck.map(e => e.ticker)));
+    console.log(`[Accuracy] Checking ${entriesToCheck.length} entries for ${tickers.length} tickers (user: ${userKey})`);
     const eurRate = await getEurRate();
 
-    for (const ticker of tickerSet) {
+    for (const ticker of tickers) {
       try {
         const quote = await yahooQuote(ticker);
-        if (!quote || !quote.regularMarketPrice) continue;
+        if (!quote || !quote.regularMarketPrice) {
+          console.log(`[Accuracy] No quote for ${ticker}, skipping`);
+          continue;
+        }
 
         const rawCurrency = (quote.currency || "USD").toUpperCase();
         const needsConversion = rawCurrency !== "EUR";
@@ -1962,23 +1971,28 @@ async function updateAccuracy(): Promise<void> {
 
           if (ageDays >= 7 && entry.actualPriceShort === undefined) {
             entry.actualPriceShort = round2(currentPrice);
+            totalUpdated++;
           }
           if (ageDays >= 28 && entry.actualPriceMedium === undefined) {
             entry.actualPriceMedium = round2(currentPrice);
+            totalUpdated++;
           }
           if (ageDays >= 90 && entry.actualPriceLong === undefined) {
             entry.actualPriceLong = round2(currentPrice);
+            totalUpdated++;
           }
         }
-      } catch {
-        // skip failed tickers
+      } catch (err) {
+        console.log(`[Accuracy] Failed for ${ticker}:`, (err as Error).message?.slice(0, 60));
       }
     }
 
     saveUserHistory(userKey);
-
-    // After accuracy is updated, re-run the learning engine to recompute weights
     runLearningEngine(userKey);
+  }
+
+  if (totalUpdated > 0) {
+    console.log(`[Accuracy] Updated ${totalUpdated} evaluations`);
   }
 }
 
