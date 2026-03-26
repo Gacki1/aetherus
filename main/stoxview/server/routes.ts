@@ -2067,47 +2067,64 @@ export async function registerRoutes(
         ? history.filter(e => e.ticker === ticker)
         : history;
 
-      // Calculate accuracy stats
-      let shortCorrect = 0, shortTotal = 0;
-      let medCorrect = 0, medTotal = 0;
-      let longCorrect = 0, longTotal = 0;
+      // Calculate accuracy stats — magnitude-aware scoring
+      // Each prediction gets a quality score 0-100:
+      //   Direction correct + close magnitude = 80-100
+      //   Direction correct + off magnitude = 40-79
+      //   Direction wrong = 0-39
+      function evalTimeframe(signal: string, confidence: number, estimatedMove: number | undefined, priceAt: number, actualPrice: number): { directionCorrect: boolean; qualityScore: number; predictedMove: number; actualMove: number } {
+        const actualMove = ((actualPrice - priceAt) / priceAt) * 100;
+        const predictedMove = estimatedMove ?? (signal === "bullish" ? confidence * 0.1 : signal === "bearish" ? -confidence * 0.1 : 0);
+        const priceWentUp = actualMove > 0.1;
+        const priceWentDown = actualMove < -0.1;
+        const directionCorrect =
+          (signal === "bullish" && priceWentUp) ||
+          (signal === "bearish" && priceWentDown) ||
+          (signal === "neutral" && Math.abs(actualMove) < 2);
+
+        let qualityScore = 0;
+        if (directionCorrect) {
+          // Base 50 for correct direction
+          qualityScore = 50;
+          // Bonus up to 50 for magnitude accuracy
+          if (Math.abs(predictedMove) > 0.1) {
+            const ratio = Math.min(Math.abs(actualMove), Math.abs(predictedMove)) /
+                          Math.max(Math.abs(actualMove), Math.abs(predictedMove));
+            qualityScore += Math.round(ratio * 50);
+          } else {
+            qualityScore += 25; // neutral prediction, moderate bonus
+          }
+        } else {
+          // Wrong direction — score based on how wrong
+          const error = Math.abs(actualMove - predictedMove);
+          qualityScore = Math.max(0, Math.round(30 - error * 2));
+        }
+
+        return { directionCorrect, qualityScore: clamp(qualityScore, 0, 100), predictedMove: round2(predictedMove), actualMove: round2(actualMove) };
+      }
+
+      let shortCorrect = 0, shortTotal = 0, shortQualitySum = 0;
+      let medCorrect = 0, medTotal = 0, medQualitySum = 0;
+      let longCorrect = 0, longTotal = 0, longQualitySum = 0;
 
       for (const e of entries) {
         if (e.actualPriceShort !== undefined) {
           shortTotal++;
-          const priceWentUp = e.actualPriceShort > e.priceAtPrediction;
-          const priceWentDown = e.actualPriceShort < e.priceAtPrediction;
-          if (
-            (e.shortTerm.signal === "bullish" && priceWentUp) ||
-            (e.shortTerm.signal === "bearish" && priceWentDown) ||
-            (e.shortTerm.signal === "neutral" && Math.abs(e.actualPriceShort - e.priceAtPrediction) / e.priceAtPrediction < 0.02)
-          ) {
-            shortCorrect++;
-          }
+          const r = evalTimeframe(e.shortTerm.signal, e.shortTerm.confidence, e.shortTerm.estimatedMove, e.priceAtPrediction, e.actualPriceShort);
+          if (r.directionCorrect) shortCorrect++;
+          shortQualitySum += r.qualityScore;
         }
         if (e.actualPriceMedium !== undefined) {
           medTotal++;
-          const priceWentUp = e.actualPriceMedium > e.priceAtPrediction;
-          const priceWentDown = e.actualPriceMedium < e.priceAtPrediction;
-          if (
-            (e.mediumTerm.signal === "bullish" && priceWentUp) ||
-            (e.mediumTerm.signal === "bearish" && priceWentDown) ||
-            (e.mediumTerm.signal === "neutral" && Math.abs(e.actualPriceMedium - e.priceAtPrediction) / e.priceAtPrediction < 0.03)
-          ) {
-            medCorrect++;
-          }
+          const r = evalTimeframe(e.mediumTerm.signal, e.mediumTerm.confidence, e.mediumTerm.estimatedMove, e.priceAtPrediction, e.actualPriceMedium);
+          if (r.directionCorrect) medCorrect++;
+          medQualitySum += r.qualityScore;
         }
         if (e.actualPriceLong !== undefined) {
           longTotal++;
-          const priceWentUp = e.actualPriceLong > e.priceAtPrediction;
-          const priceWentDown = e.actualPriceLong < e.priceAtPrediction;
-          if (
-            (e.longTerm.signal === "bullish" && priceWentUp) ||
-            (e.longTerm.signal === "bearish" && priceWentDown) ||
-            (e.longTerm.signal === "neutral" && Math.abs(e.actualPriceLong - e.priceAtPrediction) / e.priceAtPrediction < 0.05)
-          ) {
-            longCorrect++;
-          }
+          const r = evalTimeframe(e.longTerm.signal, e.longTerm.confidence, e.longTerm.estimatedMove, e.priceAtPrediction, e.actualPriceLong);
+          if (r.directionCorrect) longCorrect++;
+          longQualitySum += r.qualityScore;
         }
       }
 
@@ -2143,18 +2160,21 @@ export async function registerRoutes(
           total: shortTotal,
           correct: shortCorrect,
           accuracy: shortTotal > 0 ? round2((shortCorrect / shortTotal) * 100) : null,
+          quality: shortTotal > 0 ? round2(shortQualitySum / shortTotal) : null,
           nextEvalDays: nextShortDays,
         },
         mediumTerm: {
           total: medTotal,
           correct: medCorrect,
           accuracy: medTotal > 0 ? round2((medCorrect / medTotal) * 100) : null,
+          quality: medTotal > 0 ? round2(medQualitySum / medTotal) : null,
           nextEvalDays: nextMedDays,
         },
         longTerm: {
           total: longTotal,
           correct: longCorrect,
           accuracy: longTotal > 0 ? round2((longCorrect / longTotal) * 100) : null,
+          quality: longTotal > 0 ? round2(longQualitySum / longTotal) : null,
           nextEvalDays: nextLongDays,
         },
         countdown: {

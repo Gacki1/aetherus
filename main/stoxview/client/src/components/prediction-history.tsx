@@ -45,9 +45,9 @@ interface PredictionEntry {
 
 interface AccuracyData {
   totalPredictions: number;
-  shortTerm: { total: number; correct: number; accuracy: number | null; nextEvalDays?: number | null };
-  mediumTerm: { total: number; correct: number; accuracy: number | null; nextEvalDays?: number | null };
-  longTerm: { total: number; correct: number; accuracy: number | null; nextEvalDays?: number | null };
+  shortTerm: { total: number; correct: number; accuracy: number | null; quality?: number | null; nextEvalDays?: number | null };
+  mediumTerm: { total: number; correct: number; accuracy: number | null; quality?: number | null; nextEvalDays?: number | null };
+  longTerm: { total: number; correct: number; accuracy: number | null; quality?: number | null; nextEvalDays?: number | null };
   countdown?: {
     nextShortDays: number | null;
     nextMedDays: number | null;
@@ -125,10 +125,11 @@ function SignalDot({ signal }: { signal: string }) {
   return <Minus className="w-3 h-3 text-zinc-400" />;
 }
 
-function ResultBadge({ signal, priceAtPrediction, actualPrice }: {
+function ResultBadge({ signal, priceAtPrediction, actualPrice, estimatedMove }: {
   signal: string;
   priceAtPrediction: number;
   actualPrice: number | undefined;
+  estimatedMove?: number;
 }) {
   const { t } = useI18n();
 
@@ -141,26 +142,22 @@ function ResultBadge({ signal, priceAtPrediction, actualPrice }: {
     );
   }
 
-  const priceWentUp = actualPrice > priceAtPrediction;
-  const priceWentDown = actualPrice < priceAtPrediction;
+  const actualMove = ((actualPrice - priceAtPrediction) / priceAtPrediction) * 100;
+  const priceWentUp = actualMove > 0.1;
+  const priceWentDown = actualMove < -0.1;
   const isCorrect =
     (signal === "bullish" && priceWentUp) ||
     (signal === "bearish" && priceWentDown) ||
-    (signal === "neutral" && Math.abs(actualPrice - priceAtPrediction) / priceAtPrediction < 0.03);
+    (signal === "neutral" && Math.abs(actualMove) < 2);
 
-  if (isCorrect) {
-    return (
-      <span className="inline-flex items-center gap-0.5 text-[10px] text-emerald-400 font-medium">
-        <CheckCircle2 className="w-2.5 h-2.5" />
-        {t("history.hit")}
-      </span>
-    );
-  }
+  const moveStr = `${actualMove >= 0 ? "+" : ""}${actualMove.toFixed(1)}%`;
 
   return (
-    <span className="inline-flex items-center gap-0.5 text-[10px] text-red-400 font-medium">
-      <XCircle className="w-2.5 h-2.5" />
-      {t("history.miss")}
+    <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium ${
+      isCorrect ? "text-emerald-400" : "text-red-400"
+    }`}>
+      {isCorrect ? <CheckCircle2 className="w-2.5 h-2.5" /> : <XCircle className="w-2.5 h-2.5" />}
+      <span className="tabular-nums">{moveStr}</span>
     </span>
   );
 }
@@ -230,6 +227,7 @@ function PredictionRow({ entry }: { entry: PredictionEntry }) {
                 signal={entry.shortTerm.signal}
                 priceAtPrediction={entry.priceAtPrediction}
                 actualPrice={entry.actualPriceShort}
+                estimatedMove={entry.shortTerm.estimatedMove}
               />
             )}
           </div>
@@ -278,7 +276,7 @@ function PredictionRow({ entry }: { entry: PredictionEntry }) {
                     {tf.estimatedMove >= 0 ? "+" : ""}{tf.estimatedMove.toFixed(1)}%
                   </span>
                 )}
-                <ResultBadge signal={tf.signal} priceAtPrediction={entry.priceAtPrediction} actualPrice={actual} />
+                <ResultBadge signal={tf.signal} priceAtPrediction={entry.priceAtPrediction} actualPrice={actual} estimatedMove={tf.estimatedMove} />
               </div>
             ))}
           </div>
@@ -489,9 +487,9 @@ export function PredictionHistory({ ticker, isInWatchlist }: PredictionHistoryPr
           {t("history.accuracy")}
         </h3>
         <div className="flex items-center justify-around py-2">
-          <AccuracyRing accuracy={accuracy.shortTerm.accuracy} label={t("filter.timeframe.short")} />
-          <AccuracyRing accuracy={accuracy.mediumTerm.accuracy} label={t("filter.timeframe.medium")} />
-          <AccuracyRing accuracy={accuracy.longTerm.accuracy} label={t("filter.timeframe.long")} />
+          <AccuracyRing accuracy={accuracy.shortTerm.quality ?? accuracy.shortTerm.accuracy} label={t("filter.timeframe.short")} />
+          <AccuracyRing accuracy={accuracy.mediumTerm.quality ?? accuracy.mediumTerm.accuracy} label={t("filter.timeframe.medium")} />
+          <AccuracyRing accuracy={accuracy.longTerm.quality ?? accuracy.longTerm.accuracy} label={t("filter.timeframe.long")} />
         </div>
         <div className="flex items-center justify-center gap-4 mt-2 text-[10px] text-muted-foreground">
           {accuracy.shortTerm.total > 0 && (

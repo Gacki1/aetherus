@@ -167,12 +167,6 @@ export default function Dashboard() {
     }
 
     const symbols = watchlistItems.map((w) => w.symbol);
-    // Only fetch if we don't already have all of them
-    const missing = symbols.filter(
-      (s) => !watchlistPredictions.some((p) => p.ticker === s)
-    );
-
-    if (missing.length === 0 && watchlistPredictions.length === symbols.length) return;
 
     setIsLoadingWatchlist(true);
     const symbolsStr = symbols.join(",");
