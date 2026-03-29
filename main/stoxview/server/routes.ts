@@ -80,6 +80,26 @@ async function yahooSearch(query: string): Promise<any[]> {
 // ═══════════════════════════════════════════════════════════
 let eurRateCache: { rate: number; timestamp: number } | null = null;
 
+// Industry/sector cache — fetched via quoteSummary (not available in regular quote)
+const industryCache = new Map<string, { industry: string; sector: string; fetchedAt: number }>();
+
+async function getIndustry(symbol: string): Promise<{ industry: string; sector: string }> {
+  const cached = industryCache.get(symbol);
+  if (cached && Date.now() - cached.fetchedAt < 7 * 86400000) { // cache 7 days
+    return { industry: cached.industry, sector: cached.sector };
+  }
+  try {
+    const yf = await getYahoo();
+    const summary = await yf.quoteSummary(symbol, { modules: ["assetProfile"] });
+    const industry = summary.assetProfile?.industry || "N/A";
+    const sector = summary.assetProfile?.sector || "N/A";
+    industryCache.set(symbol, { industry, sector, fetchedAt: Date.now() });
+    return { industry, sector };
+  } catch {
+    return { industry: "N/A", sector: "N/A" };
+  }
+}
+
 async function getEurRate(): Promise<number> {
   // Cache for 30 minutes
   if (eurRateCache && Date.now() - eurRateCache.timestamp < 1800000) {
@@ -1233,8 +1253,14 @@ async function fetchFullPrediction(symbol: string, user?: string): Promise<Stock
     ];
 
     // Phase 3: Get learned weights (self-learning engine) and generate prediction
-    const stockCategory = classifyCategory(quote.industry || "");
+    // Fetch industry from quoteSummary (regular quote doesn't include it)
+    const industryData = await getIndustry(symbol).catch(() => ({ industry: "N/A", sector: "N/A" }));
+    const stockIndustry = industryData.industry;
+    const stockSector = industryData.sector;
+    const stockCategory = classifyCategoryWithSector(stockIndustry, stockSector);
     const learnedW = user ? getLearnedWeights(user, symbol, stockCategory) : null;
+    // Override quote.industry with the resolved value from quoteSummary
+    if (stockIndustry !== "N/A") quote.industry = stockIndustry;
     const prediction = generatePrediction(
       quote, allSources, analystData.rating, symbol, eurRate,
       finnhubSentiment, technicals.overallSignal, fearGreed.signal,
@@ -1481,8 +1507,45 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 function classifyCategory(industry: string): string {
   if (!industry || industry === "N/A") return "other";
-  const lower = industry.toLowerCase();
-  return INDUSTRY_TO_CATEGORY[lower] || "other";
+  // Normalize: Yahoo uses " - " but our map may use "—" or " - "
+  const lower = industry.toLowerCase().replace(/\s*[\u2014\u2013-]\s*/g, " - ").trim();
+  // Direct match
+  const direct = INDUSTRY_TO_CATEGORY[lower];
+  if (direct) return direct;
+  // Try with em-dash variant
+  const emDash = lower.replace(/ - /g, "\u2014");
+  if (INDUSTRY_TO_CATEGORY[emDash]) return INDUSTRY_TO_CATEGORY[emDash];
+  // Partial match: check if any key is contained in the industry
+  for (const [key, cat] of Object.entries(INDUSTRY_TO_CATEGORY)) {
+    const normKey = key.replace(/\s*[\u2014\u2013-]\s*/g, " - ");
+    if (lower.includes(normKey) || normKey.includes(lower)) return cat;
+  }
+  return "other";
+}
+
+/** Fallback: classify by Yahoo sector name if industry didn't match */
+const SECTOR_TO_CATEGORY: Record<string, string> = {
+  "technology": "tech",
+  "communication services": "internet",
+  "financial services": "finance",
+  "consumer cyclical": "consumer",
+  "consumer defensive": "consumer",
+  "healthcare": "pharma",
+  "industrials": "industrial",
+  "energy": "energy",
+  "real estate": "realestate",
+  "basic materials": "materials",
+  "utilities": "energy",
+};
+
+function classifyCategoryWithSector(industry: string, sector: string): string {
+  const cat = classifyCategory(industry);
+  if (cat !== "other") return cat;
+  // Fallback to sector
+  if (sector && sector !== "N/A") {
+    return SECTOR_TO_CATEGORY[sector.toLowerCase()] || "other";
+  }
+  return "other";
 }
 
 /** Default (hardcoded) weights used before learning kicks in. */
